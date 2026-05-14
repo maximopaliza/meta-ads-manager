@@ -2,7 +2,7 @@
 nixPkgs = ["python312", "python312Packages.pip"]
 
 [phases.install]
-cmds = ["pip install -r requirements.txt"]
+cmds = ["python -m venv /opt/venv && /opt/venv/bin/pip install -r requirements.txt"]
 
 [start]
-cmd = "python main.py"
+cmd = "/opt/venv/bin/python main.py"
