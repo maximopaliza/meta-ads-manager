@@ -3,7 +3,6 @@ import logging
 from datetime import date, timedelta
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
-from facebook_business.adobjects.business import Business
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
@@ -25,8 +24,9 @@ class MetaClient:
         self.bm_id = os.environ["META_BM_ID"]
 
     def get_accounts(self) -> list[dict]:
-        bm = Business(self.bm_id)
-        accounts = bm.get_owned_ad_accounts(fields=["id", "name", "currency", "timezone_name"])
+        from facebook_business.adobjects.user import User
+        me = User(fbid="me")
+        accounts = me.get_ad_accounts(fields=["id", "name", "currency", "timezone_name"])
         result = []
         for acc in accounts:
             result.append({
