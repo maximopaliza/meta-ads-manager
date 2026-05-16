@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 import requests
 from datetime import date
@@ -14,11 +15,21 @@ class MetaClient:
 
     def _get(self, path: str, params: dict = None) -> dict:
         p = {"access_token": self.token, **(params or {})}
-        r = requests.get(f"{BASE_URL}/{path}", params=p, timeout=30)
-        data = r.json()
-        if "error" in data:
-            raise Exception(data["error"].get("message", str(data["error"])))
-        return data
+        for attempt in range(3):
+            r = requests.get(f"{BASE_URL}/{path}", params=p, timeout=30)
+            data = r.json()
+            if "error" in data:
+                code = data["error"].get("code", 0)
+                msg = data["error"].get("message", str(data["error"]))
+                if code in (17, 80004) or "limit" in msg.lower():
+                    wait = 60 * (attempt + 1)
+                    logger.warning(f"Rate limit hit, waiting {wait}s...")
+                    time.sleep(wait)
+                    continue
+                raise Exception(msg)
+            time.sleep(0.3)
+            return data
+        raise Exception("Rate limit exceeded after retries")
 
     def get_accounts(self) -> list[dict]:
         data = self._get("me/adaccounts", {"fields": "id,name,currency,timezone_name"})
