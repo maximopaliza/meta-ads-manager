@@ -1,4 +1,5 @@
 import logging
+import traceback
 from datetime import date
 from meta.client import MetaClient
 from db import queries
@@ -58,7 +59,7 @@ def run_sync() -> None:
 
     except Exception as e:
         _sync_failures += 1
-        logger.error(f"Sync failed ({_sync_failures}/{MAX_FAILURES}): {e}")
+        logger.error(f"Sync failed ({_sync_failures}/{MAX_FAILURES}): {e}\n{traceback.format_exc()}")
 
         if _sync_failures >= MAX_FAILURES:
             queries.insert_alert({
