@@ -34,12 +34,6 @@ def run_sync() -> None:
             for insight in week_insights:
                 queries.upsert_metrics(insight)
 
-            for campaign in campaigns:
-                campaign_id = campaign["id"]
-                ad_sets = client.get_ad_sets(campaign_id)
-                for ad_set in ad_sets:
-                    queries.upsert_ad_set(ad_set)
-
         _sync_failures = 0
         logger.info("Sync completed successfully")
 
