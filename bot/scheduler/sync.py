@@ -1,6 +1,5 @@
 import logging
 import traceback
-from datetime import date
 from meta.client import MetaClient
 from db import queries
 
@@ -40,19 +39,6 @@ def run_sync() -> None:
                 ad_sets = client.get_ad_sets(campaign_id)
                 for ad_set in ad_sets:
                     queries.upsert_ad_set(ad_set)
-
-                adset_today = client.get_adset_insights(campaign_id, "today")
-                for insight in adset_today:
-                    queries.upsert_metrics(insight)
-
-                adset_week = client.get_adset_insights(campaign_id, "last_7d")
-                for insight in adset_week:
-                    queries.upsert_metrics(insight)
-
-                for ad_set in ad_sets:
-                    ads = client.get_ads(ad_set["id"])
-                    for ad in ads:
-                        queries.upsert_ad(ad)
 
         _sync_failures = 0
         logger.info("Sync completed successfully")
