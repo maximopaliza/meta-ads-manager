@@ -27,7 +27,7 @@ class MetaClient:
                     time.sleep(wait)
                     continue
                 raise Exception(msg)
-            time.sleep(0.3)
+            time.sleep(2)
             return data
         raise Exception("Rate limit exceeded after retries")
 
