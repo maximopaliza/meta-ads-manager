@@ -27,11 +27,11 @@ def run_sync() -> None:
             for campaign in campaigns:
                 queries.upsert_campaign(campaign)
 
-            today_insights = client.get_account_insights(account_id, "TODAY")
+            today_insights = client.get_account_insights(account_id, "today")
             for insight in today_insights:
                 queries.upsert_metrics(insight)
 
-            week_insights = client.get_account_insights(account_id, "LAST_7_D")
+            week_insights = client.get_account_insights(account_id, "last_7d")
             for insight in week_insights:
                 queries.upsert_metrics(insight)
 
@@ -41,11 +41,11 @@ def run_sync() -> None:
                 for ad_set in ad_sets:
                     queries.upsert_ad_set(ad_set)
 
-                adset_today = client.get_adset_insights(campaign_id, "TODAY")
+                adset_today = client.get_adset_insights(campaign_id, "today")
                 for insight in adset_today:
                     queries.upsert_metrics(insight)
 
-                adset_week = client.get_adset_insights(campaign_id, "LAST_7_D")
+                adset_week = client.get_adset_insights(campaign_id, "last_7d")
                 for insight in adset_week:
                     queries.upsert_metrics(insight)
 
