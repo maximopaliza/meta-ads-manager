@@ -7,6 +7,8 @@ import AlertsFeed from '@/components/dashboard/AlertsFeed'
 import { formatCurrency, formatROAS, formatNumber, statusEmoji } from '@/lib/utils'
 import AutoRefresh from './AutoRefresh'
 import Link from 'next/link'
+import RangeSelector from '@/components/dashboard/RangeSelector'
+import { Suspense } from 'react'
 
 const CPA_BREAKEVEN = 15
 const CPA_TARGET = 7
@@ -56,7 +58,7 @@ function KPI({ label, value, delta, color, sub }: {
   )
 }
 
-async function getOverviewData() {
+async function getOverviewData(days: number) {
   await headers()
 
   const latestDateRes = await supabaseAdmin
@@ -66,7 +68,8 @@ async function getOverviewData() {
   const today = latestDateRes.data?.[0]?.date ?? new Date().toISOString().split('T')[0]
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
-  const sevenDaysAgo = new Date(todayMs - 7 * 86400000).toISOString().split('T')[0]
+  const rangeStart = new Date(todayMs - days * 86400000).toISOString().split('T')[0]
+  const sevenDaysAgo = rangeStart
 
   const [todayM, yesterdayM, weekM, campaigns, alerts, accountRes] = await Promise.all([
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').eq('date', today),
@@ -184,8 +187,10 @@ async function getOverviewData() {
   return { today, currency, activeCampaigns, dailyData, campaignsWithMetrics, alerts: alerts.data || [], td, t, y, pct }
 }
 
-export default async function OverviewPage() {
-  const { today, currency, activeCampaigns, dailyData, campaignsWithMetrics, alerts, td, t, y, pct } = await getOverviewData()
+export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+  const sp = await searchParams
+  const days = Math.min(30, Math.max(7, Number(sp?.days || 7)))
+  const { today, currency, activeCampaigns, dailyData, campaignsWithMetrics, alerts, td, t, y, pct } = await getOverviewData(days)
 
   const dateLabel = new Date(today + 'T12:00:00Z').toLocaleDateString('es-AR', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -228,6 +233,13 @@ export default async function OverviewPage() {
         <Header title="Overview" subtitle={`Hoy — ${dateLabel}`} />
         <main style={{ padding: '28px 32px', maxWidth: '1400px' }}>
 
+          {/* Range selector */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+            <Suspense fallback={null}>
+              <RangeSelector />
+            </Suspense>
+          </div>
+
           {/* Rows 1-3: 4 cols each */}
           <div style={gridStyle}>
             {row1.map(k => <KPI key={k.label} {...k} />)}
@@ -252,7 +264,7 @@ export default async function OverviewPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: '16px', marginBottom: '24px' }}>
             <div style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden' }}>
               <div style={{ padding: '14px 18px', borderBottom: '1px solid #2D3244' }}>
-                <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#F1F5F9' }}>📅 Últimos 7 días</h3>
+                <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#F1F5F9' }}>📅 Últimos {days} días</h3>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
