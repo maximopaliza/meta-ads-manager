@@ -22,17 +22,39 @@ def run_sync() -> None:
             account_id = account["id"]
             logger.info(f"Syncing account: {account_id}")
 
+            # Campaigns
             campaigns = client.get_campaigns(account_id)
             for campaign in campaigns:
                 queries.upsert_campaign(campaign)
 
-            today_insights = client.get_account_insights(account_id, "today")
-            for insight in today_insights:
-                queries.upsert_metrics(insight)
+            # Ad Sets
+            try:
+                ad_sets = client.get_ad_sets(account_id)
+                for ad_set in ad_sets:
+                    queries.upsert_ad_set(ad_set)
+                logger.info(f"Synced {len(ad_sets)} ad sets for {account_id}")
+            except Exception as e:
+                logger.warning(f"Ad sets sync failed for {account_id}: {e}")
 
-            week_insights = client.get_account_insights(account_id, "last_7d")
-            for insight in week_insights:
-                queries.upsert_metrics(insight)
+            # Campaign-level insights (today + last 7d)
+            for preset in ("today", "last_7d"):
+                try:
+                    insights = client.get_account_insights(account_id, preset, level="campaign")
+                    for insight in insights:
+                        queries.upsert_metrics(insight)
+                    logger.info(f"Synced {len(insights)} campaign insights ({preset}) for {account_id}")
+                except Exception as e:
+                    logger.warning(f"Campaign insights ({preset}) failed for {account_id}: {e}")
+
+            # Ad Set-level insights (today + last 7d)
+            for preset in ("today", "last_7d"):
+                try:
+                    insights = client.get_account_insights(account_id, preset, level="adset")
+                    for insight in insights:
+                        queries.upsert_metrics(insight)
+                    logger.info(f"Synced {len(insights)} adset insights ({preset}) for {account_id}")
+                except Exception as e:
+                    logger.warning(f"Adset insights ({preset}) failed for {account_id}: {e}")
 
         _sync_failures = 0
         logger.info("Sync completed successfully")

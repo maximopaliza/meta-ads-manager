@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://graph.facebook.com/v21.0"
 
+ATC_ACTIONS = {"add_to_cart", "fb_mobile_add_to_cart", "omni_add_to_cart"}
+
 
 class MetaClient:
     def __init__(self):
@@ -60,74 +62,116 @@ class MetaClient:
             })
         return result
 
-    def get_ad_sets(self, campaign_id: str) -> list[dict]:
-        fields = "id,name,status,daily_budget,targeting,campaign_id,updated_time"
-        data = self._get(f"{campaign_id}/adsets", {"fields": fields})
+    def get_ad_sets(self, account_id: str) -> list[dict]:
+        fields = "id,name,status,daily_budget,campaign_id,updated_time"
+        data = self._get(f"{account_id}/adsets", {"fields": fields})
         result = []
         for s in data.get("data", []):
             result.append({
                 "id": s["id"],
-                "campaign_id": campaign_id,
+                "campaign_id": s.get("campaign_id"),
                 "name": s["name"],
                 "status": s["status"],
                 "daily_budget": int(s["daily_budget"]) if s.get("daily_budget") else None,
-                "targeting": dict(s["targeting"]) if s.get("targeting") else None,
                 "updated_at": s.get("updated_time", date.today().isoformat()),
             })
         return result
 
-    def get_ads(self, ad_set_id: str) -> list[dict]:
-        fields = "id,name,status,creative,adset_id,updated_time"
-        data = self._get(f"{ad_set_id}/ads", {"fields": fields})
+    def get_ads(self, account_id: str) -> list[dict]:
+        fields = "id,name,status,adset_id,updated_time"
+        data = self._get(f"{account_id}/ads", {"fields": fields})
         result = []
         for a in data.get("data", []):
             result.append({
                 "id": a["id"],
-                "ad_set_id": ad_set_id,
+                "ad_set_id": a.get("adset_id"),
                 "name": a["name"],
                 "status": a["status"],
-                "creative_id": a.get("creative", {}).get("id"),
+                "creative_id": None,
                 "updated_at": a.get("updated_time", date.today().isoformat()),
             })
         return result
 
     def _parse_insights_row(self, row: dict, object_id: str, object_type: str) -> dict:
-        purchases = sum(int(a["value"]) for a in row.get("actions", []) if a["action_type"] == "purchase")
-        purchase_value = sum(float(av["value"]) for av in row.get("action_values", []) if av["action_type"] == "purchase")
+        actions = row.get("actions", [])
+        action_values = row.get("action_values", [])
+
+        # Purchases
+        purchases = sum(int(a["value"]) for a in actions if a["action_type"] == "purchase")
+        purchase_value = sum(float(av["value"]) for av in action_values if av["action_type"] == "purchase")
+
+        # Add to cart (use highest value across all ATC variants)
+        add_to_cart = 0
+        for a in actions:
+            if a["action_type"] in ATC_ACTIONS:
+                add_to_cart = max(add_to_cart, int(a["value"]))
+
+        # Landing page views
+        landing_page_views = sum(int(a["value"]) for a in actions if a["action_type"] == "landing_page_view")
+
+        # Base metrics
         spend = float(row.get("spend", 0))
         impressions = int(row.get("impressions", 0))
         clicks = int(row.get("clicks", 0))
+
         cpc = float(row["cpc"]) if row.get("cpc") else (spend / clicks if clicks else None)
         cpm = float(row["cpm"]) if row.get("cpm") else (spend / impressions * 1000 if impressions else None)
         roas = purchase_value / spend if spend > 0 else None
+
+        # Calculated rates
+        ctr = (clicks / impressions * 100) if impressions > 0 else None
+        cpa = (spend / purchases) if purchases > 0 else None
+        cost_per_atc = (spend / add_to_cart) if add_to_cart > 0 else None
+
+        # Video metrics
+        video_plays = row.get("video_play_actions", [])
+        video_3s = sum(int(v["value"]) for v in video_plays) if video_plays else 0
+        hook_rate = (video_3s / impressions * 100) if impressions > 0 and video_3s > 0 else None
+
+        video_avg_raw = row.get("video_avg_time_watched_actions", [])
+        video_avg_time_watched = float(video_avg_raw[0]["value"]) if video_avg_raw else None
+
         return {
             "object_id": object_id,
             "object_type": object_type,
             "date": row.get("date_start", date.today().isoformat()),
-            "spend": spend, "impressions": impressions, "clicks": clicks,
-            "purchases": purchases, "purchase_value": purchase_value,
-            "cpc": cpc, "cpm": cpm, "roas": roas,
+            "spend": spend,
+            "impressions": impressions,
+            "clicks": clicks,
+            "purchases": purchases,
+            "purchase_value": purchase_value,
+            "cpc": cpc,
+            "cpm": cpm,
+            "roas": roas,
             "frequency": float(row["frequency"]) if row.get("frequency") else None,
+            "add_to_cart": add_to_cart,
+            "cost_per_atc": cost_per_atc,
+            "landing_page_views": landing_page_views,
+            "hook_rate": hook_rate,
+            "video_avg_time_watched": video_avg_time_watched,
+            "ctr": ctr,
+            "cpa": cpa,
         }
 
-    def get_account_insights(self, account_id: str, date_preset: str) -> list[dict]:
-        fields = "spend,impressions,clicks,actions,action_values,cpc,cpm,frequency,date_start,campaign_id"
-        data = self._get(f"{account_id}/insights", {
-            "fields": fields, "level": "campaign",
-            "date_preset": date_preset, "time_increment": 1,
-        })
-        result = []
-        for row in data.get("data", []):
-            result.append(self._parse_insights_row(row, row.get("campaign_id", account_id), "campaign"))
-        return result
+    def _insights_fields(self, id_field: str) -> str:
+        return (
+            f"spend,impressions,clicks,actions,action_values,"
+            f"cpc,cpm,frequency,date_start,"
+            f"video_play_actions,video_avg_time_watched_actions,{id_field}"
+        )
 
-    def get_adset_insights(self, campaign_id: str, date_preset: str) -> list[dict]:
-        fields = "spend,impressions,clicks,actions,action_values,cpc,cpm,frequency,date_start,adset_id"
-        data = self._get(f"{campaign_id}/insights", {
-            "fields": fields, "level": "adset",
-            "date_preset": date_preset, "time_increment": 1,
+    def get_account_insights(self, account_id: str, date_preset: str, level: str = "campaign") -> list[dict]:
+        id_field = "campaign_id" if level == "campaign" else "adset_id"
+        object_type = "campaign" if level == "campaign" else "ad_set"
+
+        data = self._get(f"{account_id}/insights", {
+            "fields": self._insights_fields(id_field),
+            "level": level,
+            "date_preset": date_preset,
+            "time_increment": 1,
         })
         result = []
         for row in data.get("data", []):
-            result.append(self._parse_insights_row(row, row.get("adset_id", ""), "ad_set"))
+            obj_id = row.get(id_field, account_id)
+            result.append(self._parse_insights_row(row, obj_id, object_type))
         return result
