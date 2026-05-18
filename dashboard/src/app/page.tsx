@@ -214,7 +214,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const row3 = [
     { label: 'ROAS', value: t.roas ? formatROAS(t.roas) : '—', color: roasColor(t.roas), delta: deltaLabel(pct(t.roas, y.roas)) },
     { label: 'Importe gastado', value: formatCurrency(td.spend, currency), delta: deltaLabel(pct(td.spend, yd.spend || 0)) },
-    { label: 'Tráfico efectivo (LPV)', value: formatNumber(td.landing_page_views), delta: deltaLabel(pct(td.landing_page_views, yd.landing_page_views || 0)) },
+    { label: 'Tráfico efectivo', value: (td.link_clicks || td.clicks) > 0 ? `${(td.landing_page_views / (td.link_clicks || td.clicks) * 100).toFixed(2)}%` : '—', sub: `${td.landing_page_views} llegaron`, delta: (() => { const tv = (td.link_clicks || td.clicks) > 0 ? td.landing_page_views / (td.link_clicks || td.clicks) * 100 : null; const yv = (yd.link_clicks || yd.clicks) > 0 ? yd.landing_page_views / (yd.link_clicks || yd.clicks) * 100 : null; return deltaLabel(pct(tv, yv)) })() },
     { label: 'Frecuencia', value: t.frequency ? t.frequency.toFixed(2) : '—', color: t.frequency && t.frequency > 3.5 ? '#EF4444' : '#F1F5F9' },
   ]
   const row4 = [
@@ -273,7 +273,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                   <thead>
                     <tr>
-                      {['Fecha', 'Ventas', 'CPA', 'ROAS', 'Gasto', 'CTR', 'CPM', 'ATC', 'LPV', 'Frec'].map(h => (
+                      {['Fecha', 'Ventas', 'CPA', 'ROAS', 'Gasto', 'CTR', 'CPM', 'ATC', 'Tráf.ef.', 'Frec'].map(h => (
                         <th key={h} style={{ padding: '7px 10px', textAlign: 'right', color: '#64748B', fontWeight: 500, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -293,7 +293,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                           <td style={{ padding: '7px 10px', textAlign: 'right', color: ctrColor(d.ctr) }}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
                           <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
                           <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{d.add_to_cart || 0}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{d.landing_page_views || 0}</td>
+                          <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{(d.clicks || 0) > 0 ? `${(d.landing_page_views / d.clicks * 100).toFixed(1)}%` : '—'}</td>
                           <td style={{ padding: '7px 10px', textAlign: 'right', color: d.frequency && d.frequency > 3.5 ? '#EF4444' : '#F1F5F9' }}>{d.frequency ? d.frequency.toFixed(1) : '—'}</td>
                         </tr>
                       )
@@ -315,7 +315,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                 <thead>
                   <tr>
-                    {['Campaña', '', 'Ventas', 'CPA', 'ROAS', 'Gasto', 'CTR', 'ATC', 'LPV', 'Tend.'].map((h, i) => (
+                    {['Campaña', '', 'Ventas', 'CPA', 'ROAS', 'Gasto', 'CTR', 'ATC', 'Tráf.ef.', 'Tend.'].map((h, i) => (
                       <th key={i} style={{ padding: '7px 10px', textAlign: i <= 1 ? 'left' : 'right', color: '#64748B', fontWeight: 500, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -335,7 +335,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: '#F1F5F9' }}>{formatCurrency(c.m.spend, currency)}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: ctrColor(c.m.ctr) }}>{c.m.ctr ? `${c.m.ctr.toFixed(2)}%` : '—'}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: '#F1F5F9' }}>{c.m.add_to_cart}</td>
-                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#F1F5F9' }}>{c.m.landing_page_views}</td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#F1F5F9' }}>{c.m.link_clicks > 0 ? `${(c.m.landing_page_views / c.m.link_clicks * 100).toFixed(1)}%` : '—'}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: c.trend === '▲' ? '#22C55E' : c.trend === '▼' ? '#EF4444' : '#64748B' }}>{c.trend}</td>
                     </tr>
                   ))}

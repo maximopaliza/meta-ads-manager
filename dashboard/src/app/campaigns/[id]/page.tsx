@@ -148,8 +148,8 @@ export default async function CampaignDetailPage({
                   { label: 'Clics enlace', value: todayKpis.link_clicks > 0 ? formatNumber(todayKpis.link_clicks) : '—', color: '#F1F5F9' },
                   { label: 'ATC', value: todayKpis.add_to_cart > 0 ? String(todayKpis.add_to_cart) : '—', color: '#F1F5F9' },
                   { label: 'Costo/ATC', value: todayKpis.cost_per_atc ? formatCurrency(todayKpis.cost_per_atc, currency) : '—', color: '#F1F5F9' },
-                  { label: 'Impresiones', value: todayKpis.impressions > 0 ? formatNumber(todayKpis.impressions) : '—', color: '#F1F5F9' },
-                  { label: 'Frecuencia', value: todayKpis.frequency ? todayKpis.frequency.toFixed(1) : '—', color: todayKpis.frequency && todayKpis.frequency > 3 ? '#F59E0B' : '#F1F5F9' },
+                  { label: 'Tráfico efectivo', value: todayKpis.link_clicks > 0 ? `${(todayKpis.landing_page_views / todayKpis.link_clicks * 100).toFixed(2)}%` : '—', color: '#F1F5F9' },
+                  { label: 'Frecuencia', value: todayKpis.frequency ? todayKpis.frequency.toFixed(2) : '—', color: todayKpis.frequency && todayKpis.frequency > 3 ? '#F59E0B' : '#F1F5F9' },
                   { label: 'Hook Rate', value: todayKpis.hook_rate ? `${todayKpis.hook_rate.toFixed(1)}%` : '—', color: todayKpis.hook_rate ? (todayKpis.hook_rate >= 40 ? '#22C55E' : todayKpis.hook_rate >= 20 ? '#F59E0B' : '#EF4444') : '#64748B' },
                   { label: 'Video avg', value: todayKpis.video_avg_time_watched ? `${todayKpis.video_avg_time_watched.toFixed(1)}s` : '—', color: '#F1F5F9' },
                 ].map(kpi => (
