@@ -1,5 +1,9 @@
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta, timezone, timedelta as td
 from .client import get_client
+
+def today_arg() -> str:
+    """Fecha de hoy en timezone Argentina (UTC-3)."""
+    return datetime.now(timezone(td(hours=-3))).date().isoformat()
 
 
 def upsert_account(account: dict) -> None:
@@ -48,7 +52,7 @@ def get_campaigns() -> list[dict]:
 
 
 def get_today_metrics() -> list[dict]:
-    today = date.today().isoformat()
+    today = today_arg()
     res = (
         get_client()
         .table("metrics")
@@ -61,7 +65,7 @@ def get_today_metrics() -> list[dict]:
 
 
 def get_campaign_metrics_7d(campaign_id: str) -> list[dict]:
-    seven_days_ago = (date.today() - timedelta(days=7)).isoformat()
+    seven_days_ago = (datetime.now(timezone(td(hours=-3))).date() - timedelta(days=7)).isoformat()
     res = (
         get_client()
         .table("metrics")

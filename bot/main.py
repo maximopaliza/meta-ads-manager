@@ -5,6 +5,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Forzar timezone Argentina en todo el proceso
+os.environ["TZ"] = "America/Argentina/Buenos_Aires"
+try:
+    import time
+    time.tzset()
+except AttributeError:
+    pass  # Windows no tiene tzset, en Railway (Linux) sí funciona
+
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     level=logging.INFO,
@@ -54,9 +62,11 @@ def main() -> None:
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(sync_job, IntervalTrigger(minutes=15), id="sync", replace_existing=True)
-    scheduler.add_job(alerter_job, IntervalTrigger(minutes=5), id="alerter", replace_existing=True)
+    from pytz import timezone as pytz_tz
+    tz_arg = pytz_tz("America/Argentina/Buenos_Aires")
+    scheduler = AsyncIOScheduler(timezone=tz_arg)
+    scheduler.add_job(sync_job, IntervalTrigger(minutes=15, timezone=tz_arg), id="sync", replace_existing=True)
+    scheduler.add_job(alerter_job, IntervalTrigger(minutes=5, timezone=tz_arg), id="alerter", replace_existing=True)
 
     async def post_init(app):
         scheduler.start()

@@ -2,7 +2,11 @@ import os
 import time
 import logging
 import requests
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
+
+def _today_arg() -> str:
+    """Fecha actual en Argentina (UTC-3), sin DST."""
+    return datetime.now(timezone(timedelta(hours=-3))).date().isoformat()
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +62,7 @@ class MetaClient:
                 "objective": c.get("objective"),
                 "daily_budget": int(c["daily_budget"]) if c.get("daily_budget") else None,
                 "lifetime_budget": int(c["lifetime_budget"]) if c.get("lifetime_budget") else None,
-                "updated_at": c.get("updated_time", date.today().isoformat()),
+                "updated_at": c.get("updated_time", _today_arg()),
             })
         return result
 
@@ -73,7 +77,7 @@ class MetaClient:
                 "name": s["name"],
                 "status": s["status"],
                 "daily_budget": int(s["daily_budget"]) if s.get("daily_budget") else None,
-                "updated_at": s.get("updated_time", date.today().isoformat()),
+                "updated_at": s.get("updated_time", _today_arg()),
             })
         return result
 
@@ -88,7 +92,7 @@ class MetaClient:
                 "name": a["name"],
                 "status": a["status"],
                 "creative_id": None,
-                "updated_at": a.get("updated_time", date.today().isoformat()),
+                "updated_at": a.get("updated_time", _today_arg()),
             })
         return result
 
@@ -137,7 +141,7 @@ class MetaClient:
         return {
             "object_id": object_id,
             "object_type": object_type,
-            "date": row.get("date_start", date.today().isoformat()),
+            "date": row.get("date_start", _today_arg()),
             "spend": spend,
             "impressions": impressions,
             "clicks": clicks,
