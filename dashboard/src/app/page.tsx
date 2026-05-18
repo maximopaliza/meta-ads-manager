@@ -183,7 +183,7 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
 
   const activeCampaigns = (campaigns.data || []).filter((c: any) => c.status === 'ACTIVE').length
 
-  return { today, currency, activeCampaigns, dailyData, campaignsWithMetrics, alerts: alerts.data || [], td, t, y, pct }
+  return { today, currency, activeCampaigns, dailyData, campaignsWithMetrics, alerts: alerts.data || [], td, yd, t, y, pct }
 }
 
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
@@ -191,7 +191,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const days = Math.min(90, Math.max(1, Number(sp?.days || 7)))
   const customFrom = sp?.from || null
   const customTo = sp?.to || null
-  const { today, currency, activeCampaigns, dailyData, campaignsWithMetrics, alerts, td, t, y, pct } = await getOverviewData(days, customFrom, customTo)
+  const { today, currency, activeCampaigns, dailyData, campaignsWithMetrics, alerts, td, yd, t, y, pct } = await getOverviewData(days, customFrom, customTo)
 
   const dateLabel = new Date(today + 'T12:00:00Z').toLocaleDateString('es-AR', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -203,18 +203,18 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     { label: 'CPM', value: t.cpm ? formatCurrency(t.cpm, currency) : '—', delta: deltaLabel(pct(t.cpm, y.cpm), true) },
     { label: 'CTR', value: t.ctr ? `${t.ctr.toFixed(2)}%` : '—', color: ctrColor(t.ctr), delta: deltaLabel(pct(t.ctr, y.ctr)) },
     { label: 'CPC', value: t.cpc ? formatCurrency(t.cpc, currency) : '—', delta: deltaLabel(pct(t.cpc, y.cpc), true) },
-    { label: 'Clics únicos enlace', value: formatNumber(td.link_clicks || td.clicks), delta: deltaLabel(pct(td.link_clicks || td.clicks, (y as any).link_clicks || 0)) },
+    { label: 'Clics únicos enlace', value: formatNumber(td.link_clicks || td.clicks), delta: deltaLabel(pct(td.link_clicks || td.clicks, yd.link_clicks || yd.clicks || 0)) },
   ]
   const row2 = [
-    { label: 'ATC (add to cart)', value: formatNumber(td.add_to_cart), delta: deltaLabel(pct(td.add_to_cart, (y as any).add_to_cart || 0)) },
+    { label: 'ATC (add to cart)', value: formatNumber(td.add_to_cart), delta: deltaLabel(pct(td.add_to_cart, yd.add_to_cart || 0)) },
     { label: 'Costo por ATC', value: t.cost_atc ? formatCurrency(t.cost_atc, currency) : '—', delta: deltaLabel(pct(t.cost_atc, y.cost_atc), true) },
-    { label: 'Resultados (ventas)', value: String(td.purchases), color: td.purchases > 0 ? '#22C55E' : '#64748B', delta: deltaLabel(pct(td.purchases, (y as any).purchases || 0)) },
+    { label: 'Resultados (ventas)', value: String(td.purchases), color: td.purchases > 0 ? '#22C55E' : '#64748B', delta: deltaLabel(pct(td.purchases, yd.purchases || 0)) },
     { label: `CPA (≤$${CPA_TARGET} 🟢 ≤$15 🟡)`, value: t.cpa ? formatCurrency(t.cpa, currency) : '—', color: cpaColor(t.cpa), delta: deltaLabel(pct(t.cpa, y.cpa), true) },
   ]
   const row3 = [
     { label: 'ROAS', value: t.roas ? formatROAS(t.roas) : '—', color: roasColor(t.roas), delta: deltaLabel(pct(t.roas, y.roas)) },
-    { label: 'Importe gastado', value: formatCurrency(td.spend, currency), delta: deltaLabel(pct(td.spend, (y as any).spend || 0)) },
-    { label: 'Tráfico efectivo (LPV)', value: formatNumber(td.landing_page_views), delta: deltaLabel(pct(td.landing_page_views, (y as any).landing_page_views || 0)) },
+    { label: 'Importe gastado', value: formatCurrency(td.spend, currency), delta: deltaLabel(pct(td.spend, yd.spend || 0)) },
+    { label: 'Tráfico efectivo (LPV)', value: formatNumber(td.landing_page_views), delta: deltaLabel(pct(td.landing_page_views, yd.landing_page_views || 0)) },
     { label: 'Frecuencia', value: t.frequency ? t.frequency.toFixed(2) : '—', color: t.frequency && t.frequency > 3.5 ? '#EF4444' : '#F1F5F9' },
   ]
   const row4 = [
