@@ -14,7 +14,7 @@ def _get_model():
     if _model is None:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         _model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro",
+            model_name="gemini-2.0-flash",
             system_instruction=ANALYST_SYSTEM,
         )
     return _model
@@ -38,7 +38,7 @@ def generate_copy(objective: str, creative_description: str) -> dict:
     try:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro",
+            model_name="gemini-2.0-flash",
             system_instruction=COPY_GENERATOR_SYSTEM,
         )
         prompt = f"Objetivo: {objective}\nCreativo: {creative_description}\nGenerá el copy para este anuncio."
@@ -56,7 +56,7 @@ def generate_targeting(audience_description: str) -> dict:
     try:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro",
+            model_name="gemini-2.0-flash",
             system_instruction=TARGETING_GENERATOR_SYSTEM,
         )
         response = model.generate_content(
@@ -73,7 +73,7 @@ def answer_natural_language(question: str, context: str) -> str:
     try:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro",
+            model_name="gemini-2.0-flash",
             system_instruction=NATURAL_LANGUAGE_SYSTEM,
         )
         prompt = f"Datos actuales:\n{context}\n\nPregunta: {question}"
