@@ -113,13 +113,14 @@ class MetaClient:
         spend = float(row.get("spend", 0))
         impressions = int(row.get("impressions", 0))
         clicks = int(row.get("clicks", 0))
+        link_clicks = int(row.get("inline_link_clicks", 0))
 
-        cpc = float(row["cpc"]) if row.get("cpc") else (spend / clicks if clicks else None)
+        cpc = float(row["cpc"]) if row.get("cpc") else (spend / link_clicks if link_clicks else None)
         cpm = float(row["cpm"]) if row.get("cpm") else (spend / impressions * 1000 if impressions else None)
         roas = purchase_value / spend if spend > 0 else None
 
         # Calculated rates
-        ctr = (clicks / impressions * 100) if impressions > 0 else None
+        ctr = (link_clicks / impressions * 100) if impressions > 0 and link_clicks > 0 else (clicks / impressions * 100 if impressions > 0 and clicks > 0 else None)
         cpa = (spend / purchases) if purchases > 0 else None
         cost_per_atc = (spend / add_to_cart) if add_to_cart > 0 else None
 
@@ -138,6 +139,7 @@ class MetaClient:
             "spend": spend,
             "impressions": impressions,
             "clicks": clicks,
+            "link_clicks": link_clicks,
             "purchases": purchases,
             "purchase_value": purchase_value,
             "cpc": cpc,
@@ -155,7 +157,7 @@ class MetaClient:
 
     def _insights_fields(self, id_field: str) -> str:
         return (
-            f"spend,impressions,clicks,actions,action_values,"
+            f"spend,impressions,clicks,inline_link_clicks,actions,action_values,"
             f"cpc,cpm,frequency,date_start,"
             f"video_play_actions,video_avg_time_watched_actions,{id_field}"
         )
