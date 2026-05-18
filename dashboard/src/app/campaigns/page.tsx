@@ -31,13 +31,15 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
   // Aggregate range metrics per campaign
   const rangeAgg = new Map<string, any>()
   for (const m of rangeM.data || []) {
-    const e = rangeAgg.get(m.object_id) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, clicks: 0, add_to_cart: 0 }
+    const e = rangeAgg.get(m.object_id) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, clicks: 0, add_to_cart: 0 }
     rangeAgg.set(m.object_id, {
       spend: e.spend + (m.spend || 0),
       purchases: e.purchases + (m.purchases || 0),
       purchase_value: e.purchase_value + (m.purchase_value || 0),
       impressions: e.impressions + (m.impressions || 0),
       link_clicks: e.link_clicks + (m.link_clicks || 0),
+      unique_link_clicks: e.unique_link_clicks + (m.unique_link_clicks || 0),
+      reach: e.reach + (m.reach || 0),
       clicks: e.clicks + (m.clicks || 0),
       add_to_cart: e.add_to_cart + (m.add_to_cart || 0),
     })
@@ -48,26 +50,25 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
     const ym = yesterdayMap.get(c.id) as any
     const rm = rangeAgg.get(c.id) as any
 
-    const lc = tm?.link_clicks || tm?.clicks || 0
     const todayDerived = {
       spend: tm?.spend ?? 0,
       purchases: tm?.purchases ?? 0,
       roas: tm?.roas ?? null,
       cpa: tm?.purchases > 0 ? tm.spend / tm.purchases : null,
-      ctr: tm?.impressions > 0 && lc > 0 ? lc / tm.impressions * 100 : null,
+      ctr: tm?.ctr ?? null,                              // stored from bot (unique_link_clicks / reach)
       cpm: tm?.cpm ?? null,
-      cpc: tm?.cpc || (lc > 0 ? (tm?.spend || 0) / lc : null),
+      cpc: tm?.cpc ?? null,
       add_to_cart: tm?.add_to_cart ?? 0,
+      unique_link_clicks: tm?.unique_link_clicks ?? 0,   // unique clicks (matches Meta)
       impressions: tm?.impressions ?? 0,
     }
 
-    const rlc = rm?.link_clicks || rm?.clicks || 0
     const rangeDerived = rm ? {
       spend: rm.spend,
       purchases: rm.purchases,
       roas: rm.spend > 0 ? rm.purchase_value / rm.spend : null,
       cpa: rm.purchases > 0 ? rm.spend / rm.purchases : null,
-      ctr: rm.impressions > 0 && rlc > 0 ? rlc / rm.impressions * 100 : null,
+      ctr: rm.reach > 0 && rm.unique_link_clicks > 0 ? rm.unique_link_clicks / rm.reach * 100 : null,
       add_to_cart: rm.add_to_cart,
     } : null
 
@@ -113,6 +114,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                     <th style={thStyle}>CTR</th>
                     <th style={thStyle}>CPM</th>
                     <th style={thStyle}>CPC</th>
+                    <th style={thStyle}>Clics únicos</th>
                     <th style={thStyle}>ATC</th>
                     <th style={{ ...thStyle, borderLeft: '1px solid #2D3244' }}>Ventas {days}d</th>
                     <th style={thStyle}>CPA {days}d</th>
@@ -137,6 +139,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                       <td style={{ ...tdStyle, color: ctrColor(c.today.ctr) }}>{c.today.ctr ? `${c.today.ctr.toFixed(2)}%` : '—'}</td>
                       <td style={{ ...tdStyle, color: '#F1F5F9' }}>{c.today.cpm ? formatCurrency(c.today.cpm, currency) : '—'}</td>
                       <td style={{ ...tdStyle, color: '#F1F5F9' }}>{c.today.cpc ? formatCurrency(c.today.cpc, currency) : '—'}</td>
+                      <td style={{ ...tdStyle, color: '#F1F5F9' }}>{c.today.unique_link_clicks > 0 ? formatNumber(c.today.unique_link_clicks) : '—'}</td>
                       <td style={{ ...tdStyle, color: '#F1F5F9' }}>{c.today.add_to_cart || '—'}</td>
                       <td style={{ ...tdStyle, borderLeft: '1px solid #2D3244', color: c.range?.purchases > 0 ? '#22C55E' : '#64748B' }}>{c.range?.purchases || '—'}</td>
                       <td style={{ ...tdStyle, color: cpaColor(c.range?.cpa), fontWeight: 600 }}>{c.range?.cpa ? formatCurrency(c.range.cpa, currency) : '—'}</td>

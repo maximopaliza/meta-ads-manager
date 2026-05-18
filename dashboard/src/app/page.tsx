@@ -87,7 +87,9 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
     purchase_value: a.purchase_value + (m.purchase_value || 0),
     impressions: a.impressions + (m.impressions || 0),
     clicks: a.clicks + (m.clicks || 0),
-    link_clicks: a.link_clicks + (m.link_clicks || 0),
+    link_clicks: a.link_clicks + (m.link_clicks || 0),           // non-unique (for tráfico efectivo)
+    unique_link_clicks: a.unique_link_clicks + (m.unique_link_clicks || 0), // unique (for display + CTR)
+    reach: a.reach + (m.reach || 0),
     add_to_cart: a.add_to_cart + (m.add_to_cart || 0),
     landing_page_views: a.landing_page_views + (m.landing_page_views || 0),
     // frequency: impressions-weighted average
@@ -98,7 +100,7 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
     video_sum: a.video_sum + ((m.video_avg_time_watched || 0) * (m.impressions || 0)),
     hook_imp: a.hook_imp + (m.impressions || 0),
     hook_sum: a.hook_sum + ((m.hook_rate || 0) * (m.impressions || 0)),
-  }), { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, clicks: 0, link_clicks: 0, add_to_cart: 0, landing_page_views: 0, freq_imp: 0, freq_sum: 0, video_imp: 0, video_sum: 0, hook_imp: 0, hook_sum: 0 })
+  }), { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, clicks: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, add_to_cart: 0, landing_page_views: 0, freq_imp: 0, freq_sum: 0, video_imp: 0, video_sum: 0, hook_imp: 0, hook_sum: 0 })
 
   const td = agg(todayM.data || [])
   const yd = agg(yesterdayM.data || [])
@@ -106,7 +108,7 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
   const calc = (d: typeof td) => ({
     roas: d.spend > 0 ? d.purchase_value / d.spend : null,
     cpa: d.purchases > 0 ? d.spend / d.purchases : null,
-    ctr: d.impressions > 0 && d.link_clicks > 0 ? d.link_clicks / d.impressions * 100 : d.impressions > 0 && d.clicks > 0 ? d.clicks / d.impressions * 100 : null,
+    ctr: d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null,  // CTR único = unique_link_clicks / reach
     cpm: d.impressions > 0 ? d.spend / d.impressions * 1000 : null,
     cpc: d.link_clicks > 0 ? d.spend / d.link_clicks : d.clicks > 0 ? d.spend / d.clicks : null,
     cost_atc: d.add_to_cart > 0 ? d.spend / d.add_to_cart : null,
@@ -164,7 +166,6 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
   const campaignsWithMetrics = (campaigns.data || []).map((c: any) => {
     const tm = todayMap.get(c.id) as any
     const ym = yesterdayMap.get(c.id) as any
-    const lc = tm?.link_clicks || tm?.clicks || 0
     return {
       ...c,
       m: {
@@ -172,9 +173,10 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
         purchases: tm?.purchases ?? 0,
         cpa: tm?.purchases > 0 ? tm.spend / tm.purchases : null,
         roas: tm?.roas ?? null,
-        ctr: tm?.impressions > 0 && lc > 0 ? lc / tm.impressions * 100 : null,
+        ctr: tm?.ctr ?? null,
         add_to_cart: tm?.add_to_cart ?? 0,
-        link_clicks: lc,
+        link_clicks: tm?.link_clicks ?? 0,
+        unique_link_clicks: tm?.unique_link_clicks ?? 0,
         landing_page_views: tm?.landing_page_views ?? 0,
       },
       trend: (tm?.roas ?? 0) > (ym?.roas ?? 0) ? '▲' : (tm?.roas ?? 0) < (ym?.roas ?? 0) ? '▼' : '—',
@@ -203,7 +205,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     { label: 'CPM', value: t.cpm ? formatCurrency(t.cpm, currency) : '—', delta: deltaLabel(pct(t.cpm, y.cpm), true) },
     { label: 'CTR', value: t.ctr ? `${t.ctr.toFixed(2)}%` : '—', color: ctrColor(t.ctr), delta: deltaLabel(pct(t.ctr, y.ctr)) },
     { label: 'CPC', value: t.cpc ? formatCurrency(t.cpc, currency) : '—', delta: deltaLabel(pct(t.cpc, y.cpc), true) },
-    { label: 'Clics únicos enlace', value: formatNumber(td.link_clicks || td.clicks), delta: deltaLabel(pct(td.link_clicks || td.clicks, yd.link_clicks || yd.clicks || 0)) },
+    { label: 'Clics únicos enlace', value: formatNumber(td.unique_link_clicks || 0), delta: deltaLabel(pct(td.unique_link_clicks || 0, yd.unique_link_clicks || 0)) },
   ]
   const row2 = [
     { label: 'ATC (add to cart)', value: formatNumber(td.add_to_cart), delta: deltaLabel(pct(td.add_to_cart, yd.add_to_cart || 0)) },
