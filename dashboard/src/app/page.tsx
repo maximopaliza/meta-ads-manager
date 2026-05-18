@@ -1,5 +1,4 @@
-export const dynamic = 'force-dynamic'
-
+import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
@@ -11,9 +10,23 @@ import { formatCurrency, formatROAS } from '@/lib/utils'
 import AutoRefresh from './AutoRefresh'
 
 async function getOverviewData() {
-  const today = new Date().toISOString().split('T')[0]
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+  // Calling headers() forces dynamic rendering on every request
+  await headers()
+
+  // Use the latest date in Supabase as "today" — avoids server timezone issues
+  const latestDateRes = await supabaseAdmin
+    .from('metrics')
+    .select('date')
+    .eq('object_type', 'campaign')
+    .order('date', { ascending: false })
+    .limit(1)
+
+  const today = latestDateRes.data?.[0]?.date ?? new Date().toISOString().split('T')[0]
+
+  // Compute yesterday and 7-day window relative to latest data date
+  const todayMs = new Date(today + 'T12:00:00Z').getTime()
+  const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
+  const sevenDaysAgo = new Date(todayMs - 7 * 86400000).toISOString().split('T')[0]
 
   const [todayMetrics, yesterdayMetrics, weekMetrics, campaigns, alerts] = await Promise.all([
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').eq('date', today),
@@ -74,11 +87,15 @@ async function getOverviewData() {
     }
   }).sort((a: any, b: any) => b.todayMetrics.spend - a.todayMetrics.spend)
 
-  return { todaySpend, todayRoas, todayPurchases, activeCampaigns, spendDelta, roasDelta, purchasesDelta, dailyData, campaignsWithMetrics, alerts: alerts.data || [] }
+  return { today, todaySpend, todayRoas, todayPurchases, activeCampaigns, spendDelta, roasDelta, purchasesDelta, dailyData, campaignsWithMetrics, alerts: alerts.data || [] }
 }
 
 export default async function OverviewPage() {
   const data = await getOverviewData()
+
+  const dateLabel = new Date(data.today + 'T12:00:00Z').toLocaleDateString('es-AR', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/Argentina/Buenos_Aires'
+  })
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
@@ -87,7 +104,7 @@ export default async function OverviewPage() {
       <div style={{ marginLeft: '240px', flex: 1 }}>
         <Header
           title="Overview"
-          subtitle={`Hoy — ${new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`}
+          subtitle={`Hoy — ${dateLabel}`}
         />
         <main style={{ padding: '32px', maxWidth: '1400px' }}>
           <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
