@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
