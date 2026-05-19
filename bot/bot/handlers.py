@@ -193,16 +193,20 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     ctx_lines = [f"Fecha: {date.today().isoformat()}\n"]
 
+    def _cpa_str(spend, purchases):
+        if purchases and purchases > 0:
+            return f"${spend / purchases:.2f}"
+        return "—"
+
     # Campañas hoy
     ctx_lines.append("=== CAMPAÑAS HOY ===")
     camp_m = {m["object_id"]: m for m in today_camp}
     for c in campaigns:
         m = camp_m.get(c["id"])
         if m and m.get("spend", 0) > 0:
-            cpa = m["spend"] / m["purchases"] if m.get("purchases", 0) > 0 else None
             ctx_lines.append(
                 f"  {c['name']} [{c['status']}]: gasto=${m.get('spend', 0):.2f} | "
-                f"ventas={m.get('purchases', 0)} | CPA={'$'+f\"{cpa:.2f}\" if cpa else '—'} | "
+                f"ventas={m.get('purchases', 0)} | CPA={_cpa_str(m.get('spend', 0), m.get('purchases', 0))} | "
                 f"ROAS={m.get('roas') or 0:.2f}x | ATC={m.get('add_to_cart', 0)} | "
                 f"checkout={m.get('checkout_initiated', 0)}"
             )
@@ -215,10 +219,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         for m in sorted(today_as, key=lambda x: x.get("spend", 0), reverse=True):
             as_obj = as_map.get(m["object_id"])
             name = as_obj["name"] if as_obj else m["object_id"]
-            cpa = m["spend"] / m["purchases"] if m.get("purchases", 0) > 0 else None
             ctx_lines.append(
                 f"  {name}: gasto=${m.get('spend', 0):.2f} | "
-                f"ventas={m.get('purchases', 0)} | CPA={'$'+f\"{cpa:.2f}\" if cpa else '—'} | "
+                f"ventas={m.get('purchases', 0)} | CPA={_cpa_str(m.get('spend', 0), m.get('purchases', 0))} | "
                 f"ATC={m.get('add_to_cart', 0)} | CTR={m.get('ctr') or 0:.2f}% | "
                 f"hook={m.get('hook_rate') or 0:.1f}% | frec={m.get('frequency') or '—'}"
             )
@@ -229,10 +232,9 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         for m in sorted(today_ads, key=lambda x: x.get("spend", 0), reverse=True)[:15]:
             ad_obj = ads_map.get(m["object_id"])
             name = ad_obj["name"] if ad_obj else m["object_id"]
-            cpa = m["spend"] / m["purchases"] if m.get("purchases", 0) > 0 else None
             ctx_lines.append(
                 f"  {name}: gasto=${m.get('spend', 0):.2f} | "
-                f"ventas={m.get('purchases', 0)} | CPA={'$'+f\"{cpa:.2f}\" if cpa else '—'} | "
+                f"ventas={m.get('purchases', 0)} | CPA={_cpa_str(m.get('spend', 0), m.get('purchases', 0))} | "
                 f"ROAS={m.get('roas') or 0:.2f}x | hook={m.get('hook_rate') or 0:.1f}%"
             )
 
