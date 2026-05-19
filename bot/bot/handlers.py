@@ -24,7 +24,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/presupuesto — Cambiar presupuesto diario\n"
         "/crear — Crear una campaña nueva\n\n"
         "<b>Sistema:</b>\n"
-        "/sync — Forzar sync con Meta ahora\n\n"
+        "/sync — Forzar sync con Meta ahora\n"
+        "/backfill [dias] — Importar historial (ej: /backfill 90)\n\n"
         "También podés escribirme en lenguaje natural:\n"
         "<i>\"¿Cuánto gasté hoy?\"</i>\n"
         "<i>\"¿Qué conjunto de anuncios funcionó mejor?\"</i>\n"
@@ -106,6 +107,45 @@ async def cmd_sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Manual sync error: {e}")
         await update.message.reply_text(f"❌ Error en sync: {str(e)[:200]}")
+
+
+async def cmd_backfill(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Trae el histórico completo de Meta Ads. Uso: /backfill [dias] (default: 90)"""
+    args = context.args
+    try:
+        days = int(args[0]) if args else 90
+        days = min(days, 365)  # máximo 1 año
+    except (ValueError, IndexError):
+        await update.message.reply_text("Uso: /backfill [dias] — Ej: /backfill 90")
+        return
+
+    from datetime import datetime, timedelta, timezone, timedelta as td
+    today = datetime.now(timezone(td(hours=-3))).date()
+    since = (today - timedelta(days=days - 1)).isoformat()
+    until = today.isoformat()
+
+    await update.message.reply_text(
+        f"📥 <b>Iniciando backfill histórico</b>\n\n"
+        f"Período: <b>{since} → {until}</b> ({days} días)\n"
+        f"Niveles: campaña · conjunto · anuncio\n\n"
+        f"⏳ Esto puede tardar varios minutos...",
+        parse_mode="HTML",
+    )
+
+    try:
+        from scheduler.backfill import run_backfill
+        result = run_backfill(since, until)
+        await update.message.reply_text(
+            f"✅ <b>Backfill completado</b>\n\n"
+            f"📣 Campañas: <b>{result.get('campaign', 0)}</b> registros\n"
+            f"🎯 Conjuntos: <b>{result.get('ad_set', 0)}</b> registros\n"
+            f"🎨 Anuncios: <b>{result.get('ad', 0)}</b> registros\n\n"
+            f"El dashboard ya puede analizar los {days} días.",
+            parse_mode="HTML",
+        )
+    except Exception as e:
+        logger.error(f"Backfill error: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ Error en backfill: {str(e)[:300]}")
 
 
 def _fuzzy_match(name_hint: str, campaigns: list) -> dict | None:
@@ -447,4 +487,5 @@ def get_handlers():
         CommandHandler("campanas", cmd_campanas),
         CommandHandler("alertas", cmd_alertas),
         CommandHandler("sync", cmd_sync),
+        CommandHandler("backfill", cmd_backfill),
     ]

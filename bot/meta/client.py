@@ -24,7 +24,7 @@ class MetaClient:
     def _get(self, path: str, params: dict = None) -> dict:
         p = {"access_token": self.token, **(params or {})}
         for attempt in range(3):
-            r = requests.get(f"{BASE_URL}/{path}", params=p, timeout=30)
+            r = requests.get(f"{BASE_URL}/{path}", params=p, timeout=60)
             data = r.json()
             if "error" in data:
                 code = data["error"].get("code", 0)
@@ -38,6 +38,35 @@ class MetaClient:
             time.sleep(2)
             return data
         raise Exception("Rate limit exceeded after retries")
+
+    def _get_all_pages(self, path: str, params: dict = None) -> list[dict]:
+        """Igual que _get pero sigue la paginación automáticamente."""
+        results = []
+        p = {"access_token": self.token, **(params or {})}
+        url = f"{BASE_URL}/{path}"
+        while url:
+            for attempt in range(3):
+                r = requests.get(url, params=p, timeout=60)
+                data = r.json()
+                if "error" in data:
+                    code = data["error"].get("code", 0)
+                    msg = data["error"].get("message", str(data["error"]))
+                    if code in (17, 80004) or "limit" in msg.lower():
+                        wait = 60 * (attempt + 1)
+                        logger.warning(f"Rate limit hit, waiting {wait}s...")
+                        time.sleep(wait)
+                        continue
+                    raise Exception(msg)
+                time.sleep(2)
+                break
+            else:
+                raise Exception("Rate limit exceeded after retries")
+            results.extend(data.get("data", []))
+            # Paginación: si hay next, seguir. Después de la primera página limpiar params (ya van en la URL)
+            next_url = data.get("paging", {}).get("next")
+            url = next_url
+            p = {}  # params ya están en la URL de next
+        return results
 
     def _post(self, path: str, data: dict) -> dict:
         params = {"access_token": self.token}
@@ -201,15 +230,35 @@ class MetaClient:
             id_field = "ad_id"
             object_type = "ad"
 
-        data = self._get(f"{account_id}/insights", {
+        rows = self._get_all_pages(f"{account_id}/insights", {
             "fields": self._insights_fields(id_field),
             "level": level,
             "date_preset": date_preset,
             "time_increment": 1,
             "use_account_attribution_setting": True,
+            "limit": 500,
         })
-        result = []
-        for row in data.get("data", []):
-            obj_id = row.get(id_field, account_id)
-            result.append(self._parse_insights_row(row, obj_id, object_type))
-        return result
+        return [self._parse_insights_row(row, row.get(id_field, account_id), object_type) for row in rows]
+
+    def get_insights_date_range(self, account_id: str, since: str, until: str, level: str = "campaign") -> list[dict]:
+        """Trae insights por rango de fechas específico (para backfill histórico)."""
+        if level == "campaign":
+            id_field = "campaign_id"
+            object_type = "campaign"
+        elif level == "adset":
+            id_field = "adset_id"
+            object_type = "ad_set"
+        else:
+            id_field = "ad_id"
+            object_type = "ad"
+
+        import json
+        rows = self._get_all_pages(f"{account_id}/insights", {
+            "fields": self._insights_fields(id_field),
+            "level": level,
+            "time_range": json.dumps({"since": since, "until": until}),
+            "time_increment": 1,
+            "use_account_attribution_setting": True,
+            "limit": 500,
+        })
+        return [self._parse_insights_row(row, row.get(id_field, account_id), object_type) for row in rows]
