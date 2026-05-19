@@ -175,14 +175,22 @@ class MetaClient:
         )
 
     def get_account_insights(self, account_id: str, date_preset: str, level: str = "campaign") -> list[dict]:
-        id_field = "campaign_id" if level == "campaign" else "adset_id"
-        object_type = "campaign" if level == "campaign" else "ad_set"
+        if level == "campaign":
+            id_field = "campaign_id"
+            object_type = "campaign"
+        elif level == "adset":
+            id_field = "adset_id"
+            object_type = "ad_set"
+        else:
+            id_field = "ad_id"
+            object_type = "ad"
 
         data = self._get(f"{account_id}/insights", {
             "fields": self._insights_fields(id_field),
             "level": level,
             "date_preset": date_preset,
             "time_increment": 1,
+            "use_account_attribution_setting": True,
         })
         result = []
         for row in data.get("data", []):

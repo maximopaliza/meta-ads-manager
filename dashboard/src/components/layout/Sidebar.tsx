@@ -7,6 +7,7 @@ const links = [
   { href: '/', label: 'Overview', icon: '📊' },
   { href: '/campaigns', label: 'Campañas', icon: '📣' },
   { href: '/ad-sets', label: 'Ad Sets', icon: '🎯' },
+  { href: '/ads', label: 'Ads', icon: '🎨' },
   { href: '/analisis', label: 'Análisis', icon: '📈' },
   { href: '/alerts', label: 'Alertas', icon: '🔔' },
 ]

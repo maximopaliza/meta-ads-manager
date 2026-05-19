@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
 import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET } from '@/lib/metrics'
 
-export default async function AdSetsPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+export default async function AdsPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   await headers()
   const sp = await searchParams
   const days = Math.min(90, Math.max(1, Number(sp?.days || 7)))
@@ -17,11 +17,11 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
   const rangeStart = new Date(todayMs - days * 86400000).toISOString().split('T')[0]
 
-  const [adSetsRes, todayM, yesterdayM, rangeM, accountRes] = await Promise.all([
-    supabaseAdmin.from('ad_sets').select('*, campaigns(name, daily_budget)'),
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad_set').eq('date', today),
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad_set').eq('date', yesterday),
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad_set').gte('date', rangeStart),
+  const [adsRes, todayM, yesterdayM, rangeM, accountRes] = await Promise.all([
+    supabaseAdmin.from('ads').select('*, ad_sets(name, campaign_id, campaigns(name))'),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').eq('date', today),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').eq('date', yesterday),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').gte('date', rangeStart),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
   ])
 
@@ -39,10 +39,10 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
     })
   }
 
-  const rows = (adSetsRes.data || []).map((as: any) => {
-    const tm = todayMap.get(as.id) as any
-    const ym = yesterdayMap.get(as.id) as any
-    const rm = rangeAgg.get(as.id) as any
+  const rows = (adsRes.data || []).map((ad: any) => {
+    const tm = todayMap.get(ad.id) as any
+    const ym = yesterdayMap.get(ad.id) as any
+    const rm = rangeAgg.get(ad.id) as any
     const lc = tm?.link_clicks || 0
 
     const t = {
@@ -74,14 +74,8 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
       spend: rm.spend,
     } : null
 
-    const budget = as.daily_budget
-      ? formatCurrency(as.daily_budget / 100, currency)
-      : as.campaigns?.daily_budget
-        ? formatCurrency(as.campaigns.daily_budget / 100, currency) + ' (cp)'
-        : '—'
-
     return {
-      ...as, t, r, budget,
+      ...ad, t, r,
       trend: (tm?.roas ?? 0) > (ym?.roas ?? 0) ? '▲' : (tm?.roas ?? 0) < (ym?.roas ?? 0) ? '▼' : '—',
     }
   }).sort((a: any, b: any) => {
@@ -99,7 +93,7 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
       <Sidebar />
       <div style={{ marginLeft: '240px', flex: 1, minWidth: 0 }}>
-        <Header title="Ad Sets" subtitle={`${rows.length} ad sets · ordenados por rendimiento`} />
+        <Header title="Ads" subtitle={`${rows.length} anuncios · ordenados por rendimiento`} />
         <main style={{ padding: '20px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
             <RangeSelector />
@@ -113,11 +107,12 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
               <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#64748B' }}>acumulado {days}d →</span>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', minWidth: '2600px', width: '100%' }}>
+              <table style={{ borderCollapse: 'collapse', minWidth: '2700px', width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0 }}>Ad Set</th>
-                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '130px' }}>Campaña</th>
+                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0 }}>Ad</th>
+                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '120px' }}>Ad Set</th>
+                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '120px' }}>Campaña</th>
                     <th style={{ ...th, width: '36px' }}>Est.</th>
                     <th style={th}>Impresiones</th>
                     <th style={th}>CPM</th>
@@ -131,7 +126,6 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                     <th style={th}>Resultados</th>
                     <th style={th}>CPA</th>
                     <th style={th}>Importe gastado</th>
-                    <th style={th}>Presupuesto</th>
                     <th style={th}>Valor resultados</th>
                     <th style={th}>ROAS</th>
                     <th style={th}>Tráf. ef.</th>
@@ -147,42 +141,44 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((as: any) => (
-                    <tr key={as.id} style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.5 }}>
+                  {rows.map((ad: any) => (
+                    <tr key={ad.id} style={{ opacity: ad.status === 'ACTIVE' ? 1 : 0.5 }}>
                       <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#1A1D27' }}>
-                        <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{as.name}</span>
+                        <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{ad.name}</span>
                       </td>
-                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '130px' }}>
-                        <Link href={`/campaigns/${as.campaign_id}`} style={{ color: '#6366F1', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                          {as.campaigns?.name || as.campaign_id}
+                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '120px' }}>
+                        <span style={{ color: '#6366F1', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{ad.ad_sets?.name || ad.ad_set_id}</span>
+                      </td>
+                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '120px' }}>
+                        <Link href={`/campaigns/${ad.ad_sets?.campaign_id}`} style={{ color: '#94A3B8', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                          {ad.ad_sets?.campaigns?.name || '—'}
                         </Link>
                       </td>
-                      <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(as.status)}</td>
-                      <td style={{ ...td, color: '#94A3B8' }}>{as.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(as.t.impressions) : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.t.cpm ? formatCurrency(as.t.cpm, currency) : '—'}</td>
-                      <td style={{ ...td, color: ctrColor(as.t.ctr) }}>{as.t.ctr ? `${as.t.ctr.toFixed(2)}%` : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.t.cpc ? formatCurrency(as.t.cpc, currency) : '—'}</td>
-                      <td style={{ ...td, color: '#94A3B8' }}>{as.t.unique_link_clicks > 0 ? formatNumber(as.t.unique_link_clicks) : '—'}</td>
-                      <td style={{ ...td, color: '#94A3B8' }}>{as.t.landing_page_views > 0 ? formatNumber(as.t.landing_page_views) : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.t.add_to_cart || '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.t.cost_per_atc ? formatCurrency(as.t.cost_per_atc, currency) : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.t.checkout_initiated || '—'}</td>
-                      <td style={{ ...td, color: as.t.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{as.t.purchases || '—'}</td>
-                      <td style={{ ...td, color: cpaColor(as.t.cpa), fontWeight: 600 }}>{as.t.cpa ? formatCurrency(as.t.cpa, currency) : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.t.spend > 0 ? formatCurrency(as.t.spend, currency) : '—'}</td>
-                      <td style={{ ...td, color: '#64748B' }}>{as.budget}</td>
-                      <td style={{ ...td, color: '#94A3B8' }}>{as.t.purchase_value > 0 ? formatCurrency(as.t.purchase_value, currency) : '—'}</td>
-                      <td style={{ ...td, color: roasColor(as.t.roas) }}>{as.t.roas ? `${as.t.roas.toFixed(2)}x` : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.t.traf_ef ? `${as.t.traf_ef.toFixed(1)}%` : '—'}</td>
-                      <td style={{ ...td, color: as.t.conv_web ? '#22C55E' : '#64748B' }}>{as.t.conv_web ? `${as.t.conv_web.toFixed(1)}%` : '—'}</td>
-                      <td style={{ ...td, color: as.t.frequency && as.t.frequency > 3 ? '#F59E0B' : '#94A3B8' }}>{as.t.frequency ? as.t.frequency.toFixed(1) : '—'}</td>
-                      <td style={{ ...td, color: as.t.hook_rate ? (as.t.hook_rate >= 30 ? '#22C55E' : as.t.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#64748B' }}>{as.t.hook_rate ? `${as.t.hook_rate.toFixed(1)}%` : '—'}</td>
-                      <td style={{ ...td, color: '#64748B' }}>{as.t.video_avg ? `${as.t.video_avg.toFixed(0)}s` : '—'}</td>
-                      <td style={{ ...sep, color: as.r?.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{as.r?.purchases || '—'}</td>
-                      <td style={{ ...td, color: cpaColor(as.r?.cpa), fontWeight: 600 }}>{as.r?.cpa ? formatCurrency(as.r.cpa, currency) : '—'}</td>
-                      <td style={{ ...td, color: roasColor(as.r?.roas) }}>{as.r?.roas ? `${as.r.roas.toFixed(2)}x` : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.r?.spend > 0 ? formatCurrency(as.r.spend, currency) : '—'}</td>
-                      <td style={{ ...td, color: as.trend === '▲' ? '#22C55E' : as.trend === '▼' ? '#EF4444' : '#64748B' }}>{as.trend}</td>
+                      <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(ad.status)}</td>
+                      <td style={{ ...td, color: '#94A3B8' }}>{ad.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(ad.t.impressions) : '—'}</td>
+                      <td style={{ ...td, color: '#F1F5F9' }}>{ad.t.cpm ? formatCurrency(ad.t.cpm, currency) : '—'}</td>
+                      <td style={{ ...td, color: ctrColor(ad.t.ctr) }}>{ad.t.ctr ? `${ad.t.ctr.toFixed(2)}%` : '—'}</td>
+                      <td style={{ ...td, color: '#F1F5F9' }}>{ad.t.cpc ? formatCurrency(ad.t.cpc, currency) : '—'}</td>
+                      <td style={{ ...td, color: '#94A3B8' }}>{ad.t.unique_link_clicks > 0 ? formatNumber(ad.t.unique_link_clicks) : '—'}</td>
+                      <td style={{ ...td, color: '#94A3B8' }}>{ad.t.landing_page_views > 0 ? formatNumber(ad.t.landing_page_views) : '—'}</td>
+                      <td style={{ ...td, color: '#F1F5F9' }}>{ad.t.add_to_cart || '—'}</td>
+                      <td style={{ ...td, color: '#F1F5F9' }}>{ad.t.cost_per_atc ? formatCurrency(ad.t.cost_per_atc, currency) : '—'}</td>
+                      <td style={{ ...td, color: '#F1F5F9' }}>{ad.t.checkout_initiated || '—'}</td>
+                      <td style={{ ...td, color: ad.t.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{ad.t.purchases || '—'}</td>
+                      <td style={{ ...td, color: cpaColor(ad.t.cpa), fontWeight: 600 }}>{ad.t.cpa ? formatCurrency(ad.t.cpa, currency) : '—'}</td>
+                      <td style={{ ...td, color: '#F1F5F9' }}>{ad.t.spend > 0 ? formatCurrency(ad.t.spend, currency) : '—'}</td>
+                      <td style={{ ...td, color: '#94A3B8' }}>{ad.t.purchase_value > 0 ? formatCurrency(ad.t.purchase_value, currency) : '—'}</td>
+                      <td style={{ ...td, color: roasColor(ad.t.roas) }}>{ad.t.roas ? `${ad.t.roas.toFixed(2)}x` : '—'}</td>
+                      <td style={{ ...td, color: '#F1F5F9' }}>{ad.t.traf_ef ? `${ad.t.traf_ef.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...td, color: ad.t.conv_web ? '#22C55E' : '#64748B' }}>{ad.t.conv_web ? `${ad.t.conv_web.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...td, color: ad.t.frequency && ad.t.frequency > 3 ? '#F59E0B' : '#94A3B8' }}>{ad.t.frequency ? ad.t.frequency.toFixed(1) : '—'}</td>
+                      <td style={{ ...td, color: ad.t.hook_rate ? (ad.t.hook_rate >= 30 ? '#22C55E' : ad.t.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#64748B' }}>{ad.t.hook_rate ? `${ad.t.hook_rate.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...td, color: '#64748B' }}>{ad.t.video_avg ? `${ad.t.video_avg.toFixed(0)}s` : '—'}</td>
+                      <td style={{ ...sep, color: ad.r?.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{ad.r?.purchases || '—'}</td>
+                      <td style={{ ...td, color: cpaColor(ad.r?.cpa), fontWeight: 600 }}>{ad.r?.cpa ? formatCurrency(ad.r.cpa, currency) : '—'}</td>
+                      <td style={{ ...td, color: roasColor(ad.r?.roas) }}>{ad.r?.roas ? `${ad.r.roas.toFixed(2)}x` : '—'}</td>
+                      <td style={{ ...td, color: '#F1F5F9' }}>{ad.r?.spend > 0 ? formatCurrency(ad.r.spend, currency) : '—'}</td>
+                      <td style={{ ...td, color: ad.trend === '▲' ? '#22C55E' : ad.trend === '▼' ? '#EF4444' : '#64748B' }}>{ad.trend}</td>
                     </tr>
                   ))}
                 </tbody>

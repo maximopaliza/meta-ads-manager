@@ -56,6 +56,16 @@ def run_sync() -> None:
                 except Exception as e:
                     logger.warning(f"Adset insights ({preset}) failed for {account_id}: {e}")
 
+            # Ad-level insights (today + last 30d)
+            for preset in ("today", "last_7d", "last_30d"):
+                try:
+                    insights = client.get_account_insights(account_id, preset, level="ad")
+                    for insight in insights:
+                        queries.upsert_metrics(insight)
+                    logger.info(f"Synced {len(insights)} ad insights ({preset}) for {account_id}")
+                except Exception as e:
+                    logger.warning(f"Ad insights ({preset}) failed for {account_id}: {e}")
+
         _sync_failures = 0
         logger.info("Sync completed successfully")
 
