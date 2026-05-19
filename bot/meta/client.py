@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://graph.facebook.com/v21.0"
 
-ATC_ACTIONS = {"add_to_cart", "fb_mobile_add_to_cart", "omni_add_to_cart"}
+ATC_ACTIONS = {"add_to_cart", "fb_mobile_add_to_cart", "omni_add_to_cart", "offsite_conversion.fb_pixel_add_to_cart"}
+PURCHASE_ACTIONS = {"purchase", "offsite_conversion.fb_pixel_purchase", "omni_purchase", "fb_pixel_purchase"}
+CHECKOUT_ACTIONS = {"initiate_checkout", "offsite_conversion.fb_pixel_initiate_checkout", "omni_initiated_checkout"}
 
 
 class MetaClient:
@@ -100,21 +102,18 @@ class MetaClient:
         actions = row.get("actions", [])
         action_values = row.get("action_values", [])
 
-        # Purchases
-        purchases = sum(int(a["value"]) for a in actions if a["action_type"] == "purchase")
-        purchase_value = sum(float(av["value"]) for av in action_values if av["action_type"] == "purchase")
+        # Purchases — accept all Meta purchase action types, take max to avoid double-counting
+        purchases = max((int(a["value"]) for a in actions if a["action_type"] in PURCHASE_ACTIONS), default=0)
+        purchase_value = max((float(av["value"]) for av in action_values if av["action_type"] in PURCHASE_ACTIONS), default=0.0)
 
-        # Add to cart (use highest value across all ATC variants)
-        add_to_cart = 0
-        for a in actions:
-            if a["action_type"] in ATC_ACTIONS:
-                add_to_cart = max(add_to_cart, int(a["value"]))
+        # Add to cart — take max across all ATC variants to avoid double-counting
+        add_to_cart = max((int(a["value"]) for a in actions if a["action_type"] in ATC_ACTIONS), default=0)
 
         # Landing page views
         landing_page_views = sum(int(a["value"]) for a in actions if a["action_type"] == "landing_page_view")
 
-        # Checkout initiated (pagos iniciados)
-        checkout_initiated = sum(int(a["value"]) for a in actions if a["action_type"] == "initiate_checkout")
+        # Checkout initiated (pagos iniciados) — take max across variants
+        checkout_initiated = max((int(a["value"]) for a in actions if a["action_type"] in CHECKOUT_ACTIONS), default=0)
 
         # Base metrics
         spend = float(row.get("spend", 0))
@@ -172,7 +171,7 @@ class MetaClient:
             f"spend,impressions,clicks,inline_link_clicks,unique_inline_link_clicks,reach,"
             f"actions,action_values,"
             f"cpc,cpm,frequency,date_start,"
-            f"video_play_actions,video_avg_time_watched_actions,{id_field}"
+            f"video_avg_time_watched_actions,{id_field}"
         )
 
     def get_account_insights(self, account_id: str, date_preset: str, level: str = "campaign") -> list[dict]:

@@ -36,8 +36,8 @@ def run_sync() -> None:
             except Exception as e:
                 logger.warning(f"Ad sets sync failed for {account_id}: {e}")
 
-            # Campaign-level insights (today + last 7d)
-            for preset in ("today", "last_7d"):
+            # Campaign-level insights (today + last 30d for full dashboard coverage)
+            for preset in ("today", "last_7d", "last_30d"):
                 try:
                     insights = client.get_account_insights(account_id, preset, level="campaign")
                     for insight in insights:
@@ -46,8 +46,8 @@ def run_sync() -> None:
                 except Exception as e:
                     logger.warning(f"Campaign insights ({preset}) failed for {account_id}: {e}")
 
-            # Ad Set-level insights (today + last 7d)
-            for preset in ("today", "last_7d"):
+            # Ad Set-level insights (today + last 30d for full dashboard coverage)
+            for preset in ("today", "last_7d", "last_30d"):
                 try:
                     insights = client.get_account_insights(account_id, preset, level="adset")
                     for insight in insights:
