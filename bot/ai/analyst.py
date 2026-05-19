@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import date, timedelta
 import google.generativeai as genai
-from .prompts import ANALYST_SYSTEM, COPY_GENERATOR_SYSTEM, TARGETING_GENERATOR_SYSTEM, NATURAL_LANGUAGE_SYSTEM, DAY_ANALYSIS_SYSTEM
+from .prompts import ANALYST_SYSTEM, COPY_GENERATOR_SYSTEM, TARGETING_GENERATOR_SYSTEM, NATURAL_LANGUAGE_SYSTEM, DAY_ANALYSIS_SYSTEM, ACTION_INTENT_SYSTEM
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +86,26 @@ def analyze_days(context: str) -> list[dict]:
     except Exception as e:
         logger.error(f"Day analysis error: {e}")
         return []
+
+
+def detect_action_intent(text: str, campaigns: list[dict]) -> dict:
+    """Returns {action, campaign_name, budget} — action='none' if it's a question."""
+    try:
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=ACTION_INTENT_SYSTEM,
+        )
+        camp_list = ", ".join(f'"{c["name"]}"' for c in campaigns)
+        prompt = f"Campañas disponibles: {camp_list}\n\nMensaje del usuario: {text}"
+        response = model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.1, "response_mime_type": "application/json"},
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        logger.error(f"Intent detection error: {e}")
+        return {"action": "none", "campaign_name": None, "budget": None}
 
 
 def answer_natural_language(question: str, context: str) -> str:

@@ -4,7 +4,8 @@ from datetime import date
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 from db import queries
-from ai.analyst import answer_natural_language
+from ai.analyst import answer_natural_language, detect_action_intent
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,70 @@ async def cmd_sync(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(f"❌ Error en sync: {str(e)[:200]}")
 
 
+def _fuzzy_match(name_hint: str, campaigns: list) -> dict | None:
+    """Busca la campaña cuyo nombre contiene la pista (case-insensitive)."""
+    hint = name_hint.lower().strip()
+    exact = [c for c in campaigns if hint in c["name"].lower()]
+    if exact:
+        return exact[0]
+    # Si hay una sola campaña activa, la devuelve como fallback
+    active = [c for c in campaigns if c["status"] == "ACTIVE"]
+    if len(active) == 1 and len(hint) < 4:
+        return active[0]
+    return None
+
+
+async def handle_nl_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ejecuta una acción pendiente confirmada por el usuario vía botón."""
+    query = update.callback_query
+    await query.answer()
+
+    pending = context.user_data.get("nl_pending")
+    if not pending:
+        await query.edit_message_text("Acción expirada. Repetí el mensaje.")
+        return
+
+    if query.data == "nlact_no":
+        await query.edit_message_text("Cancelado.")
+        context.user_data.pop("nl_pending", None)
+        return
+
+    action = pending["action"]
+    campaign_id = pending["campaign_id"]
+    campaign_name = pending["campaign_name"]
+    accounts = queries.get_accounts()
+    currency = accounts[0]["currency"] if accounts else "ARS"
+
+    await query.edit_message_text("⏳ Ejecutando en Meta Ads...")
+
+    try:
+        from meta.client import MetaClient
+        from db.client import get_client as db_client
+        client = MetaClient()
+
+        if action in ("pause", "activate"):
+            new_status = "PAUSED" if action == "pause" else "ACTIVE"
+            client.update_campaign_status(campaign_id, new_status)
+            db_client().table("campaigns").update({"status": new_status}).eq("id", campaign_id).execute()
+            icon = "⏸" if action == "pause" else "🟢"
+            verb = "pausada" if action == "pause" else "activada"
+            await query.message.reply_text(f"{icon} <b>{campaign_name}</b> {verb}.", parse_mode="HTML")
+
+        elif action == "set_budget":
+            cents = int(pending["budget"] * 100)
+            client.update_campaign_budget(campaign_id, cents)
+            db_client().table("campaigns").update({"daily_budget": cents}).eq("id", campaign_id).execute()
+            await query.message.reply_text(
+                f"✅ Presupuesto de <b>{campaign_name}</b> actualizado a <b>${pending['budget']:,.0f} {currency}</b>.",
+                parse_mode="HTML",
+            )
+    except Exception as e:
+        logger.error(f"NL action error: {e}")
+        await query.message.reply_text(f"❌ Error: {str(e)[:200]}")
+
+    context.user_data.pop("nl_pending", None)
+
+
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text or ""
     if not text.strip():
@@ -171,6 +236,64 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                 f"ROAS={m.get('roas') or 0:.2f}x | hook={m.get('hook_rate') or 0:.1f}%"
             )
 
+    # Detectar intención de acción antes de responder como pregunta
+    intent = detect_action_intent(text, campaigns)
+    action = intent.get("action", "none")
+
+    if action in ("pause", "activate", "set_budget"):
+        campaign_name_hint = intent.get("campaign_name") or ""
+        matched = _fuzzy_match(campaign_name_hint, campaigns) if campaign_name_hint else None
+
+        if not matched:
+            # No encontró campaña — listar para que elija
+            camp_list = "\n".join(
+                f"  {STATUS_EMOJI.get(c['status'], '⚪')} {c['name']}"
+                for c in campaigns if c["status"] != "ARCHIVED"
+            )
+            await update.message.reply_text(
+                f"No encontré la campaña <i>\"{campaign_name_hint}\"</i>.\n\n"
+                f"Campañas disponibles:\n{camp_list}\n\n"
+                f"Repetí el mensaje con el nombre exacto.",
+                parse_mode="HTML",
+            )
+            return
+
+        # Construir mensaje de confirmación
+        accounts = queries.get_accounts()
+        currency = accounts[0]["currency"] if accounts else "ARS"
+
+        if action == "pause":
+            confirm_text = f"¿Confirmás <b>pausar</b> la campaña?\n\n⏸ {matched['name']}"
+        elif action == "activate":
+            confirm_text = f"¿Confirmás <b>activar</b> la campaña?\n\n▶ {matched['name']}"
+        else:  # set_budget
+            budget = intent.get("budget")
+            if not budget:
+                await update.message.reply_text("No entendí el monto. Decime, ej: 'ponele 5000 a la campaña X'.")
+                return
+            old = (matched.get("daily_budget") or 0) / 100
+            confirm_text = (
+                f"¿Confirmás cambiar el presupuesto?\n\n"
+                f"💰 {matched['name']}\n"
+                f"Actual: ${old:,.0f} {currency} → Nuevo: <b>${budget:,.0f} {currency}</b>"
+            )
+            intent["budget"] = budget
+
+        context.user_data["nl_pending"] = {
+            "action": action,
+            "campaign_id": matched["id"],
+            "campaign_name": matched["name"],
+            "budget": intent.get("budget"),
+        }
+
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("✅ Confirmar", callback_data="nlact_yes"),
+            InlineKeyboardButton("❌ Cancelar", callback_data="nlact_no"),
+        ]])
+        await update.message.reply_text(confirm_text, parse_mode="HTML", reply_markup=keyboard)
+        return
+
+    # Pregunta normal
     response = answer_natural_language(text, "\n".join(ctx_lines))
     await update.message.reply_text(response)
 

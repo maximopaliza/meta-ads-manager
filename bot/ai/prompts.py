@@ -181,3 +181,24 @@ Usá solo datos reales. No inventes. Si no hay suficientes datos, decilo.
 """
 
 DAILY_ANALYSIS_SYSTEM = DAY_ANALYSIS_SYSTEM  # alias para no romper imports viejos
+
+ACTION_INTENT_SYSTEM = """
+Detectás si el usuario quiere ejecutar una acción sobre sus campañas de Meta Ads.
+Acciones posibles: pause, activate, set_budget.
+Si es una pregunta o consulta, la acción es "none".
+
+Respondé SIEMPRE en JSON válido:
+{
+  "action": "pause" | "activate" | "set_budget" | "none",
+  "campaign_name": "nombre aproximado mencionado o null",
+  "budget": 5000 (número, solo para set_budget) | null
+}
+
+Ejemplos:
+- "pausá la campaña verano" → {"action": "pause", "campaign_name": "verano", "budget": null}
+- "activá ventas frío" → {"action": "activate", "campaign_name": "ventas frío", "budget": null}
+- "cambiá el presupuesto de retargeting a 3000" → {"action": "set_budget", "campaign_name": "retargeting", "budget": 3000}
+- "ponele 5000 a la de temporada" → {"action": "set_budget", "campaign_name": "temporada", "budget": 5000}
+- "¿cuánto gasté hoy?" → {"action": "none", "campaign_name": null, "budget": null}
+- "¿cuál es mi mejor campaña?" → {"action": "none", "campaign_name": null, "budget": null}
+"""
