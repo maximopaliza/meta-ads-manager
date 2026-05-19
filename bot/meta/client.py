@@ -113,6 +113,9 @@ class MetaClient:
         # Landing page views
         landing_page_views = sum(int(a["value"]) for a in actions if a["action_type"] == "landing_page_view")
 
+        # Checkout initiated (pagos iniciados)
+        checkout_initiated = sum(int(a["value"]) for a in actions if a["action_type"] == "initiate_checkout")
+
         # Base metrics
         spend = float(row.get("spend", 0))
         impressions = int(row.get("impressions", 0))
@@ -161,6 +164,7 @@ class MetaClient:
             "video_avg_time_watched": video_avg_time_watched,
             "ctr": ctr,
             "cpa": cpa,
+            "checkout_initiated": checkout_initiated,
         }
 
     def _insights_fields(self, id_field: str) -> str:

@@ -30,7 +30,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   // --- Day-by-day aggregation (all campaigns) ---
   const dayMap = new Map<string, any>()
   for (const m of allMetrics) {
-    const e = dayMap.get(m.date) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, clicks: 0, add_to_cart: 0 }
+    const e = dayMap.get(m.date) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, clicks: 0, add_to_cart: 0, unique_link_clicks: 0, reach: 0 }
     dayMap.set(m.date, {
       spend: e.spend + (m.spend || 0),
       purchases: e.purchases + (m.purchases || 0),
@@ -39,14 +39,15 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       link_clicks: e.link_clicks + (m.link_clicks || 0),
       clicks: e.clicks + (m.clicks || 0),
       add_to_cart: e.add_to_cart + (m.add_to_cart || 0),
+      unique_link_clicks: e.unique_link_clicks + (m.unique_link_clicks || 0),
+      reach: e.reach + (m.reach || 0),
     })
   }
   const dailyRows = Array.from(dayMap.entries())
     .map(([date, d]) => {
-      const lc = d.link_clicks || d.clicks || 0
       const cpa = d.purchases > 0 ? d.spend / d.purchases : null
       const roas = d.spend > 0 ? d.purchase_value / d.spend : null
-      const ctr = d.impressions > 0 && lc > 0 ? lc / d.impressions * 100 : null
+      const ctr = d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null
       const cpm = d.impressions > 0 ? d.spend / d.impressions * 1000 : null
       return { date, ...d, cpa, roas, ctr, cpm }
     })
@@ -55,7 +56,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   // --- Campaign aggregation for the range ---
   const campaignAgg = new Map<string, any>()
   for (const m of allMetrics) {
-    const e = campaignAgg.get(m.object_id) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, clicks: 0, add_to_cart: 0, days_active: 0 }
+    const e = campaignAgg.get(m.object_id) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, clicks: 0, add_to_cart: 0, unique_link_clicks: 0, reach: 0, days_active: 0 }
     campaignAgg.set(m.object_id, {
       spend: e.spend + (m.spend || 0),
       purchases: e.purchases + (m.purchases || 0),
@@ -64,16 +65,17 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       link_clicks: e.link_clicks + (m.link_clicks || 0),
       clicks: e.clicks + (m.clicks || 0),
       add_to_cart: e.add_to_cart + (m.add_to_cart || 0),
+      unique_link_clicks: e.unique_link_clicks + (m.unique_link_clicks || 0),
+      reach: e.reach + (m.reach || 0),
       days_active: e.days_active + (m.spend > 0 ? 1 : 0),
     })
   }
 
   const campaignRows = Array.from(campaignAgg.entries())
     .map(([id, d]) => {
-      const lc = d.link_clicks || d.clicks || 0
       const cpa = d.purchases > 0 ? d.spend / d.purchases : null
       const roas = d.spend > 0 ? d.purchase_value / d.spend : null
-      const ctr = d.impressions > 0 && lc > 0 ? lc / d.impressions * 100 : null
+      const ctr = d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null
       const cpm = d.impressions > 0 ? d.spend / d.impressions * 1000 : null
       const avg_daily_spend = d.days_active > 0 ? d.spend / d.days_active : 0
       const c = campaigns.get(id) as any

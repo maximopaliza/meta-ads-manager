@@ -48,7 +48,7 @@ export default async function CampaignDetailPage({
   // Aggregate range for ad sets
   const asRangeAgg = new Map<string, any>()
   for (const m of adSetRangeM.data || []) {
-    const e = asRangeAgg.get(m.object_id) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, clicks: 0, add_to_cart: 0 }
+    const e = asRangeAgg.get(m.object_id) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, clicks: 0, add_to_cart: 0, unique_link_clicks: 0, reach: 0 }
     asRangeAgg.set(m.object_id, {
       spend: e.spend + (m.spend || 0),
       purchases: e.purchases + (m.purchases || 0),
@@ -57,6 +57,8 @@ export default async function CampaignDetailPage({
       link_clicks: e.link_clicks + (m.link_clicks || 0),
       clicks: e.clicks + (m.clicks || 0),
       add_to_cart: e.add_to_cart + (m.add_to_cart || 0),
+      unique_link_clicks: e.unique_link_clicks + (m.unique_link_clicks || 0),
+      reach: e.reach + (m.reach || 0),
     })
   }
 
@@ -73,7 +75,7 @@ export default async function CampaignDetailPage({
         purchases: atm?.purchases ?? 0,
         roas: atm?.roas ?? null,
         cpa: atm?.purchases > 0 ? atm.spend / atm.purchases : null,
-        ctr: atm?.impressions > 0 && lc > 0 ? lc / atm.impressions * 100 : null,
+        ctr: atm?.ctr ?? null,
         cpm: atm?.cpm ?? null,
         cpc: atm?.cpc || (lc > 0 ? (atm?.spend || 0) / lc : null),
         add_to_cart: atm?.add_to_cart ?? 0,
@@ -85,7 +87,7 @@ export default async function CampaignDetailPage({
         purchases: arm.purchases,
         roas: arm.spend > 0 ? arm.purchase_value / arm.spend : null,
         cpa: arm.purchases > 0 ? arm.spend / arm.purchases : null,
-        ctr: arm.impressions > 0 && rlc > 0 ? rlc / arm.impressions * 100 : null,
+        ctr: arm.reach > 0 && arm.unique_link_clicks > 0 ? arm.unique_link_clicks / arm.reach * 100 : null,
         add_to_cart: arm.add_to_cart,
       } : null,
     }
@@ -102,7 +104,7 @@ export default async function CampaignDetailPage({
     purchases: tm.purchases ?? 0,
     roas: tm.roas ?? null,
     cpa: tm.purchases > 0 ? tm.spend / tm.purchases : null,
-    ctr: tm.impressions > 0 && lc > 0 ? lc / tm.impressions * 100 : null,
+    ctr: tm.ctr ?? null,
     cpm: tm.cpm ?? null,
     cpc: tm.cpc || (lc > 0 ? tm.spend / lc : null),
     add_to_cart: tm.add_to_cart ?? 0,

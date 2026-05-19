@@ -125,7 +125,7 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
   // Daily data for chart + table
   const byDate = new Map<string, any>()
   for (const m of weekM.data || []) {
-    const e = byDate.get(m.date) || { spend: 0, purchase_value: 0, purchases: 0, impressions: 0, clicks: 0, link_clicks: 0, add_to_cart: 0, landing_page_views: 0, freq_sum: 0, freq_imp: 0 }
+    const e = byDate.get(m.date) || { spend: 0, purchase_value: 0, purchases: 0, impressions: 0, clicks: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, add_to_cart: 0, landing_page_views: 0, freq_sum: 0, freq_imp: 0 }
     byDate.set(m.date, {
       spend: e.spend + (m.spend || 0),
       purchase_value: e.purchase_value + (m.purchase_value || 0),
@@ -133,6 +133,8 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
       impressions: e.impressions + (m.impressions || 0),
       clicks: e.clicks + (m.clicks || 0),
       link_clicks: e.link_clicks + (m.link_clicks || 0),
+      unique_link_clicks: e.unique_link_clicks + (m.unique_link_clicks || 0),
+      reach: e.reach + (m.reach || 0),
       add_to_cart: e.add_to_cart + (m.add_to_cart || 0),
       landing_page_views: e.landing_page_views + (m.landing_page_views || 0),
       freq_sum: e.freq_sum + ((m.frequency || 0) * (m.impressions || 0)),
@@ -149,10 +151,11 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
       purchases: d.purchases,
       impressions: d.impressions,
       clicks: lc,
+      unique_link_clicks: d.unique_link_clicks,
       add_to_cart: d.add_to_cart,
       landing_page_views: d.landing_page_views,
       cpa: d.purchases > 0 ? d.spend / d.purchases : null,
-      ctr: d.impressions > 0 && lc > 0 ? lc / d.impressions * 100 : null,
+      ctr: d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null,
       cpm: d.impressions > 0 ? d.spend / d.impressions * 1000 : null,
       cost_atc: d.add_to_cart > 0 ? d.spend / d.add_to_cart : null,
       frequency: d.freq_imp > 0 ? d.freq_sum / d.freq_imp : null,
