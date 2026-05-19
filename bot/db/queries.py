@@ -94,3 +94,23 @@ def get_recent_alerts(limit: int = 10) -> list[dict]:
 def get_accounts() -> list[dict]:
     res = get_client().table("ad_accounts").select("*").execute()
     return res.data or []
+
+
+def get_all_metrics_range(object_type: str, days: int = 14) -> list[dict]:
+    """Trae todas las métricas de los últimos N días para el tipo dado."""
+    start_date = (datetime.now(timezone(td(hours=-3))).date() - timedelta(days=days)).isoformat()
+    res = (
+        get_client()
+        .table("metrics")
+        .select("*")
+        .eq("object_type", object_type)
+        .gte("date", start_date)
+        .order("date")
+        .execute()
+    )
+    return res.data or []
+
+
+def get_ad_sets() -> list[dict]:
+    res = get_client().table("ad_sets").select("*").execute()
+    return res.data or []

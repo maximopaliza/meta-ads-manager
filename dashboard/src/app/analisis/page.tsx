@@ -15,11 +15,12 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
   const rangeStart = new Date(todayMs - days * 86400000).toISOString().split('T')[0]
 
-  const [metricsRes, campaignsRes, accountRes, alertsRes] = await Promise.all([
+  const [metricsRes, campaignsRes, accountRes, alertsRes, dayAnalysisRes] = await Promise.all([
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', rangeStart).order('date', { ascending: false }),
     supabaseAdmin.from('campaigns').select('id,name,status'),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
-    supabaseAdmin.from('alerts').select('*').order('created_at', { ascending: false }).limit(20),
+    supabaseAdmin.from('alerts').select('*').neq('type', 'day_analysis').order('created_at', { ascending: false }).limit(20),
+    supabaseAdmin.from('alerts').select('*').eq('type', 'day_analysis').order('created_at', { ascending: false }).limit(5),
   ])
 
   const currency = accountRes.data?.[0]?.currency || 'USD'
@@ -105,6 +106,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   // Alerts
   const criticalAlerts = (alertsRes.data || []).filter((a: any) => a.severity === 'critical' && !a.sent_to_telegram)
   const recentAlerts = alertsRes.data || []
+  const dayAnalyses = dayAnalysisRes.data || []
 
   const thStyle: any = { padding: '8px 12px', textAlign: 'right', color: '#64748B', fontSize: '11px', fontWeight: 500, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' }
   const tdStyle: any = { padding: '9px 12px', textAlign: 'right', fontSize: '12px', borderBottom: '1px solid #1a1d27' }
@@ -119,6 +121,22 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
             <RangeSelector />
           </div>
+
+          {/* Análisis IA día por día — destacado */}
+          {dayAnalyses.length > 0 && (
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ fontSize: '11px', color: '#6366F1', fontWeight: 600, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🤖 Análisis IA</div>
+              {dayAnalyses.map((a: any) => (
+                <div key={a.id} style={{ backgroundColor: '#1A1D27', border: '1px solid #6366F130', borderRadius: '12px', padding: '20px 22px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#F1F5F9' }}>{a.title}</div>
+                    <div style={{ fontSize: '10px', color: '#64748B', whiteSpace: 'nowrap', marginLeft: '12px' }}>{formatDate(a.created_at?.split('T')[0] || '')}</div>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#CBD5E1', lineHeight: 1.8, whiteSpace: 'pre-line' }}>{a.message}</div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Alertas críticas pendientes */}
           {criticalAlerts.length > 0 && (

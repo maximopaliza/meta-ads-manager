@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import date, timedelta
 import google.generativeai as genai
-from .prompts import ANALYST_SYSTEM, COPY_GENERATOR_SYSTEM, TARGETING_GENERATOR_SYSTEM, NATURAL_LANGUAGE_SYSTEM
+from .prompts import ANALYST_SYSTEM, COPY_GENERATOR_SYSTEM, TARGETING_GENERATOR_SYSTEM, NATURAL_LANGUAGE_SYSTEM, DAY_ANALYSIS_SYSTEM
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,25 @@ def generate_targeting(audience_description: str) -> dict:
     except Exception as e:
         logger.error(f"Targeting generation error: {e}")
         return {"geo_locations": {"countries": ["AR"]}, "age_min": 18, "age_max": 65}
+
+
+def analyze_days(context: str) -> list[dict]:
+    """Análisis profundo día por día: qué pasó, qué campaña/adset lo causó."""
+    try:
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=DAY_ANALYSIS_SYSTEM,
+        )
+        response = model.generate_content(
+            context,
+            generation_config={"temperature": 0.2, "response_mime_type": "application/json"},
+        )
+        data = json.loads(response.text)
+        return data.get("alerts", [])
+    except Exception as e:
+        logger.error(f"Day analysis error: {e}")
+        return []
 
 
 def answer_natural_language(question: str, context: str) -> str:

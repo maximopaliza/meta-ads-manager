@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 from telegram.ext import Application, MessageHandler, filters
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 from bot.handlers import get_handlers, handle_text
 from bot.conversations.create_campaign import get_create_campaign_handler
@@ -67,6 +68,8 @@ def main() -> None:
     scheduler = AsyncIOScheduler(timezone=tz_arg)
     scheduler.add_job(sync_job, IntervalTrigger(minutes=15, timezone=tz_arg), id="sync", replace_existing=True)
     scheduler.add_job(alerter_job, IntervalTrigger(minutes=5, timezone=tz_arg), id="alerter", replace_existing=True)
+    # Análisis profundo una vez al día a las 23:00 Argentina
+    scheduler.add_job(analysis_job, CronTrigger(hour=23, minute=0, timezone=tz_arg), id="analysis", replace_existing=True)
 
     async def post_init(app):
         scheduler.start()
