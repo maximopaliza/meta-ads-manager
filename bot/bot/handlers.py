@@ -183,6 +183,123 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             pass
 
 
+def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: list,
+                  campaigns: list, as_map: dict, ads_map: dict, currency: str) -> str | None:
+    """Responde preguntas simples directo de los datos, sin Gemini."""
+    total_spend = sum(m.get("spend", 0) for m in today_camp)
+    total_purchases = sum(m.get("purchases", 0) for m in today_camp)
+    total_pv = sum(m.get("purchase_value", 0) for m in today_camp)
+    total_atc = sum(m.get("add_to_cart", 0) for m in today_camp)
+    total_checkout = sum(m.get("checkout_initiated", 0) for m in today_camp)
+    avg_roas = total_pv / total_spend if total_spend > 0 else 0
+    avg_cpa = total_spend / total_purchases if total_purchases > 0 else None
+    active = len([c for c in campaigns if c["status"] == "ACTIVE"])
+
+    kw = text_lower
+
+    # Gasto
+    if any(w in kw for w in ["gast", "spent", "spend", "plata", "dinero", "cuanto"]):
+        if "hoy" in kw or "dia" in kw or "día" in kw or "cuanto" in kw:
+            lines = [f"💸 <b>Gasto de hoy</b>\n"]
+            lines.append(f"Total: <b>${total_spend:,.0f} {currency}</b>")
+            lines.append(f"ROAS: <b>{avg_roas:.2f}x</b>")
+            lines.append(f"Ventas: <b>{total_purchases}</b>")
+            if avg_cpa:
+                lines.append(f"CPA: <b>${avg_cpa:,.0f} {currency}</b>")
+            if campaigns:
+                lines.append("\n<b>Por campaña:</b>")
+                camp_m = {m["object_id"]: m for m in today_camp}
+                for c in campaigns:
+                    m = camp_m.get(c["id"])
+                    if m and m.get("spend", 0) > 0:
+                        lines.append(f"  • {c['name'][:40]}: ${m.get('spend', 0):,.0f}")
+            return "\n".join(lines)
+
+    # Ventas / resultados
+    if any(w in kw for w in ["venta", "compra", "result", "pedido", "purchase"]):
+        lines = [f"🛍️ <b>Ventas de hoy</b>\n"]
+        lines.append(f"Ventas totales: <b>{total_purchases}</b>")
+        lines.append(f"Valor total: <b>${total_pv:,.0f} {currency}</b>")
+        lines.append(f"ATC: {total_atc} | Checkout: {total_checkout}")
+        if avg_cpa:
+            lines.append(f"CPA promedio: <b>${avg_cpa:,.0f} {currency}</b>")
+        lines.append(f"ROAS: <b>{avg_roas:.2f}x</b>")
+        if today_ads:
+            top = sorted(today_ads, key=lambda x: x.get("purchases", 0), reverse=True)[:5]
+            with_sales = [m for m in top if m.get("purchases", 0) > 0]
+            if with_sales:
+                lines.append("\n<b>Ads con más ventas:</b>")
+                for m in with_sales:
+                    ad = ads_map.get(m["object_id"])
+                    name = ad["name"][:40] if ad else m["object_id"]
+                    lines.append(f"  • {name}: {m.get('purchases', 0)} ventas · CPA ${m.get('spend',0)/m.get('purchases',1):,.0f}")
+        return "\n".join(lines)
+
+    # ROAS
+    if "roas" in kw:
+        lines = [f"📈 <b>ROAS de hoy: {avg_roas:.2f}x</b>\n"]
+        camp_m = {m["object_id"]: m for m in today_camp}
+        for c in campaigns:
+            m = camp_m.get(c["id"])
+            if m and m.get("roas"):
+                lines.append(f"  • {c['name'][:40]}: {m.get('roas', 0):.2f}x")
+        return "\n".join(lines)
+
+    # CPA
+    if "cpa" in kw or "costo por" in kw:
+        if avg_cpa:
+            return f"🎯 <b>CPA de hoy: ${avg_cpa:,.0f} {currency}</b>\nVentas: {total_purchases} · Gasto: ${total_spend:,.0f}"
+        return f"🎯 Sin ventas hoy todavía. Gasto: ${total_spend:,.0f} {currency}"
+
+    # Mejor campaña / mejor ad
+    if "mejor" in kw:
+        if "ad" in kw or "anuncio" in kw or "creativo" in kw:
+            if today_ads:
+                best = max(today_ads, key=lambda x: x.get("roas") or 0)
+                ad = ads_map.get(best["object_id"])
+                name = ad["name"] if ad else best["object_id"]
+                return f"🏆 <b>Mejor ad hoy:</b> {name}\nROAS: {best.get('roas', 0):.2f}x · Ventas: {best.get('purchases', 0)} · Gasto: ${best.get('spend', 0):,.0f}"
+        else:
+            camp_m = {m["object_id"]: m for m in today_camp}
+            with_roas = [(c, camp_m.get(c["id"])) for c in campaigns if camp_m.get(c["id"]) and camp_m.get(c["id"], {}).get("roas")]
+            if with_roas:
+                best_c, best_m = max(with_roas, key=lambda x: x[1].get("roas", 0))
+                return f"🏆 <b>Mejor campaña hoy:</b> {best_c['name']}\nROAS: {best_m.get('roas', 0):.2f}x · Ventas: {best_m.get('purchases', 0)}"
+
+    # Peor campaña
+    if "peor" in kw or "mal" in kw:
+        camp_m = {m["object_id"]: m for m in today_camp}
+        with_spend = [(c, camp_m.get(c["id"])) for c in campaigns if camp_m.get(c["id"]) and camp_m.get(c["id"], {}).get("spend", 0) > 0]
+        if with_spend:
+            worst_c, worst_m = min(with_spend, key=lambda x: x[1].get("roas") or 99)
+            return f"⚠️ <b>Peor campaña hoy:</b> {worst_c['name']}\nROAS: {worst_m.get('roas', 0) or 0:.2f}x · Gasto: ${worst_m.get('spend', 0):,.0f} sin ventas"
+
+    # Hook rate
+    if "hook" in kw:
+        if today_ads:
+            with_hook = [(m, ads_map.get(m["object_id"])) for m in today_ads if m.get("hook_rate")]
+            if with_hook:
+                best = max(with_hook, key=lambda x: x[0].get("hook_rate", 0))
+                lines = [f"🎣 <b>Hook rate de ads hoy:</b>"]
+                for m, ad in sorted(with_hook, key=lambda x: x[0].get("hook_rate", 0), reverse=True)[:5]:
+                    name = ad["name"][:35] if ad else m["object_id"]
+                    lines.append(f"  • {name}: {m.get('hook_rate', 0):.1f}%")
+                return "\n".join(lines)
+
+    # Campañas activas / estado
+    if any(w in kw for w in ["activ", "pausad", "estado", "campaña", "campana"]):
+        lines = [f"📣 <b>Campañas ({active} activas)</b>"]
+        camp_m = {m["object_id"]: m for m in today_camp}
+        for c in campaigns:
+            emoji = STATUS_EMOJI.get(c["status"], "⚪")
+            m = camp_m.get(c["id"])
+            spend_str = f" · ${m.get('spend', 0):,.0f}" if m and m.get("spend", 0) > 0 else ""
+            lines.append(f"{emoji} {c['name']}{spend_str}")
+        return "\n".join(lines)
+
+    return None  # No pudo responder directamente → usar Gemini
+
+
 async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text or ""
     if not text.strip():
@@ -190,99 +307,61 @@ async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if update.message.photo or update.message.video:
         return
 
-    await update.message.reply_text("⏳ Procesando...")
-
     campaigns = queries.get_campaigns()
     ad_sets = queries.get_ad_sets()
     ads = queries.get_ads()
     today_camp = queries.get_today_metrics()
     today_as = queries.get_today_metrics_type("ad_set")
     today_ads = queries.get_today_metrics_type("ad")
+    accounts = queries.get_accounts()
+    currency = accounts[0]["currency"] if accounts else "ARS"
 
     as_map = {a["id"]: a for a in ad_sets}
     ads_map = {a["id"]: a for a in ads}
 
-    ctx_lines = [f"Fecha: {date.today().isoformat()}\n"]
+    text_lower = text.lower()
 
-    def _cpa_str(spend, purchases):
-        if purchases and purchases > 0:
-            return f"${spend / purchases:.2f}"
-        return "—"
+    # 1. Detectar acción (keywords simples primero, sin Gemini)
+    action_keywords_pause = ["paus", "apag", "desactiv", "detené", "detene", "stop"]
+    action_keywords_activate = ["activ", "encend", "prendé", "prende", "resum"]
+    action_keywords_budget = ["presupuest", "budget", "ponele", "subí", "subi", "bajá", "baja", "cambiá", "cambia"]
 
-    # Campañas hoy
-    ctx_lines.append("=== CAMPAÑAS HOY ===")
-    camp_m = {m["object_id"]: m for m in today_camp}
-    for c in campaigns:
-        m = camp_m.get(c["id"])
-        if m and m.get("spend", 0) > 0:
-            ctx_lines.append(
-                f"  {c['name']} [{c['status']}]: gasto=${m.get('spend', 0):.2f} | "
-                f"ventas={m.get('purchases', 0)} | CPA={_cpa_str(m.get('spend', 0), m.get('purchases', 0))} | "
-                f"ROAS={m.get('roas') or 0:.2f}x | ATC={m.get('add_to_cart', 0)} | "
-                f"checkout={m.get('checkout_initiated', 0)}"
-            )
-        else:
-            ctx_lines.append(f"  {c['name']} [{c['status']}]: sin gasto hoy")
+    likely_action = False
+    if any(w in text_lower for w in action_keywords_pause + action_keywords_activate + action_keywords_budget):
+        likely_action = True
 
-    # Ad sets hoy
-    if today_as:
-        ctx_lines.append("\n=== CONJUNTOS HOY ===")
-        for m in sorted(today_as, key=lambda x: x.get("spend", 0), reverse=True):
-            as_obj = as_map.get(m["object_id"])
-            name = as_obj["name"] if as_obj else m["object_id"]
-            ctx_lines.append(
-                f"  {name}: gasto=${m.get('spend', 0):.2f} | "
-                f"ventas={m.get('purchases', 0)} | CPA={_cpa_str(m.get('spend', 0), m.get('purchases', 0))} | "
-                f"ATC={m.get('add_to_cart', 0)} | CTR={m.get('ctr') or 0:.2f}% | "
-                f"hook={m.get('hook_rate') or 0:.1f}% | frec={m.get('frequency') or '—'}"
-            )
-
-    # Ads hoy (top 15 por gasto)
-    if today_ads:
-        ctx_lines.append("\n=== ANUNCIOS HOY (top 15) ===")
-        for m in sorted(today_ads, key=lambda x: x.get("spend", 0), reverse=True)[:15]:
-            ad_obj = ads_map.get(m["object_id"])
-            name = ad_obj["name"] if ad_obj else m["object_id"]
-            ctx_lines.append(
-                f"  {name}: gasto=${m.get('spend', 0):.2f} | "
-                f"ventas={m.get('purchases', 0)} | CPA={_cpa_str(m.get('spend', 0), m.get('purchases', 0))} | "
-                f"ROAS={m.get('roas') or 0:.2f}x | hook={m.get('hook_rate') or 0:.1f}%"
-            )
-
-    # Detectar intención de acción antes de responder como pregunta
-    intent = detect_action_intent(text, campaigns)
-    action = intent.get("action", "none")
+    if likely_action:
+        # Solo llamar Gemini para detectar acción si parece una acción
+        await update.message.reply_text("⏳ Procesando...")
+        intent = detect_action_intent(text, campaigns)
+        action = intent.get("action", "none")
+    else:
+        action = "none"
 
     if action in ("pause", "activate", "set_budget"):
         campaign_name_hint = intent.get("campaign_name") or ""
         matched = _fuzzy_match(campaign_name_hint, campaigns) if campaign_name_hint else None
 
         if not matched:
-            # No encontró campaña — listar para que elija
             camp_list = "\n".join(
                 f"  {STATUS_EMOJI.get(c['status'], '⚪')} {c['name']}"
                 for c in campaigns if c["status"] != "ARCHIVED"
             )
             await update.message.reply_text(
                 f"No encontré la campaña <i>\"{campaign_name_hint}\"</i>.\n\n"
-                f"Campañas disponibles:\n{camp_list}\n\n"
-                f"Repetí el mensaje con el nombre exacto.",
+                f"Campañas disponibles:\n{camp_list}\n\nRepetí el mensaje con el nombre exacto.",
                 parse_mode="HTML",
             )
             return
-
-        # Construir mensaje de confirmación
-        accounts = queries.get_accounts()
-        currency = accounts[0]["currency"] if accounts else "ARS"
 
         if action == "pause":
             confirm_text = f"¿Confirmás <b>pausar</b> la campaña?\n\n⏸ {matched['name']}"
         elif action == "activate":
             confirm_text = f"¿Confirmás <b>activar</b> la campaña?\n\n▶ {matched['name']}"
-        else:  # set_budget
+        else:
             budget = intent.get("budget")
             if not budget:
-                await update.message.reply_text("No entendí el monto. Decime, ej: 'ponele 5000 a la campaña X'.")
+                await update.message.reply_text("No entendí el monto. Ej: 'ponele 5000 a la campaña X'.")
                 return
             old = (matched.get("daily_budget") or 0) / 100
             confirm_text = (
@@ -298,7 +377,6 @@ async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "campaign_name": matched["name"],
             "budget": intent.get("budget"),
         }
-
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton("✅ Confirmar", callback_data="nlact_yes"),
             InlineKeyboardButton("❌ Cancelar", callback_data="nlact_no"),
@@ -306,7 +384,58 @@ async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(confirm_text, parse_mode="HTML", reply_markup=keyboard)
         return
 
-    # Pregunta normal
+    # 2. Respuesta directa sin Gemini para preguntas comunes
+    quick = _quick_answer(text_lower, today_camp, today_as, today_ads, campaigns, as_map, ads_map, currency)
+    if quick:
+        await update.message.reply_text(quick, parse_mode="HTML")
+        return
+
+    # 3. Gemini para preguntas complejas
+    await update.message.reply_text("⏳ Procesando...")
+
+    def _cpa_str(spend, purchases):
+        if purchases and purchases > 0:
+            return f"${spend / purchases:.2f}"
+        return "—"
+
+    ctx_lines = [f"Fecha: {date.today().isoformat()}\n"]
+    ctx_lines.append("=== CAMPAÑAS HOY ===")
+    camp_m = {m["object_id"]: m for m in today_camp}
+    for c in campaigns:
+        m = camp_m.get(c["id"])
+        if m and m.get("spend", 0) > 0:
+            ctx_lines.append(
+                f"  {c['name']} [{c['status']}]: gasto=${m.get('spend', 0):.2f} | "
+                f"ventas={m.get('purchases', 0)} | CPA={_cpa_str(m.get('spend', 0), m.get('purchases', 0))} | "
+                f"ROAS={m.get('roas') or 0:.2f}x | ATC={m.get('add_to_cart', 0)} | "
+                f"checkout={m.get('checkout_initiated', 0)}"
+            )
+        else:
+            ctx_lines.append(f"  {c['name']} [{c['status']}]: sin gasto hoy")
+
+    if today_as:
+        ctx_lines.append("\n=== CONJUNTOS HOY ===")
+        for m in sorted(today_as, key=lambda x: x.get("spend", 0), reverse=True):
+            as_obj = as_map.get(m["object_id"])
+            name = as_obj["name"] if as_obj else m["object_id"]
+            ctx_lines.append(
+                f"  {name}: gasto=${m.get('spend', 0):.2f} | "
+                f"ventas={m.get('purchases', 0)} | CPA={_cpa_str(m.get('spend', 0), m.get('purchases', 0))} | "
+                f"ATC={m.get('add_to_cart', 0)} | CTR={m.get('ctr') or 0:.2f}% | "
+                f"hook={m.get('hook_rate') or 0:.1f}%"
+            )
+
+    if today_ads:
+        ctx_lines.append("\n=== ANUNCIOS HOY (top 10) ===")
+        for m in sorted(today_ads, key=lambda x: x.get("spend", 0), reverse=True)[:10]:
+            ad_obj = ads_map.get(m["object_id"])
+            name = ad_obj["name"] if ad_obj else m["object_id"]
+            ctx_lines.append(
+                f"  {name}: gasto=${m.get('spend', 0):.2f} | "
+                f"ventas={m.get('purchases', 0)} | ROAS={m.get('roas') or 0:.2f}x | hook={m.get('hook_rate') or 0:.1f}%"
+            )
+
+    # Pregunta compleja → Gemini
     response = answer_natural_language(text, "\n".join(ctx_lines))
     await update.message.reply_text(response)
 
