@@ -104,7 +104,7 @@ def detect_action_intent(text: str, campaigns: list[dict]) -> dict:
         )
         return json.loads(response.text)
     except Exception as e:
-        logger.error(f"Intent detection error: {e}")
+        logger.error(f"Intent detection error: {e}", exc_info=True)
         return {"action": "none", "campaign_name": None, "budget": None}
 
 
@@ -115,9 +115,12 @@ def answer_natural_language(question: str, context: str) -> str:
             model_name="gemini-2.0-flash",
             system_instruction=NATURAL_LANGUAGE_SYSTEM,
         )
+        # Truncate context if too large (Gemini has input limits)
+        if len(context) > 30000:
+            context = context[:30000] + "\n[contexto truncado]"
         prompt = f"Datos actuales:\n{context}\n\nPregunta: {question}"
         response = model.generate_content(prompt, generation_config={"temperature": 0.4})
         return response.text
     except Exception as e:
-        logger.error(f"Natural language error: {e}")
-        return "No pude procesar la pregunta. Intentá de nuevo."
+        logger.error(f"Natural language error: {e}", exc_info=True)
+        return f"❌ Error Gemini: {str(e)[:300]}"
