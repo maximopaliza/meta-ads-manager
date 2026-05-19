@@ -16,7 +16,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const rangeStart = new Date(todayMs - days * 86400000).toISOString().split('T')[0]
 
   const [metricsRes, campaignsRes, accountRes, alertsRes, dayAnalysisRes] = await Promise.all([
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', rangeStart).order('date', { ascending: false }),
+    supabaseAdmin.from('metrics').select('id,date,object_id,spend,purchases,purchase_value,impressions,link_clicks,unique_link_clicks,reach,clicks,add_to_cart,landing_page_views,checkout_initiated,cpm,ctr,cpc').eq('object_type', 'campaign').gte('date', rangeStart).order('date', { ascending: false }),
     supabaseAdmin.from('campaigns').select('id,name,status'),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
     supabaseAdmin.from('alerts').select('*').neq('type', 'day_analysis').order('created_at', { ascending: false }).limit(20),
@@ -30,7 +30,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   // --- Day-by-day aggregation (all campaigns) ---
   const dayMap = new Map<string, any>()
   for (const m of allMetrics) {
-    const e = dayMap.get(m.date) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, clicks: 0, add_to_cart: 0, unique_link_clicks: 0, reach: 0 }
+    const e = dayMap.get(m.date) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, clicks: 0, add_to_cart: 0, unique_link_clicks: 0, reach: 0, landing_page_views: 0, checkout_initiated: 0 }
     dayMap.set(m.date, {
       spend: e.spend + (m.spend || 0),
       purchases: e.purchases + (m.purchases || 0),
@@ -41,6 +41,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       add_to_cart: e.add_to_cart + (m.add_to_cart || 0),
       unique_link_clicks: e.unique_link_clicks + (m.unique_link_clicks || 0),
       reach: e.reach + (m.reach || 0),
+      landing_page_views: e.landing_page_views + (m.landing_page_views || 0),
+      checkout_initiated: e.checkout_initiated + (m.checkout_initiated || 0),
     })
   }
   const dailyRows = Array.from(dayMap.entries())
@@ -49,7 +51,11 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       const roas = d.spend > 0 ? d.purchase_value / d.spend : null
       const ctr = d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null
       const cpm = d.impressions > 0 ? d.spend / d.impressions * 1000 : null
-      return { date, ...d, cpa, roas, ctr, cpm }
+      const cpc = d.link_clicks > 0 ? d.spend / d.link_clicks : null
+      const trafEf = d.link_clicks > 0 && d.landing_page_views > 0 ? d.landing_page_views / d.link_clicks * 100 : null
+      const convWeb = d.landing_page_views > 0 && d.purchases > 0 ? d.purchases / d.landing_page_views * 100 : null
+      const aov = d.purchases > 0 ? d.purchase_value / d.purchases : null
+      return { date, ...d, cpa, roas, ctr, cpm, cpc, trafEf, convWeb, aov }
     })
     .sort((a, b) => b.date.localeCompare(a.date))
 
@@ -103,22 +109,22 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   // Best/worst days
   const daysWithPurchases = dailyRows.filter(d => d.purchases > 0)
   const bestDay = daysWithPurchases.length > 0 ? daysWithPurchases.reduce((a, b) => (b.roas ?? 0) > (a.roas ?? 0) ? b : a) : null
-  const worstDay = daysWithPurchases.length > 0 ? daysWithPurchases.reduce((a, b) => (b.cpa ?? 999) < (a.cpa ?? 999) ? b : a) : null
+  const worstDay = daysWithPurchases.length > 1 ? daysWithPurchases.reduce((a, b) => (b.cpa ?? 0) > (a.cpa ?? 0) ? b : a) : null
 
   // Alerts
   const criticalAlerts = (alertsRes.data || []).filter((a: any) => a.severity === 'critical' && !a.sent_to_telegram)
   const recentAlerts = alertsRes.data || []
   const dayAnalyses = dayAnalysisRes.data || []
 
-  const thStyle: any = { padding: '8px 12px', textAlign: 'right', color: '#64748B', fontSize: '11px', fontWeight: 500, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' }
-  const tdStyle: any = { padding: '9px 12px', textAlign: 'right', fontSize: '12px', borderBottom: '1px solid #1a1d27' }
+  const thStyle: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#64748B', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em' }
+  const tdStyle: any = { padding: '8px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '1px solid #1a1d27' }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
       <Sidebar />
       <div style={{ marginLeft: '240px', flex: 1 }}>
         <Header title="Análisis" subtitle={`Tendencias y rendimiento · últimos ${days} días`} />
-        <main style={{ padding: '28px 32px', maxWidth: '1400px' }}>
+        <main style={{ padding: '20px 16px', maxWidth: '100%' }}>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
             <RangeSelector />
@@ -205,37 +211,48 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>
-                  <tr>
-                    <th style={{ ...thStyle, textAlign: 'left' }}>Fecha</th>
-                    <th style={thStyle}>Gasto</th>
+                  <tr style={{ backgroundColor: '#151820' }}>
+                    <th style={{ ...thStyle, textAlign: 'left' as const }}>Fecha</th>
+                    <th style={thStyle}>Impresiones</th>
+                    <th style={thStyle}>CPM</th>
+                    <th style={thStyle}>CTR único</th>
+                    <th style={thStyle}>CPC</th>
+                    <th style={thStyle}>Clics únicos</th>
+                    <th style={thStyle}>Visitas LP</th>
+                    <th style={thStyle}>Tráf. ef.</th>
+                    <th style={thStyle}>ATC</th>
+                    <th style={thStyle}>Pagos inic.</th>
                     <th style={thStyle}>Ventas</th>
                     <th style={thStyle}>CPA</th>
+                    <th style={thStyle}>Gasto</th>
                     <th style={thStyle}>ROAS</th>
-                    <th style={thStyle}>CTR</th>
-                    <th style={thStyle}>CPM</th>
-                    <th style={thStyle}>ATC</th>
-                    <th style={thStyle}>ATC→Compra</th>
-                    <th style={thStyle}>Impresiones</th>
+                    <th style={thStyle}>Val. conv. prom.</th>
+                    <th style={thStyle}>Conv. WEB</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {dailyRows.map((d) => {
-                    const conv = d.add_to_cart > 0 ? d.purchases / d.add_to_cart * 100 : null
+                  {dailyRows.map((d: any) => {
                     const isToday = d.date === today
                     return (
                       <tr key={d.date} style={{ backgroundColor: isToday ? '#6366F108' : 'transparent' }}>
-                        <td style={{ ...tdStyle, textAlign: 'left', color: '#F1F5F9', fontWeight: isToday ? 700 : 500 }}>
+                        <td style={{ ...tdStyle, textAlign: 'left' as const, color: '#F1F5F9', fontWeight: isToday ? 700 : 500 }}>
                           {formatDate(d.date)} {isToday && <span style={{ fontSize: '10px', color: '#6366F1', marginLeft: '4px' }}>HOY</span>}
                         </td>
-                        <td style={{ ...tdStyle, color: '#F1F5F9' }}>{d.spend > 0 ? formatCurrency(d.spend, currency) : '—'}</td>
-                        <td style={{ ...tdStyle, color: d.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: d.purchases > 0 ? 600 : 400 }}>{d.purchases || '—'}</td>
-                        <td style={{ ...tdStyle, color: cpaColor(d.cpa), fontWeight: 600 }}>{d.cpa ? formatCurrency(d.cpa, currency) : '—'}</td>
-                        <td style={{ ...tdStyle, color: roasColor(d.roas) }}>{d.roas ? `${d.roas.toFixed(2)}x` : '—'}</td>
-                        <td style={{ ...tdStyle, color: ctrColor(d.ctr) }}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
+                        <td style={{ ...tdStyle, color: '#94A3B8' }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
                         <td style={{ ...tdStyle, color: '#F1F5F9' }}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
+                        <td style={{ ...tdStyle, color: ctrColor(d.ctr) }}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
+                        <td style={{ ...tdStyle, color: '#F1F5F9' }}>{d.cpc ? formatCurrency(d.cpc, currency) : '—'}</td>
+                        <td style={{ ...tdStyle, color: '#94A3B8' }}>{d.unique_link_clicks > 0 ? d.unique_link_clicks : '—'}</td>
+                        <td style={{ ...tdStyle, color: '#94A3B8' }}>{d.landing_page_views > 0 ? d.landing_page_views : '—'}</td>
+                        <td style={{ ...tdStyle, color: '#F1F5F9' }}>{d.trafEf ? `${d.trafEf.toFixed(1)}%` : '—'}</td>
                         <td style={{ ...tdStyle, color: '#F1F5F9' }}>{d.add_to_cart || '—'}</td>
-                        <td style={{ ...tdStyle, color: conv && conv >= 5 ? '#22C55E' : conv ? '#F59E0B' : '#64748B' }}>{conv ? `${conv.toFixed(1)}%` : '—'}</td>
-                        <td style={{ ...tdStyle, color: '#64748B' }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
+                        <td style={{ ...tdStyle, color: '#F1F5F9' }}>{d.checkout_initiated || '—'}</td>
+                        <td style={{ ...tdStyle, color: d.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d.purchases || '—'}</td>
+                        <td style={{ ...tdStyle, color: cpaColor(d.cpa), fontWeight: 600 }}>{d.cpa ? formatCurrency(d.cpa, currency) : '—'}</td>
+                        <td style={{ ...tdStyle, color: '#F1F5F9' }}>{d.spend > 0 ? formatCurrency(d.spend, currency) : '—'}</td>
+                        <td style={{ ...tdStyle, color: roasColor(d.roas) }}>{d.roas ? `${d.roas.toFixed(2)}x` : '—'}</td>
+                        <td style={{ ...tdStyle, color: '#94A3B8' }}>{d.aov ? formatCurrency(d.aov, currency) : '—'}</td>
+                        <td style={{ ...tdStyle, color: d.convWeb ? '#22C55E' : '#64748B' }}>{d.convWeb ? `${d.convWeb.toFixed(1)}%` : '—'}</td>
                       </tr>
                     )
                   })}
