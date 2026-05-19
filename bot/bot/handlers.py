@@ -14,15 +14,20 @@ STATUS_EMOJI = {"ACTIVE": "🟢", "PAUSED": "🟡", "ARCHIVED": "🔴"}
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = (
         "👋 <b>Meta Ads Manager</b>\n\n"
-        "Comandos disponibles:\n"
+        "<b>Consultas:</b>\n"
         "/status — Resumen del día\n"
-        "/campanas — Lista de campañas\n"
-        "/alertas — Últimas 10 alertas\n"
-        "/sync — Forzar sync con Meta\n"
-        "/analizar — Analizar un creativo (enviá imagen)\n\n"
+        "/campanas — Lista de campañas con métricas\n"
+        "/alertas — Últimas 10 alertas\n\n"
+        "<b>Acciones:</b>\n"
+        "/gestionar — Pausar o activar una campaña\n"
+        "/presupuesto — Cambiar presupuesto diario\n"
+        "/crear — Crear una campaña nueva\n\n"
+        "<b>Sistema:</b>\n"
+        "/sync — Forzar sync con Meta ahora\n\n"
         "También podés escribirme en lenguaje natural:\n"
-        "<i>\"¿Cuál es mi mejor campaña esta semana?\"</i>\n"
-        "<i>\"¿Cuánto gasté hoy?\"</i>"
+        "<i>\"¿Cuánto gasté hoy?\"</i>\n"
+        "<i>\"¿Qué conjunto de anuncios funcionó mejor?\"</i>\n"
+        "<i>\"¿Qué ad tuvo mejor hook rate?\"</i>"
     )
     await update.message.reply_text(text, parse_mode="HTML")
 
@@ -106,27 +111,67 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     text = update.message.text or ""
     if not text.strip():
         return
-
     if update.message.photo or update.message.video:
         return
 
     await update.message.reply_text("⏳ Procesando...")
 
     campaigns = queries.get_campaigns()
-    today_metrics = queries.get_today_metrics()
+    ad_sets = queries.get_ad_sets()
+    ads = queries.get_ads()
+    today_camp = queries.get_today_metrics()
+    today_as = queries.get_today_metrics_type("ad_set")
+    today_ads = queries.get_today_metrics_type("ad")
 
-    ctx_lines = [f"Fecha: {date.today().isoformat()}", "Métricas hoy:"]
-    metrics_map = {m["object_id"]: m for m in today_metrics}
+    as_map = {a["id"]: a for a in ad_sets}
+    ads_map = {a["id"]: a for a in ads}
+
+    ctx_lines = [f"Fecha: {date.today().isoformat()}\n"]
+
+    # Campañas hoy
+    ctx_lines.append("=== CAMPAÑAS HOY ===")
+    camp_m = {m["object_id"]: m for m in today_camp}
     for c in campaigns:
-        m = metrics_map.get(c["id"])
-        if m:
+        m = camp_m.get(c["id"])
+        if m and m.get("spend", 0) > 0:
+            cpa = m["spend"] / m["purchases"] if m.get("purchases", 0) > 0 else None
             ctx_lines.append(
-                f"  {c['name']} ({c['status']}): gasto=${m.get('spend', 0):.2f}, "
-                f"ROAS={m.get('roas') or 0:.2f}x, compras={m.get('purchases', 0)}"
+                f"  {c['name']} [{c['status']}]: gasto=${m.get('spend', 0):.2f} | "
+                f"ventas={m.get('purchases', 0)} | CPA={'$'+f\"{cpa:.2f}\" if cpa else '—'} | "
+                f"ROAS={m.get('roas') or 0:.2f}x | ATC={m.get('add_to_cart', 0)} | "
+                f"checkout={m.get('checkout_initiated', 0)}"
+            )
+        else:
+            ctx_lines.append(f"  {c['name']} [{c['status']}]: sin gasto hoy")
+
+    # Ad sets hoy
+    if today_as:
+        ctx_lines.append("\n=== CONJUNTOS HOY ===")
+        for m in sorted(today_as, key=lambda x: x.get("spend", 0), reverse=True):
+            as_obj = as_map.get(m["object_id"])
+            name = as_obj["name"] if as_obj else m["object_id"]
+            cpa = m["spend"] / m["purchases"] if m.get("purchases", 0) > 0 else None
+            ctx_lines.append(
+                f"  {name}: gasto=${m.get('spend', 0):.2f} | "
+                f"ventas={m.get('purchases', 0)} | CPA={'$'+f\"{cpa:.2f}\" if cpa else '—'} | "
+                f"ATC={m.get('add_to_cart', 0)} | CTR={m.get('ctr') or 0:.2f}% | "
+                f"hook={m.get('hook_rate') or 0:.1f}% | frec={m.get('frequency') or '—'}"
             )
 
-    context_str = "\n".join(ctx_lines)
-    response = answer_natural_language(text, context_str)
+    # Ads hoy (top 15 por gasto)
+    if today_ads:
+        ctx_lines.append("\n=== ANUNCIOS HOY (top 15) ===")
+        for m in sorted(today_ads, key=lambda x: x.get("spend", 0), reverse=True)[:15]:
+            ad_obj = ads_map.get(m["object_id"])
+            name = ad_obj["name"] if ad_obj else m["object_id"]
+            cpa = m["spend"] / m["purchases"] if m.get("purchases", 0) > 0 else None
+            ctx_lines.append(
+                f"  {name}: gasto=${m.get('spend', 0):.2f} | "
+                f"ventas={m.get('purchases', 0)} | CPA={'$'+f\"{cpa:.2f}\" if cpa else '—'} | "
+                f"ROAS={m.get('roas') or 0:.2f}x | hook={m.get('hook_rate') or 0:.1f}%"
+            )
+
+    response = answer_natural_language(text, "\n".join(ctx_lines))
     await update.message.reply_text(response)
 
 

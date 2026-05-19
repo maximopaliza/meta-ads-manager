@@ -39,6 +39,22 @@ class MetaClient:
             return data
         raise Exception("Rate limit exceeded after retries")
 
+    def _post(self, path: str, data: dict) -> dict:
+        params = {"access_token": self.token}
+        r = requests.post(f"{BASE_URL}/{path}", params=params, data=data, timeout=30)
+        result = r.json()
+        if "error" in result:
+            raise Exception(result["error"].get("message", str(result["error"])))
+        return result
+
+    def update_campaign_status(self, campaign_id: str, status: str) -> bool:
+        result = self._post(campaign_id, {"status": status})
+        return result.get("success", False)
+
+    def update_campaign_budget(self, campaign_id: str, daily_budget_cents: int) -> bool:
+        result = self._post(campaign_id, {"daily_budget": str(daily_budget_cents)})
+        return result.get("success", False)
+
     def get_accounts(self) -> list[dict]:
         data = self._get("me/adaccounts", {"fields": "id,name,currency,timezone_name"})
         result = []

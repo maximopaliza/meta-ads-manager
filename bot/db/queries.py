@@ -114,3 +114,21 @@ def get_all_metrics_range(object_type: str, days: int = 14) -> list[dict]:
 def get_ad_sets() -> list[dict]:
     res = get_client().table("ad_sets").select("*").execute()
     return res.data or []
+
+
+def get_ads() -> list[dict]:
+    res = get_client().table("ads").select("id,name,ad_set_id,status").execute()
+    return res.data or []
+
+
+def get_today_metrics_type(object_type: str) -> list[dict]:
+    today = today_arg()
+    res = (
+        get_client()
+        .table("metrics")
+        .select("*")
+        .eq("object_type", object_type)
+        .eq("date", today)
+        .execute()
+    )
+    return res.data or []
