@@ -237,7 +237,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       <AutoRefresh />
       <div style={{ marginLeft: '240px', flex: 1 }}>
         <Header title="Overview" subtitle={`Hoy — ${dateLabel}`} />
-        <main style={{ padding: '28px 32px', maxWidth: '1400px' }}>
+        <main style={{ padding: '20px 16px', maxWidth: '100%' }}>
 
           {/* Range selector */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>

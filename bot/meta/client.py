@@ -134,8 +134,8 @@ class MetaClient:
         cost_per_atc = (spend / add_to_cart) if add_to_cart > 0 else None
 
         # Video metrics
-        video_plays = row.get("video_play_actions", [])
-        video_3s = sum(int(v["value"]) for v in video_plays) if video_plays else 0
+        # Hook Rate = video_view (3-second views) / impressions — matches Meta Ads Manager
+        video_3s = sum(int(a["value"]) for a in actions if a["action_type"] == "video_view")
         hook_rate = (video_3s / impressions * 100) if impressions > 0 and video_3s > 0 else None
 
         video_avg_raw = row.get("video_avg_time_watched_actions", [])
