@@ -173,6 +173,17 @@ async def handle_nl_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    try:
+        await _handle_text_inner(update, context)
+    except Exception as e:
+        logger.error(f"handle_text unhandled error: {e}", exc_info=True)
+        try:
+            await update.message.reply_text(f"❌ Error interno: {str(e)[:200]}\nIntentá de nuevo o usá /status")
+        except Exception:
+            pass
+
+
+async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text or ""
     if not text.strip():
         return
