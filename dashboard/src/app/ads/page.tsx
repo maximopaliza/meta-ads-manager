@@ -5,23 +5,21 @@ import Header from '@/components/layout/Header'
 import RangeSelector from '@/components/dashboard/RangeSelector'
 import Link from 'next/link'
 import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
-import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET } from '@/lib/metrics'
+import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 
-export default async function AdsPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+export default async function AdsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
   await headers()
   const sp = await searchParams
-  const days = Math.min(90, Math.max(1, Number(sp?.days || 7)))
-
   const today = await getLatestDate()
+  const { rangeStart, rangeEnd, days } = resolveDateRange(sp, today, 30)
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
-  const rangeStart = new Date(todayMs - days * 86400000).toISOString().split('T')[0]
 
   const [adsRes, todayM, yesterdayM, rangeM, accountRes] = await Promise.all([
     supabaseAdmin.from('ads').select('*, ad_sets(name, campaign_id, campaigns(name))'),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').eq('date', today),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').eq('date', yesterday),
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').gte('date', rangeStart),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').gte('date', rangeStart).lte('date', rangeEnd),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
   ])
 

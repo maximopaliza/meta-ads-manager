@@ -3,6 +3,31 @@ import { supabaseAdmin } from './supabase'
 export const CPA_BREAKEVEN = 15
 export const CPA_TARGET = 7
 
+/**
+ * Resuelve el rango de fechas desde los searchParams.
+ * Soporta ?days=N o ?from=YYYY-MM-DD&to=YYYY-MM-DD
+ * Sin cap — si el backfill tiene 365 días, los mostramos.
+ */
+export function resolveDateRange(
+  sp: { days?: string; from?: string; to?: string },
+  latest: string,
+  defaultDays = 30
+): { rangeStart: string; rangeEnd: string; days: number; label: string } {
+  const latestMs = new Date(latest + 'T12:00:00Z').getTime()
+
+  if (sp?.from && sp?.to) {
+    const from = sp.from
+    const to = sp.to > latest ? latest : sp.to
+    const diffMs = new Date(to + 'T12:00:00Z').getTime() - new Date(from + 'T12:00:00Z').getTime()
+    const days = Math.round(diffMs / 86400000) + 1
+    return { rangeStart: from, rangeEnd: to, days, label: `${from} → ${to}` }
+  }
+
+  const days = Math.min(730, Math.max(1, Number(sp?.days || defaultDays)))
+  const rangeStart = new Date(latestMs - (days - 1) * 86400000).toISOString().split('T')[0]
+  return { rangeStart, rangeEnd: latest, days, label: `Últimos ${days} días` }
+}
+
 export async function getLatestDate(): Promise<string> {
   const res = await supabaseAdmin
     .from('metrics').select('date').eq('object_type', 'campaign')

@@ -3,7 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { getLatestDate, cpaColor, roasColor, CPA_BREAKEVEN, CPA_TARGET } from '@/lib/metrics'
+import { getLatestDate, cpaColor, roasColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
+import RangeSelector from '@/components/dashboard/RangeSelector'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -175,20 +176,26 @@ const thSep: any = { ...th, borderLeft: '1px solid #2D3244' }
 
 // ─── page ────────────────────────────────────────────────────────────────────
 
-export default async function DecisionesPage() {
+export default async function DecisionesPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
   await headers()
+  const sp = await searchParams
 
   const today = await getLatestDate()
+  const { rangeStart: histStart, rangeEnd: histEnd, days: histDays, label: histLabel } = resolveDateRange(sp, today, 30)
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
 
-  // Build date arrays
+  // Last 4 days always fixed for the decision columns
   const last4Dates = Array.from({ length: 4 }, (_, i) =>
     new Date(todayMs - (3 - i) * 86400000).toISOString().split('T')[0]
   )
-  const last30Dates = Array.from({ length: 30 }, (_, i) =>
-    new Date(todayMs - (29 - i) * 86400000).toISOString().split('T')[0]
+
+  // Calendar dates = the selected range (up to 365 days)
+  const calDays = Math.min(histDays, 365)
+  const calDates = Array.from({ length: calDays }, (_, i) =>
+    new Date(new Date(histEnd + 'T12:00:00Z').getTime() - (calDays - 1 - i) * 86400000).toISOString().split('T')[0]
   )
 
+  // Comparison periods always 7d/14d/30d relative to today
   const d7start = new Date(todayMs - 6 * 86400000).toISOString().split('T')[0]
   const d14start = new Date(todayMs - 13 * 86400000).toISOString().split('T')[0]
   const d30start = new Date(todayMs - 29 * 86400000).toISOString().split('T')[0]
@@ -197,20 +204,28 @@ export default async function DecisionesPage() {
   const prev14start = new Date(todayMs - 27 * 86400000).toISOString().split('T')[0]
   const prev14end = new Date(todayMs - 14 * 86400000).toISOString().split('T')[0]
 
+  // Fetch all data: use the wider of histStart vs d30start for calendar
+  const fetchStart = histStart < d30start ? histStart : d30start
+
   // Fetch all data in parallel
   const [
-    mCamp30, mAS30, mAd30,
+    mCampAll, mASAll, mAdAll,
     campaignsRes, adSetsRes, adsRes,
     accountRes,
   ] = await Promise.all([
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', d30start).lte('date', today).order('date'),
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad_set').gte('date', d30start).lte('date', today).order('date'),
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').gte('date', d30start).lte('date', today).order('date'),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', fetchStart).lte('date', today).order('date'),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad_set').gte('date', fetchStart).lte('date', today).order('date'),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').gte('date', fetchStart).lte('date', today).order('date'),
     supabaseAdmin.from('campaigns').select('id,name,status,daily_budget'),
     supabaseAdmin.from('ad_sets').select('id,name,status,campaign_id'),
     supabaseAdmin.from('ads').select('id,name,status,ad_set_id'),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
   ])
+
+  // Filter for calendar (selected range)
+  const mCamp30 = { data: (mCampAll.data || []).filter((m: any) => m.date >= histStart && m.date <= histEnd) }
+  const mAS30 = { data: (mASAll.data || []).filter((m: any) => m.date >= histStart && m.date <= histEnd) }
+  const mAd30 = { data: (mAdAll.data || []).filter((m: any) => m.date >= histStart && m.date <= histEnd) }
 
   const currency = accountRes.data?.[0]?.currency || 'ARS'
   const campaigns = campaignsRes.data || []
@@ -256,7 +271,7 @@ export default async function DecisionesPage() {
   }
 
   // ── Account-level day calendar (30 days) ──────────────────────────────────
-  const accountDays = last30Dates.map(d => {
+  const accountDays = calDates.map(d => {
     const rows = (mCamp30.data || []).filter((m: any) => m.date === d)
     if (rows.length === 0) return { date: d, quality: 'empty' as const, spend: 0, purchases: 0, cpa: null, roas: null }
     const a = derive(agg(rows))
@@ -384,12 +399,15 @@ export default async function DecisionesPage() {
       <div style={{ marginLeft: '240px', flex: 1, minWidth: 0 }}>
         <Header title="Decisiones" subtitle="Tendencias · Señales · Acción" />
         <main style={{ padding: '20px 16px', maxWidth: '1600px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+            <RangeSelector />
+          </div>
 
           {/* ── BLOQUE 1: Calendario 30 días ─────────────────────────────── */}
           <div style={card}>
-            {sectionTitle('📅 Calendario de performance — últimos 30 días', 'Verde = CPA ≤ $7 y 2+ ventas · Amarillo = 1 venta o CPA ≤ $15 · Rojo = sin ventas o CPA alto')}
+            {sectionTitle(`📅 Calendario de performance — ${histLabel}`, 'Verde = CPA ≤ $7 y 2+ ventas · Amarillo = 1 venta o CPA ≤ $15 · Rojo = sin ventas o CPA alto')}
             <div style={{ padding: '16px 20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(calDays, 15)}, 1fr)`, gap: '4px' }}>
                 {accountDays.map(d => (
                   <div key={d.date} title={`${d.date} · Gasto: ${formatCurrency(d.spend, currency)} · Ventas: ${d.purchases} · CPA: ${d.cpa ? formatCurrency(d.cpa, currency) : '—'}`}
                     style={{ backgroundColor: qualityBg[d.quality], border: `1px solid ${qualityColor[d.quality]}40`, borderRadius: '6px', padding: '6px', textAlign: 'center', cursor: 'default' }}>

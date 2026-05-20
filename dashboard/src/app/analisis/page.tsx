@@ -4,7 +4,8 @@ import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import Link from 'next/link'
 import { formatCurrency, formatNumber, formatDate } from '@/lib/utils'
-import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET } from '@/lib/metrics'
+import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
+import RangeSelector from '@/components/dashboard/RangeSelector'
 
 function agg(rows: any[]) {
   return rows.reduce((acc, m) => ({
@@ -45,24 +46,23 @@ function wkArrow(v: number | null, invert = false) {
   return { sym: v > 0 ? '▲' : '▼', color: good ? '#22C55E' : '#EF4444' }
 }
 
-export default async function AnalisisPage({ searchParams }: { searchParams: Promise<{ days?: string; view?: string }> }) {
+export default async function AnalisisPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; view?: string }> }) {
   await headers()
   const sp = await searchParams
-  const days = Math.min(90, Math.max(1, Number(sp?.days || 14)))
   const view = sp?.view || 'summary'
 
   const today = await getLatestDate()
+  const { rangeStart, rangeEnd, days } = resolveDateRange(sp, today, 14)
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
   const week1Start = new Date(todayMs - 6 * 86400000).toISOString().split('T')[0]
   const week2Start = new Date(todayMs - 13 * 86400000).toISOString().split('T')[0]
   const week2End = new Date(todayMs - 7 * 86400000).toISOString().split('T')[0]
-  const rangeStart = new Date(todayMs - (days - 1) * 86400000).toISOString().split('T')[0]
 
   const [mToday, mWeek1, mWeek2, mRange, campaignsRes, accountRes, dayAnalysisRes, alertsRes] = await Promise.all([
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').eq('date', today),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', week1Start).lte('date', today),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', week2Start).lte('date', week2End),
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', rangeStart).order('date', { ascending: false }),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', rangeStart).lte('date', rangeEnd).order('date', { ascending: false }),
     supabaseAdmin.from('campaigns').select('id,name,status'),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
     supabaseAdmin.from('alerts').select('*').eq('type', 'day_analysis').order('created_at', { ascending: false }).limit(3),
