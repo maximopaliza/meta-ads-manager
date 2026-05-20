@@ -123,4 +123,10 @@ def answer_natural_language(question: str, context: str) -> str:
         return response.text
     except Exception as e:
         logger.error(f"Natural language error: {e}", exc_info=True)
-        return f"❌ Error Gemini: {str(e)[:300]}"
+        err = str(e)
+        if "429" in err or "quota" in err.lower():
+            return ("⚠️ <b>Cuota de Gemini agotada</b>\n\n"
+                    "El plan gratuito tiene límite diario. Para preguntas simples usá:\n"
+                    "/status · /campanas · /alertas\n\n"
+                    "Para habilitar respuestas ilimitadas, actualizá el plan en: ai.dev/rate-limit")
+        return f"❌ Error Gemini: {err[:200]}"

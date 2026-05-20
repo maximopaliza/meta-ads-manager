@@ -337,6 +337,89 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
             lines.append(f"{emoji} {c['name']}{spend_str}")
         return "\n".join(lines)
 
+    # Mejor día / peor día (histórico)
+    if "mejor" in kw and ("dia" in kw or "día" in kw):
+        metrics_30d = queries.get_all_metrics_range("campaign", 30)
+        if metrics_30d:
+            day_totals: dict = {}
+            for m in metrics_30d:
+                d = m["date"]
+                if d not in day_totals:
+                    day_totals[d] = {"spend": 0, "purchases": 0, "purchase_value": 0}
+                day_totals[d]["spend"] += m.get("spend", 0)
+                day_totals[d]["purchases"] += m.get("purchases", 0)
+                day_totals[d]["purchase_value"] += m.get("purchase_value", 0)
+            days_with_sales = {d: v for d, v in day_totals.items() if v["purchases"] > 0}
+            if days_with_sales:
+                best_d = max(days_with_sales, key=lambda d: days_with_sales[d]["purchase_value"] / max(days_with_sales[d]["spend"], 1))
+                b = days_with_sales[best_d]
+                roas = b["purchase_value"] / b["spend"] if b["spend"] > 0 else 0
+                cpa = b["spend"] / b["purchases"]
+                return (f"🏆 <b>Mejor día (últimos 30d):</b> {best_d}\n\n"
+                        f"Ventas: <b>{b['purchases']}</b>\n"
+                        f"ROAS: <b>{roas:.2f}x</b>\n"
+                        f"CPA: <b>${cpa:,.0f} {currency}</b>\n"
+                        f"Gasto: ${b['spend']:,.0f} · Valor: ${b['purchase_value']:,.0f}")
+
+    if "peor" in kw and ("dia" in kw or "día" in kw):
+        metrics_30d = queries.get_all_metrics_range("campaign", 30)
+        if metrics_30d:
+            day_totals: dict = {}
+            for m in metrics_30d:
+                d = m["date"]
+                if d not in day_totals:
+                    day_totals[d] = {"spend": 0, "purchases": 0, "purchase_value": 0}
+                day_totals[d]["spend"] += m.get("spend", 0)
+                day_totals[d]["purchases"] += m.get("purchases", 0)
+                day_totals[d]["purchase_value"] += m.get("purchase_value", 0)
+            days_with_spend = {d: v for d, v in day_totals.items() if v["spend"] > 10}
+            if days_with_spend:
+                worst_d = min(days_with_spend, key=lambda d: days_with_spend[d]["purchase_value"] / max(days_with_spend[d]["spend"], 1))
+                w = days_with_spend[worst_d]
+                roas = w["purchase_value"] / w["spend"] if w["spend"] > 0 else 0
+                return (f"📉 <b>Peor día (últimos 30d):</b> {worst_d}\n\n"
+                        f"Ventas: {w['purchases']}\n"
+                        f"ROAS: {roas:.2f}x\n"
+                        f"Gasto: ${w['spend']:,.0f} sin retorno")
+
+    # Ayer
+    if "ayer" in kw:
+        from datetime import timedelta
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        metrics_30d = queries.get_all_metrics_range("campaign", 2)
+        ayer_rows = [m for m in metrics_30d if m["date"] == yesterday]
+        if ayer_rows:
+            spend = sum(m.get("spend", 0) for m in ayer_rows)
+            purchases = sum(m.get("purchases", 0) for m in ayer_rows)
+            pv = sum(m.get("purchase_value", 0) for m in ayer_rows)
+            roas = pv / spend if spend > 0 else 0
+            cpa = spend / purchases if purchases > 0 else None
+            lines = [f"📅 <b>Ayer ({yesterday})</b>\n",
+                     f"Gasto: <b>${spend:,.0f} {currency}</b>",
+                     f"Ventas: <b>{purchases}</b>",
+                     f"ROAS: <b>{roas:.2f}x</b>"]
+            if cpa:
+                lines.append(f"CPA: <b>${cpa:,.0f} {currency}</b>")
+            return "\n".join(lines)
+        return f"Sin datos de ayer ({yesterday})."
+
+    # Semana / últimos 7 días
+    if any(w in kw for w in ["semana", "7 dia", "7 día", "ultimos 7", "últimos 7"]):
+        metrics_7d = queries.get_all_metrics_range("campaign", 7)
+        if metrics_7d:
+            spend = sum(m.get("spend", 0) for m in metrics_7d)
+            purchases = sum(m.get("purchases", 0) for m in metrics_7d)
+            pv = sum(m.get("purchase_value", 0) for m in metrics_7d)
+            roas = pv / spend if spend > 0 else 0
+            cpa = spend / purchases if purchases > 0 else None
+            lines = [f"📊 <b>Últimos 7 días</b>\n",
+                     f"Gasto total: <b>${spend:,.0f} {currency}</b>",
+                     f"Ventas: <b>{purchases}</b>",
+                     f"ROAS promedio: <b>{roas:.2f}x</b>"]
+            if cpa:
+                lines.append(f"CPA promedio: <b>${cpa:,.0f} {currency}</b>")
+            return "\n".join(lines)
+
     return None  # No pudo responder directamente → usar Gemini
 
 
