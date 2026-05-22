@@ -185,6 +185,34 @@ class MetaClient:
         video_avg_raw = row.get("video_avg_time_watched_actions", [])
         video_avg_time_watched = float(video_avg_raw[0]["value"]) if video_avg_raw else None
 
+        # Video retention milestones (count of people who watched to each %)
+        def _video_pct(field: str) -> int | None:
+            raw = row.get(field, [])
+            if not raw:
+                return None
+            try:
+                return int(float(raw[0]["value"]))
+            except (KeyError, IndexError, ValueError, TypeError):
+                return None
+
+        video_p25 = _video_pct("video_p25_watched_actions")
+        video_p50 = _video_pct("video_p50_watched_actions")
+        video_p75 = _video_pct("video_p75_watched_actions")
+        video_p95 = _video_pct("video_p95_watched_actions")
+        video_thruplay = _video_pct("video_thruplay_watched_actions")
+
+        # Hold Rate = % of 3s viewers who watched ≥50% of the video
+        # Tells you if the video body holds attention after the hook
+        hold_rate = (video_p50 / video_3s * 100) if video_3s and video_p50 else None
+
+        # ThruPlay Rate = ThruPlays / impressions × 100
+        # How many people who saw the ad watched it to 95%+ (or 15s for longer videos)
+        thruplay_rate = (video_thruplay / impressions * 100) if impressions > 0 and video_thruplay else None
+
+        # CTR post-view = link_clicks / 3s_views × 100
+        # Of people who watched 3s, what % clicked — measures offer/CTA effectiveness
+        ctr_post_view = (unique_link_clicks / video_3s * 100) if video_3s > 0 else None
+
         return {
             "object_id": object_id,
             "object_type": object_type,
@@ -206,6 +234,15 @@ class MetaClient:
             "landing_page_views": landing_page_views,
             "hook_rate": hook_rate,
             "video_avg_time_watched": video_avg_time_watched,
+            "video_3s_views": video_3s if video_3s > 0 else None,
+            "video_p25_watched": video_p25,
+            "video_p50_watched": video_p50,
+            "video_p75_watched": video_p75,
+            "video_p95_watched": video_p95,
+            "video_thruplay": video_thruplay,
+            "hold_rate": hold_rate,
+            "thruplay_rate": thruplay_rate,
+            "ctr_post_view": ctr_post_view,
             "ctr": ctr,
             "cpa": cpa,
             "checkout_initiated": checkout_initiated,
@@ -216,7 +253,11 @@ class MetaClient:
             f"spend,impressions,clicks,inline_link_clicks,unique_inline_link_clicks,reach,"
             f"actions,action_values,"
             f"cpc,cpm,frequency,date_start,"
-            f"video_avg_time_watched_actions,{id_field}"
+            f"video_avg_time_watched_actions,"
+            f"video_p25_watched_actions,video_p50_watched_actions,"
+            f"video_p75_watched_actions,video_p95_watched_actions,"
+            f"video_thruplay_watched_actions,"
+            f"{id_field}"
         )
 
     def get_account_insights(self, account_id: str, date_preset: str, level: str = "campaign") -> list[dict]:

@@ -63,6 +63,15 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
       frequency: tm?.frequency ?? null,
       hook_rate: tm?.hook_rate ?? null,
       video_avg: tm?.video_avg_time_watched ?? null,
+      video_3s_views: tm?.video_3s_views ?? null,
+      video_p25: tm?.video_p25_watched ?? null,
+      video_p50: tm?.video_p50_watched ?? null,
+      video_p75: tm?.video_p75_watched ?? null,
+      video_p95: tm?.video_p95_watched ?? null,
+      video_thruplay: tm?.video_thruplay ?? null,
+      hold_rate: tm?.hold_rate ?? null,
+      thruplay_rate: tm?.thruplay_rate ?? null,
+      ctr_post_view: tm?.ctr_post_view ?? null,
     }
 
     const r = rm ? {
@@ -130,6 +139,9 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                     <th style={th}>Conv. WEB</th>
                     <th style={th}>Frecuencia</th>
                     <th style={th}>Hook Rate</th>
+                    <th style={th}>Hold Rate</th>
+                    <th style={th}>ThruPlay%</th>
+                    <th style={th}>CTR post-view</th>
                     <th style={th}>Video avg</th>
                     <th style={thSep}>Ventas {days}d</th>
                     <th style={th}>CPA {days}d</th>
@@ -171,6 +183,9 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                       <td style={{ ...td, color: ad.t.conv_web ? '#22C55E' : '#64748B' }}>{ad.t.conv_web ? `${ad.t.conv_web.toFixed(1)}%` : '—'}</td>
                       <td style={{ ...td, color: ad.t.frequency && ad.t.frequency > 3 ? '#F59E0B' : '#94A3B8' }}>{ad.t.frequency ? ad.t.frequency.toFixed(1) : '—'}</td>
                       <td style={{ ...td, color: ad.t.hook_rate ? (ad.t.hook_rate >= 30 ? '#22C55E' : ad.t.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#64748B' }}>{ad.t.hook_rate ? `${ad.t.hook_rate.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...td, color: ad.t.hold_rate ? (ad.t.hold_rate >= 50 ? '#22C55E' : ad.t.hold_rate >= 30 ? '#F59E0B' : '#EF4444') : '#64748B' }}>{ad.t.hold_rate ? `${ad.t.hold_rate.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...td, color: ad.t.thruplay_rate ? (ad.t.thruplay_rate >= 15 ? '#22C55E' : ad.t.thruplay_rate >= 8 ? '#F59E0B' : '#EF4444') : '#64748B' }}>{ad.t.thruplay_rate ? `${ad.t.thruplay_rate.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...td, color: ad.t.ctr_post_view ? (ad.t.ctr_post_view >= 4 ? '#22C55E' : ad.t.ctr_post_view >= 2 ? '#F59E0B' : '#EF4444') : '#64748B' }}>{ad.t.ctr_post_view ? `${ad.t.ctr_post_view.toFixed(1)}%` : '—'}</td>
                       <td style={{ ...td, color: '#64748B' }}>{ad.t.video_avg ? `${ad.t.video_avg.toFixed(0)}s` : '—'}</td>
                       <td style={{ ...sep, color: ad.r?.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{ad.r?.purchases || '—'}</td>
                       <td style={{ ...td, color: cpaColor(ad.r?.cpa), fontWeight: 600 }}>{ad.r?.cpa ? formatCurrency(ad.r.cpa, currency) : '—'}</td>
