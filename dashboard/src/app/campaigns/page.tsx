@@ -4,7 +4,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import Link from 'next/link'
 import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
-import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
+import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 import RangeSelector from '@/components/dashboard/RangeSelector'
 
 export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
@@ -144,14 +144,14 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                     <tr key={c.id} style={{ opacity: c.status === 'ACTIVE' ? 1 : 0.5 }}>
                       <td style={{ ...td, textAlign: 'left' as const, minWidth: '180px', position: 'sticky', left: 0, backgroundColor: '#1A1D27' }}>
                         <Link href={`/campaigns/${c.id}`} style={{ color: '#F1F5F9', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                          {c.name}
+                          {c.name || c.id}
                         </Link>
                       </td>
                       <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(c.status)}</td>
                       <td style={{ ...td, color: '#94A3B8' }}>{c.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(c.t.impressions) : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{c.t.cpm ? formatCurrency(c.t.cpm, currency) : '—'}</td>
+                      <td style={{ ...td, color: cpmColor(c.t.cpm) }}>{c.t.cpm ? formatCurrency(c.t.cpm, currency) : '—'}</td>
                       <td style={{ ...td, color: ctrColor(c.t.ctr) }}>{c.t.ctr ? `${c.t.ctr.toFixed(2)}%` : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{c.t.cpc ? formatCurrency(c.t.cpc, currency) : '—'}</td>
+                      <td style={{ ...td, color: cpcColor(c.t.cpc) }}>{c.t.cpc ? formatCurrency(c.t.cpc, currency) : '—'}</td>
                       <td style={{ ...td, color: '#94A3B8' }}>{c.t.unique_link_clicks > 0 ? formatNumber(c.t.unique_link_clicks) : '—'}</td>
                       <td style={{ ...td, color: '#94A3B8' }}>{c.t.landing_page_views > 0 ? formatNumber(c.t.landing_page_views) : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{c.t.add_to_cart || '—'}</td>

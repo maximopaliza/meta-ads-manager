@@ -4,8 +4,9 @@ import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import Link from 'next/link'
 import { formatCurrency, formatNumber, formatDate } from '@/lib/utils'
-import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
+import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 import RangeSelector from '@/components/dashboard/RangeSelector'
+import TrendCharts from '@/components/dashboard/TrendCharts'
 
 function agg(rows: any[]) {
   return rows.reduce((acc, m) => ({
@@ -229,6 +230,17 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                 </div>
               </div>
 
+              {/* 1b. Gráficos de tendencia */}
+              {dailyRows.length > 1 && (
+                <div style={{ marginBottom: '20px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', padding: '16px 16px 14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#F1F5F9' }}>📈 Tendencia — últimos {days} días</span>
+                    <span style={{ fontSize: '10px', color: '#64748B' }}>Las líneas de referencia muestran CPA objetivo y ROAS mínimo</span>
+                  </div>
+                  <TrendCharts data={dailyRows} currency={currency} cpaTarget={CPA_TARGET} cpaBreakeven={CPA_BREAKEVEN} />
+                </div>
+              )}
+
               {/* 2. Últimos 4 días */}
               <div style={{ marginBottom: '20px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden' }}>
                 <div style={{ padding: '10px 16px', borderBottom: '1px solid #2D3244', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -369,7 +381,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                           <td style={{ ...td, color: '#F1F5F9' }}>{c.add_to_cart || '—'}</td>
                           <td style={{ ...td, color: '#F1F5F9' }}>{c.checkout_initiated || '—'}</td>
                           <td style={{ ...td, color: ctrColor(c.ctr) }}>{c.ctr ? `${c.ctr.toFixed(2)}%` : '—'}</td>
-                          <td style={{ ...td, color: '#F1F5F9' }}>{c.cpm ? formatCurrency(c.cpm, currency) : '—'}</td>
+                          <td style={{ ...td, color: cpmColor(c.cpm) }}>{c.cpm ? formatCurrency(c.cpm, currency) : '—'}</td>
                           <td style={{ ...td, color: '#64748B' }}>{c.days_active}</td>
                         </tr>
                       ))}
@@ -455,9 +467,9 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                             {formatDate(d.date)}{isToday && <span style={{ fontSize: '9px', color: '#6366F1', marginLeft: '6px' }}>HOY</span>}
                           </td>
                           <td style={{ ...td, color: '#94A3B8' }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
-                          <td style={{ ...td, color: '#F1F5F9' }}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
+                          <td style={{ ...td, color: cpmColor(d.cpm) }}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
                           <td style={{ ...td, color: ctrColor(d.ctr) }}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
-                          <td style={{ ...td, color: '#F1F5F9' }}>{d.cpc ? formatCurrency(d.cpc, currency) : '—'}</td>
+                          <td style={{ ...td, color: cpcColor(d.cpc) }}>{d.cpc ? formatCurrency(d.cpc, currency) : '—'}</td>
                           <td style={{ ...td, color: '#94A3B8' }}>{d.unique_link_clicks > 0 ? d.unique_link_clicks : '—'}</td>
                           <td style={{ ...td, color: '#94A3B8' }}>{d.landing_page_views > 0 ? d.landing_page_views : '—'}</td>
                           <td style={{ ...td, color: '#F1F5F9' }}>{d.add_to_cart || '—'}</td>

@@ -5,7 +5,7 @@ import Header from '@/components/layout/Header'
 import RangeSelector from '@/components/dashboard/RangeSelector'
 import Link from 'next/link'
 import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
-import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
+import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 
 export default async function AdSetsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
   await headers()
@@ -157,9 +157,9 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                       </td>
                       <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(as.status)}</td>
                       <td style={{ ...td, color: '#94A3B8' }}>{as.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(as.t.impressions) : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.t.cpm ? formatCurrency(as.t.cpm, currency) : '—'}</td>
+                      <td style={{ ...td, color: cpmColor(as.t.cpm) }}>{as.t.cpm ? formatCurrency(as.t.cpm, currency) : '—'}</td>
                       <td style={{ ...td, color: ctrColor(as.t.ctr) }}>{as.t.ctr ? `${as.t.ctr.toFixed(2)}%` : '—'}</td>
-                      <td style={{ ...td, color: '#F1F5F9' }}>{as.t.cpc ? formatCurrency(as.t.cpc, currency) : '—'}</td>
+                      <td style={{ ...td, color: cpcColor(as.t.cpc) }}>{as.t.cpc ? formatCurrency(as.t.cpc, currency) : '—'}</td>
                       <td style={{ ...td, color: '#94A3B8' }}>{as.t.unique_link_clicks > 0 ? formatNumber(as.t.unique_link_clicks) : '—'}</td>
                       <td style={{ ...td, color: '#94A3B8' }}>{as.t.landing_page_views > 0 ? formatNumber(as.t.landing_page_views) : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{as.t.add_to_cart || '—'}</td>

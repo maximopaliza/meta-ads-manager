@@ -283,6 +283,69 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
     roas: badDays.filter(d => d.roas).reduce((s, d) => s + (d.roas || 0), 0) / (badDays.filter(d => d.roas).length || 1),
   }
 
+  // ── Good vs bad days breakdown by level ─────────────────────────────────────
+  function metricsByObjectOnDays(metrics: any[], dates: string[]) {
+    const byId = new Map<string, any[]>()
+    const dateSet = new Set(dates)
+    for (const m of metrics) {
+      if (dateSet.has(m.date)) {
+        if (!byId.has(m.object_id)) byId.set(m.object_id, [])
+        byId.get(m.object_id)!.push(m)
+      }
+    }
+    return byId
+  }
+
+  const campGood = metricsByObjectOnDays(mCamp30.data || [], goodDayDates)
+  const campBad  = metricsByObjectOnDays(mCamp30.data || [], badDayDates)
+  const asGood   = metricsByObjectOnDays(mAS30.data   || [], goodDayDates)
+  const asBad    = metricsByObjectOnDays(mAS30.data   || [], badDayDates)
+  const adGood   = metricsByObjectOnDays(mAd30.data   || [], goodDayDates)
+  const adBad    = metricsByObjectOnDays(mAd30.data   || [], badDayDates)
+
+  const campComparison = campaigns
+    .map((camp: any) => {
+      const g = campGood.get(camp.id)
+      const b = campBad.get(camp.id)
+      return {
+        id: camp.id, name: camp.name || camp.id, status: camp.status,
+        good: g ? derive(agg(g)) : null,
+        bad:  b ? derive(agg(b)) : null,
+      }
+    })
+    .filter((r: any) => r.good || r.bad)
+    .sort((a: any, b: any) => (b.good?.spend || 0) - (a.good?.spend || 0))
+
+  const asComparison = adSets
+    .map((as: any) => {
+      const g = asGood.get(as.id)
+      const b = asBad.get(as.id)
+      const campObj = campMap.get(as.campaign_id) as any
+      return {
+        id: as.id, name: as.name || as.id, campName: campObj?.name || '',
+        good: g ? derive(agg(g)) : null,
+        bad:  b ? derive(agg(b)) : null,
+      }
+    })
+    .filter((r: any) => r.good || r.bad)
+    .sort((a: any, b: any) => (b.good?.spend || 0) - (a.good?.spend || 0))
+    .slice(0, 15)
+
+  const adComparison = ads
+    .map((ad: any) => {
+      const g = adGood.get(ad.id)
+      const b = adBad.get(ad.id)
+      const asObj = asMap.get(ad.ad_set_id) as any
+      return {
+        id: ad.id, name: ad.name || ad.id, asName: asObj?.name || '',
+        good: g ? derive(agg(g)) : null,
+        bad:  b ? derive(agg(b)) : null,
+      }
+    })
+    .filter((r: any) => r.good || r.bad)
+    .sort((a: any, b: any) => (b.good?.spend || 0) - (a.good?.spend || 0))
+    .slice(0, 15)
+
   // Ad rows
   const adRows = ads.map((ad: any) => {
     const days4  = get4Days(adIdx, ad.id)
@@ -296,10 +359,23 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
     const asObj  = asMap.get(ad.ad_set_id) as any
     const campObj = asObj ? campMap.get(asObj.campaign_id) as any : null
     return { ad, days4, d7, d14, d30, prev7, prev14, signal, alerts, asObj, campObj }
-  }).sort((a: any, b: any) => {
-    if (a.signal.priority !== b.signal.priority) return a.signal.priority - b.signal.priority
-    return (b.d7?.spend || 0) - (a.d7?.spend || 0)
-  })
+  }).sort((a: any, b: any) => (b.d7?.spend || 0) - (a.d7?.spend || 0))
+
+  // 7d averages for per-metric badges
+  const _d7valid = adRows.filter((r: any) => r.d7)
+  const avg7dRoas = _d7valid.length ? _d7valid.reduce((s: number, r: any) => s + (r.d7?.roas || 0), 0) / _d7valid.length : null
+  const _d7cpa    = _d7valid.filter((r: any) => r.d7?.cpa)
+  const avg7dCpa  = _d7cpa.length ? _d7cpa.reduce((s: number, r: any) => s + (r.d7.cpa || 0), 0) / _d7cpa.length : null
+  const _d7ctr    = _d7valid.filter((r: any) => r.d7?.ctr)
+  const avg7dCtr  = _d7ctr.length ? _d7ctr.reduce((s: number, r: any) => s + (r.d7.ctr || 0), 0) / _d7ctr.length : null
+  const _d7hook   = _d7valid.filter((r: any) => r.d7?.hook_rate)
+  const avg7dHook = _d7hook.length ? _d7hook.reduce((s: number, r: any) => s + (r.d7.hook_rate || 0), 0) / _d7hook.length : null
+
+  function metricBadge(val: number | null | undefined, avg: number | null, invertGood = false) {
+    if (val == null || avg == null) return null
+    const better = invertGood ? val < avg : val > avg
+    return { label: better ? '▲' : '▼', color: better ? '#22C55E' : '#EF4444', bg: better ? '#22C55E18' : '#EF444418' }
+  }
 
   const campRows = campaigns.map((camp: any) => {
     const days4  = get4Days(campIdx, camp.id)
@@ -449,55 +525,202 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
             </div>
           </div>
 
-          {/* ── BLOQUE 3: Buenos vs malos ─────────────────────────────────── */}
+          {/* ── BLOQUE 3: Buenos vs malos — desglose 4 niveles ──────────── */}
           {(goodDays.length > 0 || badDays.length > 0) && (
             <div style={CARD}>
-              <SectionHeader icon="🔍" title="Días buenos vs malos — qué mueve la aguja" sub="Patrones detectados en tus creativos en el período seleccionado" />
-              <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                {[
-                  { title: `🟢 Días buenos — ${goodDays.length}`, color: '#22C55E', bg: '#22C55E12', border: '#22C55E25',
-                    rows: [
-                      ['ROAS promedio', goodAvg.roas > 0 ? `${goodAvg.roas.toFixed(2)}x` : '—'],
-                      ['CPA promedio',  goodAvg.cpa > 0 ? formatCurrency(goodAvg.cpa, currency) : '—'],
-                      ['Hook rate',     goodAvg.hook !== null ? `${goodAvg.hook.toFixed(1)}%` : '—'],
-                      ['CTR único',     goodAvg.ctr  !== null ? `${goodAvg.ctr.toFixed(2)}%`  : '—'],
-                      ['Frecuencia',    goodAvg.freq !== null ? goodAvg.freq.toFixed(1)        : '—'],
-                    ]
-                  },
-                  { title: `🔴 Días malos — ${badDays.length}`, color: '#EF4444', bg: '#EF444412', border: '#EF444425',
-                    rows: [
-                      ['ROAS promedio', badAvg.roas > 0 ? `${badAvg.roas.toFixed(2)}x` : '—'],
-                      ['CPA promedio',  badAvg.cpa > 0 ? formatCurrency(badAvg.cpa, currency) : '—'],
-                      ['Hook rate',     badAvg.hook !== null ? `${badAvg.hook.toFixed(1)}%` : '—'],
-                      ['CTR único',     badAvg.ctr  !== null ? `${badAvg.ctr.toFixed(2)}%`  : '—'],
-                      ['Frecuencia',    badAvg.freq !== null ? badAvg.freq.toFixed(1)        : '—'],
-                    ]
-                  }
-                ].map(panel => (
-                  <div key={panel.title} style={{ backgroundColor: panel.bg, border: `1px solid ${panel.border}`, borderRadius: '10px', padding: '16px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: panel.color, marginBottom: '14px' }}>{panel.title}</div>
-                    <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+              <SectionHeader icon="🔍" title="Días buenos vs malos — desglose completo" sub="Qué ocurrió en cada nivel cuando el día fue bueno o malo" />
+
+              {/* Nivel 1: cuenta */}
+              <div style={{ padding: '16px 20px 0' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                  Nivel 1 — Cuenta global
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                  {[
+                    { title: `🟢 Días buenos — ${goodDays.length}`, color: '#22C55E', bg: '#22C55E10', border: '#22C55E25',
+                      rows: [
+                        ['ROAS promedio', goodAvg.roas > 0 ? `${goodAvg.roas.toFixed(2)}x` : '—'],
+                        ['CPA promedio',  goodAvg.cpa > 0 ? formatCurrency(goodAvg.cpa, currency) : '—'],
+                        ['Hook rate avg', goodAvg.hook !== null ? `${goodAvg.hook.toFixed(1)}%` : '—'],
+                        ['CTR único avg', goodAvg.ctr  !== null ? `${goodAvg.ctr.toFixed(2)}%`  : '—'],
+                        ['Frecuencia avg',goodAvg.freq !== null ? goodAvg.freq.toFixed(1)        : '—'],
+                      ]
+                    },
+                    { title: `🔴 Días malos — ${badDays.length}`, color: '#EF4444', bg: '#EF444410', border: '#EF444425',
+                      rows: [
+                        ['ROAS promedio', badAvg.roas > 0 ? `${badAvg.roas.toFixed(2)}x` : '—'],
+                        ['CPA promedio',  badAvg.cpa > 0 ? formatCurrency(badAvg.cpa, currency) : '—'],
+                        ['Hook rate avg', badAvg.hook !== null ? `${badAvg.hook.toFixed(1)}%` : '—'],
+                        ['CTR único avg', badAvg.ctr  !== null ? `${badAvg.ctr.toFixed(2)}%`  : '—'],
+                        ['Frecuencia avg',badAvg.freq !== null ? badAvg.freq.toFixed(1)        : '—'],
+                      ]
+                    },
+                  ].map(panel => (
+                    <div key={panel.title} style={{ backgroundColor: panel.bg, border: `1px solid ${panel.border}`, borderRadius: '8px', padding: '12px 14px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 700, color: panel.color, marginBottom: '10px' }}>{panel.title}</div>
+                      <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                        <tbody>
+                          {panel.rows.map(([label, val]) => (
+                            <tr key={label}>
+                              <td style={{ padding: '3px 0', color: '#94A3B8', borderBottom: '1px solid #ffffff06' }}>{label}</td>
+                              <td style={{ padding: '3px 0', color: panel.color, fontWeight: 700, textAlign: 'right', borderBottom: '1px solid #ffffff06' }}>{val}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nivel 2: por campaña */}
+              {campComparison.length > 0 && (
+                <div style={{ padding: '0 20px 0' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #2D3244' }}>
+                    Nivel 2 — Por campaña
+                  </div>
+                  <div style={{ overflowX: 'auto', marginBottom: '4px' }}>
+                    <table style={{ borderCollapse: 'collapse', minWidth: '700px', width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ ...THL }}>Campaña</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>ROAS buenos</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>CPA buenos</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>Ventas buenos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>ROAS malos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>CPA malos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>Ventas malos</th>
+                          <th style={TH}>Diferencia ROAS</th>
+                        </tr>
+                      </thead>
                       <tbody>
-                        {panel.rows.map(([label, val]) => (
-                          <tr key={label}>
-                            <td style={{ padding: '5px 0', color: '#94A3B8', borderBottom: '1px solid #ffffff08' }}>{label}</td>
-                            <td style={{ padding: '5px 0', color: panel.color, fontWeight: 700, textAlign: 'right', borderBottom: '1px solid #ffffff08' }}>{val}</td>
-                          </tr>
-                        ))}
+                        {campComparison.map((r: any) => {
+                          const roasDiff = r.good?.roas && r.bad?.roas ? r.good.roas - r.bad.roas : null
+                          return (
+                            <tr key={r.id} className="tr-hover">
+                              <td style={{ ...TDL, maxWidth: '180px' }}>
+                                <span style={{ color: r.status === 'ACTIVE' ? '#F1F5F9' : '#64748B', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {r.status === 'ACTIVE' ? '🟢 ' : '⏸ '}{r.name}
+                                </span>
+                              </td>
+                              <td style={{ ...TD, color: roasColor(r.good?.roas) }}>{r.good?.roas ? `${r.good.roas.toFixed(2)}x` : '—'}</td>
+                              <td style={{ ...TD, color: cpaColor(r.good?.cpa) }}>{r.good?.cpa ? formatCurrency(r.good.cpa, currency) : '—'}</td>
+                              <td style={{ ...TD, color: '#22C55E', fontWeight: 600 }}>{r.good?.purchases || '—'}</td>
+                              <td style={{ ...TD, color: roasColor(r.bad?.roas) }}>{r.bad?.roas ? `${r.bad.roas.toFixed(2)}x` : '—'}</td>
+                              <td style={{ ...TD, color: cpaColor(r.bad?.cpa) }}>{r.bad?.cpa ? formatCurrency(r.bad.cpa, currency) : '—'}</td>
+                              <td style={{ ...TD, color: '#EF4444', fontWeight: 600 }}>{r.bad?.purchases || '—'}</td>
+                              <td style={{ ...TD, color: roasDiff !== null ? (roasDiff > 0 ? '#22C55E' : '#EF4444') : '#64748B', fontWeight: 700 }}>
+                                {roasDiff !== null ? `${roasDiff > 0 ? '+' : ''}${roasDiff.toFixed(2)}x` : '—'}
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>
-                ))}
-              </div>
-              <div style={{ padding: '0 20px 16px', fontSize: '11px', color: '#64748B', lineHeight: 1.6 }}>
-                💡 Hook rate en días buenos: <strong style={{ color: '#F1F5F9' }}>
-                  {goodAvg.hook && badAvg.hook ? `${goodAvg.hook.toFixed(1)}% vs ${badAvg.hook.toFixed(1)}%` : 'sin datos suficientes'}
-                </strong>
-                {' · '}
-                Frecuencia en días buenos: <strong style={{ color: '#F1F5F9' }}>
-                  {goodAvg.freq && badAvg.freq ? `${goodAvg.freq.toFixed(1)} vs ${badAvg.freq.toFixed(1)}` : 'sin datos'}
-                </strong>
-              </div>
+                </div>
+              )}
+
+              {/* Nivel 3: por Ad Set */}
+              {asComparison.length > 0 && (
+                <div style={{ padding: '0 20px 0' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #2D3244' }}>
+                    Nivel 3 — Por conjunto de anuncios
+                  </div>
+                  <div style={{ overflowX: 'auto', marginBottom: '4px' }}>
+                    <table style={{ borderCollapse: 'collapse', minWidth: '800px', width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ ...THL }}>Ad Set</th>
+                          <th style={{ ...THL }}>Campaña</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>ROAS buenos</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>CPA buenos</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>Ventas buenos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>ROAS malos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>CPA malos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>Ventas malos</th>
+                          <th style={TH}>Δ ROAS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {asComparison.map((r: any) => {
+                          const roasDiff = r.good?.roas && r.bad?.roas ? r.good.roas - r.bad.roas : null
+                          return (
+                            <tr key={r.id} className="tr-hover">
+                              <td style={{ ...TDL, maxWidth: '160px' }}><span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span></td>
+                              <td style={{ ...TDL, maxWidth: '130px' }}><span style={{ color: '#6366F1', fontSize: '10px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.campName}</span></td>
+                              <td style={{ ...TD, color: roasColor(r.good?.roas) }}>{r.good?.roas ? `${r.good.roas.toFixed(2)}x` : '—'}</td>
+                              <td style={{ ...TD, color: cpaColor(r.good?.cpa) }}>{r.good?.cpa ? formatCurrency(r.good.cpa, currency) : '—'}</td>
+                              <td style={{ ...TD, color: '#22C55E', fontWeight: 600 }}>{r.good?.purchases || '—'}</td>
+                              <td style={{ ...TD, color: roasColor(r.bad?.roas) }}>{r.bad?.roas ? `${r.bad.roas.toFixed(2)}x` : '—'}</td>
+                              <td style={{ ...TD, color: cpaColor(r.bad?.cpa) }}>{r.bad?.cpa ? formatCurrency(r.bad.cpa, currency) : '—'}</td>
+                              <td style={{ ...TD, color: '#EF4444', fontWeight: 600 }}>{r.bad?.purchases || '—'}</td>
+                              <td style={{ ...TD, color: roasDiff !== null ? (roasDiff > 0 ? '#22C55E' : '#EF4444') : '#64748B', fontWeight: 700 }}>
+                                {roasDiff !== null ? `${roasDiff > 0 ? '+' : ''}${roasDiff.toFixed(2)}x` : '—'}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Nivel 4: por Anuncio */}
+              {adComparison.length > 0 && (
+                <div style={{ padding: '0 20px 16px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #2D3244' }}>
+                    Nivel 4 — Por anuncio (top {adComparison.length})
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ borderCollapse: 'collapse', minWidth: '900px', width: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ ...THL }}>Anuncio</th>
+                          <th style={{ ...THL }}>Ad Set</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>ROAS buenos</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>CPA buenos</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>Ventas buenos</th>
+                          <th style={{ ...TH, color: '#22C55E' }}>Hook buenos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>ROAS malos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>CPA malos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>Ventas malos</th>
+                          <th style={{ ...TH, color: '#EF4444' }}>Hook malos</th>
+                          <th style={TH}>Δ ROAS</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {adComparison.map((r: any) => {
+                          const roasDiff = r.good?.roas && r.bad?.roas ? r.good.roas - r.bad.roas : null
+                          return (
+                            <tr key={r.id} className="tr-hover">
+                              <td style={{ ...TDL, maxWidth: '180px' }}><span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span></td>
+                              <td style={{ ...TDL, maxWidth: '120px' }}><span style={{ color: '#6366F1', fontSize: '10px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.asName}</span></td>
+                              <td style={{ ...TD, color: roasColor(r.good?.roas) }}>{r.good?.roas ? `${r.good.roas.toFixed(2)}x` : '—'}</td>
+                              <td style={{ ...TD, color: cpaColor(r.good?.cpa) }}>{r.good?.cpa ? formatCurrency(r.good.cpa, currency) : '—'}</td>
+                              <td style={{ ...TD, color: '#22C55E', fontWeight: 600 }}>{r.good?.purchases || '—'}</td>
+                              <td style={{ ...TD, color: '#22C55E' }}>{r.good?.hook_rate ? `${r.good.hook_rate.toFixed(1)}%` : '—'}</td>
+                              <td style={{ ...TD, color: roasColor(r.bad?.roas) }}>{r.bad?.roas ? `${r.bad.roas.toFixed(2)}x` : '—'}</td>
+                              <td style={{ ...TD, color: cpaColor(r.bad?.cpa) }}>{r.bad?.cpa ? formatCurrency(r.bad.cpa, currency) : '—'}</td>
+                              <td style={{ ...TD, color: '#EF4444', fontWeight: 600 }}>{r.bad?.purchases || '—'}</td>
+                              <td style={{ ...TD, color: '#EF4444' }}>{r.bad?.hook_rate ? `${r.bad.hook_rate.toFixed(1)}%` : '—'}</td>
+                              <td style={{ ...TD, color: roasDiff !== null ? (roasDiff > 0 ? '#22C55E' : '#EF4444') : '#64748B', fontWeight: 700 }}>
+                                {roasDiff !== null ? `${roasDiff > 0 ? '+' : ''}${roasDiff.toFixed(2)}x` : '—'}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#64748B', marginTop: '10px', lineHeight: 1.6 }}>
+                    💡 <strong style={{ color: '#94A3B8' }}>Cómo leer esto:</strong> Cada fila muestra cómo se comportó ese anuncio en los días buenos vs malos.
+                    Un anuncio con ROAS alto en días buenos y bajo en días malos fue el <em style={{ color: '#F1F5F9' }}>driver</em> de la diferencia.
+                    Si todos los anuncios cayeron igual, el problema fue externo (audiencia, CPM, estacionalidad).
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -538,10 +761,14 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                 <tbody>
                   {adRows.map(({ ad, days4, d7, d14, d30, prev7, prev14, signal, alerts, asObj }: any) => {
                     const todayM = days4[3]
+                    const bRoas = metricBadge(d7?.roas, avg7dRoas, false)
+                    const bCpa  = metricBadge(d7?.cpa,  avg7dCpa,  true)
+                    const bCtr  = metricBadge(d7?.ctr,  avg7dCtr,  false)
+                    const bHook = metricBadge(d7?.hook_rate, avg7dHook, false)
                     return (
                       <tr key={ad.id} className="tr-hover" style={{ opacity: ad.status === 'ACTIVE' ? 1 : 0.45, borderLeft: `3px solid ${signal.color}30` }}>
                         <td style={{ ...TDL, minWidth: '190px', position: 'sticky', left: 0, backgroundColor: '#1A1D27' }}>
-                          <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '185px', fontSize: '11px', fontWeight: 500 }}>{ad.name}</span>
+                          <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '185px', fontSize: '11px', fontWeight: 500 }}>{ad.name || ad.id}</span>
                         </td>
                         <td style={TDL}>
                           <span style={{ color: '#6366F1', fontSize: '10px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '130px' }}>{asObj?.name || '—'}</span>
@@ -552,8 +779,14 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                         {days4.map((m: any, i: number) => <DayCell key={i} m={m} />)}
                         {/* 7d */}
                         <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d7 ? formatCurrency(d7.spend, currency) : <span style={{ color: '#64748B' }}>—</span>}</span></td>
-                        <td style={{ ...TD, color: roasColor(d7?.roas) }}>{d7?.roas ? `${d7.roas.toFixed(2)}x` : '—'}</td>
-                        <td style={{ ...TD, color: cpaColor(d7?.cpa), fontWeight: 500 }}>{d7?.cpa ? formatCurrency(d7.cpa, currency) : '—'}</td>
+                        <td style={{ ...TD, color: roasColor(d7?.roas) }}>
+                          <span>{d7?.roas ? `${d7.roas.toFixed(2)}x` : '—'}</span>
+                          {bRoas && <span style={{ marginLeft: '4px', fontSize: '9px', color: bRoas.color, fontWeight: 700 }}>{bRoas.label}</span>}
+                        </td>
+                        <td style={{ ...TD, color: cpaColor(d7?.cpa), fontWeight: 500 }}>
+                          <span>{d7?.cpa ? formatCurrency(d7.cpa, currency) : '—'}</span>
+                          {bCpa && <span style={{ marginLeft: '4px', fontSize: '9px', color: bCpa.color, fontWeight: 700 }}>{bCpa.label}</span>}
+                        </td>
                         <td style={{ ...TD, color: (d7?.purchases || 0) > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d7?.purchases || '—'}</td>
                         <PctCell curr={d7?.roas} prev={prev7?.roas} />
                         {/* 14d */}
@@ -566,12 +799,14 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                         <td style={{ ...TD, color: roasColor(d30?.roas) }}>{d30?.roas ? `${d30.roas.toFixed(2)}x` : '—'}</td>
                         <td style={{ ...TD, color: cpaColor(d30?.cpa), fontWeight: 500 }}>{d30?.cpa ? formatCurrency(d30.cpa, currency) : '—'}</td>
                         <td style={{ ...TD, color: (d30?.purchases || 0) > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d30?.purchases || '—'}</td>
-                        {/* Live */}
+                        {/* Hook + CTR con badge */}
                         <td style={{ ...SEP, color: todayM?.hook_rate ? (todayM.hook_rate >= 30 ? '#22C55E' : todayM.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#64748B' }}>
-                          {todayM?.hook_rate ? `${todayM.hook_rate.toFixed(1)}%` : '—'}
+                          <span>{todayM?.hook_rate ? `${todayM.hook_rate.toFixed(1)}%` : d7?.hook_rate ? `${d7.hook_rate.toFixed(1)}%` : '—'}</span>
+                          {bHook && <span style={{ marginLeft: '3px', fontSize: '9px', color: bHook.color, fontWeight: 700 }}>{bHook.label}</span>}
                         </td>
-                        <td style={{ ...TD, color: todayM?.ctr ? (todayM.ctr >= 2 ? '#22C55E' : todayM.ctr >= 0.8 ? '#F59E0B' : '#EF4444') : '#64748B' }}>
-                          {todayM?.ctr ? `${todayM.ctr.toFixed(2)}%` : '—'}
+                        <td style={{ ...TD, color: todayM?.ctr ? (todayM.ctr >= 2 ? '#22C55E' : todayM.ctr >= 0.6 ? '#F59E0B' : '#EF4444') : '#64748B' }}>
+                          <span>{todayM?.ctr ? `${todayM.ctr.toFixed(2)}%` : d7?.ctr ? `${d7.ctr.toFixed(2)}%` : '—'}</span>
+                          {bCtr && <span style={{ marginLeft: '3px', fontSize: '9px', color: bCtr.color, fontWeight: 700 }}>{bCtr.label}</span>}
                         </td>
                         <td style={{ ...TD, color: todayM?.frequency ? (todayM.frequency > 3.5 ? '#EF4444' : todayM.frequency > 2.5 ? '#F59E0B' : '#94A3B8') : '#64748B' }}>
                           {todayM?.frequency ? todayM.frequency.toFixed(1) : '—'}

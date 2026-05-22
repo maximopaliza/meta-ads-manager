@@ -74,7 +74,23 @@ export function roasColor(v: number | null) {
 
 export function ctrColor(v: number | null) {
   if (!v) return '#64748B'
-  if (v >= 2.5) return '#22C55E'
-  if (v >= 0.8) return '#F1F5F9'
+  if (v >= 2.0) return '#22C55E'
+  if (v >= 0.6) return '#F1F5F9'
+  return '#EF4444'
+}
+
+/** CPM — lower is better */
+export function cpmColor(v: number | null) {
+  if (!v) return '#64748B'
+  if (v <= 8)  return '#22C55E'
+  if (v <= 20) return '#F59E0B'
+  return '#EF4444'
+}
+
+/** CPC — lower is better */
+export function cpcColor(v: number | null) {
+  if (!v) return '#64748B'
+  if (v <= 0.6)  return '#22C55E'
+  if (v <= 1.8) return '#F59E0B'
   return '#EF4444'
 }
