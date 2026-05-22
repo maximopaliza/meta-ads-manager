@@ -9,6 +9,7 @@ const links = [
   { href: '/ad-sets',   label: 'Ad Sets',  icon: '◈', desc: 'Conjuntos de ads' },
   { href: '/ads',       label: 'Ads',      icon: '▣', desc: 'Creativos' },
   { href: '/analisis',  label: 'Análisis', icon: '◉', desc: 'Performance & embudo' },
+  { href: '/analisis/diagnostico', label: 'Diagnóstico', icon: '🔍', desc: 'Días buenos vs malos' },
   { href: '/decisiones',label: 'Decisiones', icon: '⚡', desc: 'Señales de acción' },
   { href: '/alerts',    label: 'Alertas',  icon: '◌', desc: 'Notificaciones' },
 ]

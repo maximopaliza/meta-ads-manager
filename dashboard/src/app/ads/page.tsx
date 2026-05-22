@@ -154,7 +154,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                   {rows.map((ad: any) => (
                     <tr key={ad.id} style={{ opacity: ad.status === 'ACTIVE' ? 1 : 0.5 }}>
                       <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#1A1D27' }}>
-                        <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{ad.name}</span>
+                        <Link href={`/ads/${ad.id}`} style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, textDecoration: 'none' }} title={ad.name}>{ad.name}</Link>
                       </td>
                       <td style={{ ...td, textAlign: 'left' as const, minWidth: '120px' }}>
                         <span style={{ color: '#6366F1', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{ad.ad_sets?.name || ad.ad_set_id}</span>

@@ -118,7 +118,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const week2Start = new Date(todayMs - 13 * 86400000).toISOString().split('T')[0]
   const week2End   = new Date(todayMs - 7  * 86400000).toISOString().split('T')[0]
 
-  const [mToday, mWeek1, mWeek2, mRange, campaignsRes, accountRes, dayAnalysisRes, alertsRes] = await Promise.all([
+  const [mToday, mWeek1, mWeek2, mRange, campaignsRes, accountRes, dayAnalysisRes, alertsRes, adSetsRes, mRangeAdSet] = await Promise.all([
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').eq('date', today),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', week1Start).lte('date', today),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', week2Start).lte('date', week2End),
@@ -127,6 +127,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
     supabaseAdmin.from('alerts').select('*').eq('type', 'day_analysis').order('created_at', { ascending: false }).limit(3),
     supabaseAdmin.from('alerts').select('*').neq('type', 'day_analysis').order('created_at', { ascending: false }).limit(10),
+    supabaseAdmin.from('ad_sets').select('id,name,status,campaign_id'),
+    supabaseAdmin.from('metrics').select('object_id,spend,purchases,purchase_value,impressions,hook_rate,date').eq('object_type', 'ad_set').gte('date', rangeStart).lte('date', rangeEnd),
   ])
 
   const currency = accountRes.data?.[0]?.currency || 'USD'
@@ -210,17 +212,60 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           hook_rate: d.impressions > 0 ? d.hook_rate_w / d.impressions : null,
           frequency: d.impressions > 0 ? d.frequency_w / d.impressions : null,
         }))
-        .sort((a, b) => a.date.localeCompare(b.date)) // ascending for comparison
-        .slice(-4) // last 4 days
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-4)
       const totalSpend = campDays.reduce((s, d) => s + d.spend, 0)
       return { id, name: meta?.name || id, status: meta?.status || 'UNKNOWN', days: campDays, totalSpend }
     })
     .filter(c => c.totalSpend > 0)
-    .sort((a, b) => {
-      if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
-      if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
-      return b.totalSpend - a.totalSpend
+    .sort((a, b) => b.totalSpend - a.totalSpend)
+
+  // Active vs paused split
+  const activeCampCards   = campaignCards.filter(c => c.status === 'ACTIVE')
+  const pausedCampCards   = campaignCards.filter(c => c.status !== 'ACTIVE')
+
+  // ── Ad set summaries per campaign ─────────────────────────────────────────
+  const adSetMeta = new Map((adSetsRes.data || []).map((s: any) => [s.id, s]))
+
+  // Aggregate ad_set metrics over the range
+  const adSetTotals = new Map<string, { spend: number; purchases: number; purchase_value: number; impressions: number; hook_rate_w: number }>()
+  for (const m of mRangeAdSet.data || []) {
+    const e = adSetTotals.get(m.object_id) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, hook_rate_w: 0 }
+    adSetTotals.set(m.object_id, {
+      spend:        e.spend        + (m.spend        || 0),
+      purchases:    e.purchases    + (m.purchases    || 0),
+      purchase_value: e.purchase_value + (m.purchase_value || 0),
+      impressions:  e.impressions  + (m.impressions  || 0),
+      hook_rate_w:  e.hook_rate_w  + ((m.hook_rate || 0) * (m.impressions || 0)),
     })
+  }
+
+  // Group by campaign
+  const adSetsByCamp = new Map<string, any[]>()
+  for (const [asId, totals] of adSetTotals.entries()) {
+    if (totals.spend === 0) continue
+    const meta = adSetMeta.get(asId) as any
+    if (!meta) continue
+    const campId = meta.campaign_id
+    if (!campId) continue
+    const hook = totals.impressions > 0 ? totals.hook_rate_w / totals.impressions : null
+    const roas = totals.spend > 0 ? totals.purchase_value / totals.spend : null
+    const entry = {
+      id: asId,
+      name: meta.name || asId,
+      status: meta.status,
+      spend: totals.spend,
+      purchases: totals.purchases,
+      roas,
+      hook_rate: hook,
+    }
+    if (!adSetsByCamp.has(campId)) adSetsByCamp.set(campId, [])
+    adSetsByCamp.get(campId)!.push(entry)
+  }
+  // Sort ad sets within each campaign by spend desc
+  for (const [, sets] of adSetsByCamp.entries()) {
+    sets.sort((a, b) => b.spend - a.spend)
+  }
 
   // ── Semaphore ─────────────────────────────────────────────────────────────
   const tp = todayData.purchases
@@ -512,20 +557,19 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
               ══════════════════════════════════════════ */}
               {campaignCards.length > 0 && (
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '11px', color: C_MUTED, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    Por campaña
-                    <span style={{ flex: 1, height: '1px', backgroundColor: '#2D3244' }} />
-                    <span style={{ fontWeight: 400, fontSize: '10px', textTransform: 'none' as const }}>últimas 4 fechas con datos</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
-                    {campaignCards.map(camp => {
-                      const totalV  = camp.days.reduce((s: number, d: any) => s + (d.purchases || 0), 0)
-                      const totalS  = camp.days.reduce((s: number, d: any) => s + (d.spend || 0), 0)
+
+                  {/* Helper para renderizar una campaign card */}
+                  {(() => {
+                    function CampCard({ camp }: { camp: typeof campaignCards[0] }) {
+                      const totalV   = camp.days.reduce((s: number, d: any) => s + (d.purchases || 0), 0)
+                      const totalS   = camp.days.reduce((s: number, d: any) => s + (d.spend || 0), 0)
                       const lastRoas = camp.days[camp.days.length - 1]?.roas
                       const statusColor = camp.status === 'ACTIVE' ? C_GREEN : camp.status === 'PAUSED' ? C_YELLOW : C_MUTED
+                      const adSets = adSetsByCamp.get(camp.id) || []
+
                       return (
-                        <div key={camp.id} style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden', opacity: camp.status === 'ACTIVE' ? 1 : 0.65 }}>
-                          {/* Card header */}
+                        <div style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden', opacity: camp.status === 'ACTIVE' ? 1 : 0.7 }}>
+                          {/* Camp header */}
                           <div style={{ padding: '9px 14px', borderBottom: '1px solid #2D3244', backgroundColor: '#151820', display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: statusColor, flexShrink: 0, display: 'inline-block' }} />
                             <Link href={`/campaigns/${camp.id}`} style={{ fontSize: '12px', fontWeight: 600, color: C_TEXT, textDecoration: 'none', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
@@ -545,18 +589,87 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                                 {camp.days.map((d: any, i: number) => renderDayRow(
                                   d,
                                   i > 0 ? camp.days[i - 1] : undefined,
-                                  d.date === today,
-                                  i === 0,
+                                  d.date === today, i === 0,
                                   i === camp.days.length - 1,
                                   camp.days,
                                 ))}
                               </tbody>
                             </table>
                           </div>
+                          {/* Ad sets sub-section */}
+                          {adSets.length > 0 && (
+                            <div style={{ borderTop: '1px solid #2D3244', backgroundColor: '#13151e' }}>
+                              <div style={{ padding: '6px 14px 4px', fontSize: '9px', color: C_MUTED, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+                                Conjuntos · {days}d
+                              </div>
+                              <div style={{ overflowX: 'auto' }}>
+                                <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '600px' }}>
+                                  <thead>
+                                    <tr>
+                                      <th style={{ padding: '4px 14px', textAlign: 'left' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235', textTransform: 'uppercase' as const }}>Conjunto</th>
+                                      <th style={{ padding: '4px 10px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>Estado</th>
+                                      <th style={{ padding: '4px 10px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>Gasto</th>
+                                      <th style={{ padding: '4px 10px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>Ventas</th>
+                                      <th style={{ padding: '4px 10px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>ROAS</th>
+                                      <th style={{ padding: '4px 10px 4px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>Hook</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {adSets.map((as: any) => (
+                                      <tr key={as.id} style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.6 }}>
+                                        <td style={{ padding: '5px 14px', fontSize: '11px', color: '#94A3B8', borderBottom: '1px solid #1e2235' }}>
+                                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: as.status === 'ACTIVE' ? C_GREEN : C_YELLOW, flexShrink: 0, display: 'inline-block' }} />
+                                            {as.name}
+                                          </span>
+                                        </td>
+                                        <td style={{ padding: '5px 10px', fontSize: '10px', textAlign: 'right' as const, color: as.status === 'ACTIVE' ? C_GREEN : C_YELLOW, borderBottom: '1px solid #1e2235' }}>{as.status}</td>
+                                        <td style={{ padding: '5px 10px', fontSize: '11px', textAlign: 'right' as const, color: C_TEXT, borderBottom: '1px solid #1e2235' }}>{formatCurrency(as.spend, currency)}</td>
+                                        <td style={{ padding: '5px 10px', fontSize: '11px', textAlign: 'right' as const, color: as.purchases > 0 ? C_GREEN : C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>{as.purchases || '—'}</td>
+                                        <td style={{ padding: '5px 10px', fontSize: '11px', textAlign: 'right' as const, color: roasColor(as.roas), borderBottom: '1px solid #1e2235' }}>{as.roas ? `${as.roas.toFixed(2)}x` : '—'}</td>
+                                        <td style={{ padding: '5px 10px', fontSize: '11px', textAlign: 'right' as const, color: as.hook_rate ? (as.hook_rate >= 30 ? C_GREEN : as.hook_rate >= 15 ? C_YELLOW : C_RED) : C_MUTED, borderBottom: '1px solid #1e2235' }}>{as.hook_rate ? `${as.hook_rate.toFixed(1)}%` : '—'}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )
-                    })}
-                  </div>
+                    }
+
+                    return (
+                      <>
+                        {/* ACTIVAS */}
+                        {activeCampCards.length > 0 && (
+                          <>
+                            <div style={{ fontSize: '11px', color: C_GREEN, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              ● Campañas activas
+                              <span style={{ flex: 1, height: '1px', backgroundColor: '#22C55E20' }} />
+                              <span style={{ fontWeight: 400, fontSize: '10px', textTransform: 'none' as const, color: C_MUTED }}>últimas 4 fechas con datos · conjuntos = acumulado {days}d</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginBottom: pausedCampCards.length > 0 ? '20px' : '0' }}>
+                              {activeCampCards.map(camp => <CampCard key={camp.id} camp={camp} />)}
+                            </div>
+                          </>
+                        )}
+
+                        {/* PAUSADAS CON ACTIVIDAD */}
+                        {pausedCampCards.length > 0 && (
+                          <>
+                            <div style={{ fontSize: '11px', color: C_YELLOW, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              ● Campañas pausadas · con actividad en el período
+                              <span style={{ flex: 1, height: '1px', backgroundColor: '#F59E0B20' }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
+                              {pausedCampCards.map(camp => <CampCard key={camp.id} camp={camp} />)}
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )
+                  })()}
                 </div>
               )}
 
