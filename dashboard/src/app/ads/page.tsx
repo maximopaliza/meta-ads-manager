@@ -90,7 +90,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
       <Sidebar />
-      <div style={{ marginLeft: '240px', flex: 1, minWidth: 0 }}>
+      <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
         <Header title="Ads" subtitle={`${rows.length} anuncios · ordenados por rendimiento`} />
         <main style={{ padding: '20px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>

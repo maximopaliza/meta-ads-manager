@@ -4,13 +4,13 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 const links = [
-  { href: '/', label: 'Overview', icon: '📊' },
-  { href: '/campaigns', label: 'Campañas', icon: '📣' },
-  { href: '/ad-sets', label: 'Ad Sets', icon: '🎯' },
-  { href: '/ads', label: 'Ads', icon: '🎨' },
-  { href: '/analisis', label: 'Análisis', icon: '📈' },
-  { href: '/decisiones', label: 'Decisiones', icon: '⚡' },
-  { href: '/alerts', label: 'Alertas', icon: '🔔' },
+  { href: '/', label: 'Overview',   icon: '◎', desc: 'Métricas del día' },
+  { href: '/campaigns', label: 'Campañas', icon: '⬡', desc: 'Vista de campañas' },
+  { href: '/ad-sets',   label: 'Ad Sets',  icon: '◈', desc: 'Conjuntos de ads' },
+  { href: '/ads',       label: 'Ads',      icon: '▣', desc: 'Creativos' },
+  { href: '/analisis',  label: 'Análisis', icon: '◉', desc: 'Performance & embudo' },
+  { href: '/decisiones',label: 'Decisiones', icon: '⚡', desc: 'Señales de acción' },
+  { href: '/alerts',    label: 'Alertas',  icon: '◌', desc: 'Notificaciones' },
 ]
 
 export default function Sidebar() {
@@ -23,76 +23,116 @@ export default function Sidebar() {
   }
 
   return (
-    <aside
-      style={{
-        width: '240px',
-        minHeight: '100vh',
-        backgroundColor: '#1A1D27',
-        borderRight: '1px solid #2D3244',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'fixed',
-        left: 0,
-        top: 0,
-        bottom: 0,
-      }}
-    >
-      <div style={{ padding: '24px 20px', borderBottom: '1px solid #2D3244' }}>
+    <aside style={{
+      width: '220px',
+      minHeight: '100vh',
+      backgroundColor: '#131620',
+      borderRight: '1px solid #2D3244',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      bottom: 0,
+    }}>
+      {/* Logo */}
+      <div style={{
+        padding: '22px 20px 18px',
+        borderBottom: '1px solid #2D3244',
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '20px' }}>📊</span>
-          <span style={{ fontWeight: 600, fontSize: '16px', color: '#F1F5F9' }}>Meta Ads</span>
+          <div style={{
+            width: '32px', height: '32px',
+            borderRadius: '8px',
+            background: 'linear-gradient(135deg, #6366F1 0%, #818CF8 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '15px', flexShrink: 0,
+            boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
+          }}>
+            ◎
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: '14px', color: '#F1F5F9', letterSpacing: '-0.01em' }}>Meta Ads</div>
+            <div style={{ fontSize: '10px', color: '#6366F1', fontWeight: 500, letterSpacing: '0.04em' }}>AI MANAGER</div>
+          </div>
         </div>
-        <p style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>AI Manager</p>
       </div>
 
-      <nav style={{ padding: '16px 12px', flex: 1 }}>
+      {/* Nav */}
+      <nav style={{ padding: '12px 10px', flex: 1 }}>
+        <div style={{ fontSize: '9px', color: '#3A3F5C', fontWeight: 700, letterSpacing: '0.1em', padding: '4px 10px 8px', textTransform: 'uppercase' }}>
+          NAVEGACIÓN
+        </div>
         {links.map(link => {
           const active = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href))
           return (
             <Link
               key={link.href}
               href={link.href}
+              className="nav-link"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                padding: '10px 12px',
+                padding: '9px 10px',
                 borderRadius: '8px',
-                marginBottom: '4px',
-                backgroundColor: active ? '#22263A' : 'transparent',
+                marginBottom: '2px',
+                backgroundColor: active ? '#1E2235' : 'transparent',
                 color: active ? '#F1F5F9' : '#64748B',
                 textDecoration: 'none',
-                fontSize: '14px',
-                fontWeight: active ? 500 : 400,
-                transition: 'all 0.15s',
+                fontSize: '13px',
+                fontWeight: active ? 600 : 400,
+                position: 'relative',
+                borderLeft: active ? '3px solid #6366F1' : '3px solid transparent',
+                paddingLeft: active ? '8px' : '10px',
+                transition: 'all 0.12s ease',
               }}
             >
-              <span>{link.icon}</span>
-              {link.label}
+              <span style={{
+                fontSize: '14px',
+                color: active ? '#6366F1' : '#3A4060',
+                width: '18px',
+                textAlign: 'center',
+              }}>{link.icon}</span>
+              <span>{link.label}</span>
+              {active && (
+                <span style={{
+                  marginLeft: 'auto',
+                  width: '5px', height: '5px',
+                  borderRadius: '50%',
+                  background: '#6366F1',
+                  boxShadow: '0 0 6px #6366F1',
+                  flexShrink: 0,
+                }} />
+              )}
             </Link>
           )
         })}
       </nav>
 
-      <div style={{ padding: '16px 12px', borderTop: '1px solid #2D3244' }}>
+      {/* Footer */}
+      <div style={{ padding: '12px 10px', borderTop: '1px solid #2D3244' }}>
         <button
           onClick={handleLogout}
+          className="nav-link"
           style={{
             width: '100%',
-            padding: '10px 12px',
+            padding: '9px 10px',
             backgroundColor: 'transparent',
             border: 'none',
             color: '#64748B',
-            fontSize: '14px',
+            fontSize: '13px',
             cursor: 'pointer',
             textAlign: 'left',
             borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
+            borderLeft: '3px solid transparent',
           }}
         >
-          <span>🚪</span> Salir
+          <span style={{ fontSize: '14px', color: '#3A4060', width: '18px', textAlign: 'center' }}>→</span>
+          Salir
         </button>
       </div>
     </aside>

@@ -96,7 +96,7 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
       <Sidebar />
-      <div style={{ marginLeft: '240px', flex: 1, minWidth: 0 }}>
+      <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
         <Header title="Ad Sets" subtitle={`${rows.length} ad sets · ordenados por rendimiento`} />
         <main style={{ padding: '20px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>

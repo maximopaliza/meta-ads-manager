@@ -24,7 +24,7 @@ export default async function AlertsPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
       <Sidebar />
-      <div style={{ marginLeft: '240px', flex: 1 }}>
+      <div style={{ marginLeft: '220px', flex: 1 }}>
         <Header title="Alertas" subtitle={`${(alerts || []).length} alertas registradas`} />
         <main style={{ padding: '32px', maxWidth: '1400px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

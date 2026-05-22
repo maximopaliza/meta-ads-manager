@@ -38,22 +38,42 @@ function deltaLabel(delta: number | null, invertSign = false) {
   if (delta === null || delta === undefined) return null
   const d = invertSign ? -delta : delta
   return {
-    text: `${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}% vs ayer`,
+    text: `${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%`,
     color: d >= 0 ? '#22C55E' : '#EF4444',
   }
 }
 
+// Professional KPI card with accent top border
 function KPI({ label, value, delta, color, sub }: {
   label: string; value: string
   delta?: { text: string; color: string } | null
   color?: string; sub?: string
 }) {
+  const accentColor = color && color !== '#F1F5F9' && color !== '#64748B' ? color : '#2D3244'
   return (
-    <div style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', padding: '16px 18px', minWidth: 0 }}>
-      <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
-      <div style={{ fontSize: '22px', fontWeight: 700, color: color || '#F1F5F9', lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>{sub}</div>}
-      {delta && <div style={{ fontSize: '10px', color: delta.color, marginTop: '4px' }}>{delta.text}</div>}
+    <div
+      className="kpi-card"
+      style={{ '--kpi-color': accentColor } as React.CSSProperties}
+    >
+      <div style={{
+        fontSize: '10px', color: '#64748B', marginBottom: '8px',
+        textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600,
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>{label}</div>
+      <div style={{
+        fontSize: '24px', fontWeight: 700, color: color || '#F1F5F9',
+        lineHeight: 1.1, letterSpacing: '-0.02em',
+      }}>{value}</div>
+      {sub && <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>{sub}</div>}
+      {delta && (
+        <div style={{
+          fontSize: '11px', color: delta.color, marginTop: '6px',
+          display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 500,
+        }}>
+          {delta.text}
+          <span style={{ color: '#64748B', fontSize: '10px', fontWeight: 400 }}>vs ayer</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -87,15 +107,13 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
     purchase_value: a.purchase_value + (m.purchase_value || 0),
     impressions: a.impressions + (m.impressions || 0),
     clicks: a.clicks + (m.clicks || 0),
-    link_clicks: a.link_clicks + (m.link_clicks || 0),           // non-unique (for tráfico efectivo)
-    unique_link_clicks: a.unique_link_clicks + (m.unique_link_clicks || 0), // unique (for display + CTR)
+    link_clicks: a.link_clicks + (m.link_clicks || 0),
+    unique_link_clicks: a.unique_link_clicks + (m.unique_link_clicks || 0),
     reach: a.reach + (m.reach || 0),
     add_to_cart: a.add_to_cart + (m.add_to_cart || 0),
     landing_page_views: a.landing_page_views + (m.landing_page_views || 0),
-    // frequency: impressions-weighted average
     freq_imp: a.freq_imp + (m.impressions || 0),
     freq_sum: a.freq_sum + ((m.frequency || 0) * (m.impressions || 0)),
-    // video: impression-weighted
     video_imp: a.video_imp + (m.impressions || 0),
     video_sum: a.video_sum + ((m.video_avg_time_watched || 0) * (m.impressions || 0)),
     hook_imp: a.hook_imp + (m.impressions || 0),
@@ -108,7 +126,7 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
   const calc = (d: typeof td) => ({
     roas: d.spend > 0 ? d.purchase_value / d.spend : null,
     cpa: d.purchases > 0 ? d.spend / d.purchases : null,
-    ctr: d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null,  // CTR único = unique_link_clicks / reach
+    ctr: d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null,
     cpm: d.impressions > 0 ? d.spend / d.impressions * 1000 : null,
     cpc: d.link_clicks > 0 ? d.spend / d.link_clicks : d.clicks > 0 ? d.spend / d.clicks : null,
     cost_atc: d.add_to_cart > 0 ? d.spend / d.add_to_cart : null,
@@ -122,7 +140,6 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
 
   const pct = (a: number | null, b: number | null) => (a && b && b > 0) ? ((a - b) / b) * 100 : null
 
-  // Daily data for chart + table
   const byDate = new Map<string, any>()
   for (const m of weekM.data || []) {
     const e = byDate.get(m.date) || { spend: 0, purchase_value: 0, purchases: 0, impressions: 0, clicks: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, add_to_cart: 0, landing_page_views: 0, freq_sum: 0, freq_imp: 0 }
@@ -162,7 +179,6 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
     }
   })
 
-  // Campaigns with metrics
   const todayMap = new Map((todayM.data || []).map((m: any) => [m.object_id, m]))
   const yesterdayMap = new Map((yesterdayM.data || []).map((m: any) => [m.object_id, m]))
 
@@ -203,83 +219,122 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     timeZone: 'America/Argentina/Buenos_Aires',
   })
 
-  // Metric rows in requested order
+  // Today's hero status
+  const heroColor = t.roas && t.roas >= 2.5 ? '#22C55E' : t.roas && t.roas >= 1 ? '#F59E0B' : '#EF4444'
+  const heroText = t.roas && t.roas >= 2.5 ? 'Rentable' : t.roas && t.roas >= 1 ? 'Atención' : td.spend > 0 ? 'Revisar' : 'Sin datos'
+
   const row1 = [
-    { label: 'CPM', value: t.cpm ? formatCurrency(t.cpm, currency) : '—', delta: deltaLabel(pct(t.cpm, y.cpm), true) },
-    { label: 'CTR', value: t.ctr ? `${t.ctr.toFixed(2)}%` : '—', color: ctrColor(t.ctr), delta: deltaLabel(pct(t.ctr, y.ctr)) },
-    { label: 'CPC', value: t.cpc ? formatCurrency(t.cpc, currency) : '—', delta: deltaLabel(pct(t.cpc, y.cpc), true) },
-    { label: 'Clics únicos enlace', value: formatNumber(td.unique_link_clicks || 0), delta: deltaLabel(pct(td.unique_link_clicks || 0, yd.unique_link_clicks || 0)) },
+    { label: 'CPM', value: t.cpm ? formatCurrency(t.cpm, currency) : '—', delta: deltaLabel(pct(t.cpm, y.cpm), true), color: '#F1F5F9' },
+    { label: 'CTR único', value: t.ctr ? `${t.ctr.toFixed(2)}%` : '—', color: ctrColor(t.ctr), delta: deltaLabel(pct(t.ctr, y.ctr)) },
+    { label: 'CPC', value: t.cpc ? formatCurrency(t.cpc, currency) : '—', delta: deltaLabel(pct(t.cpc, y.cpc), true), color: '#F1F5F9' },
+    { label: 'Clics únicos', value: formatNumber(td.unique_link_clicks || 0), delta: deltaLabel(pct(td.unique_link_clicks || 0, yd.unique_link_clicks || 0)), color: '#F1F5F9' },
   ]
   const row2 = [
-    { label: 'ATC (add to cart)', value: formatNumber(td.add_to_cart), delta: deltaLabel(pct(td.add_to_cart, yd.add_to_cart || 0)) },
-    { label: 'Costo por ATC', value: t.cost_atc ? formatCurrency(t.cost_atc, currency) : '—', delta: deltaLabel(pct(t.cost_atc, y.cost_atc), true) },
-    { label: 'Resultados (ventas)', value: String(td.purchases), color: td.purchases > 0 ? '#22C55E' : '#64748B', delta: deltaLabel(pct(td.purchases, yd.purchases || 0)) },
-    { label: `CPA (≤$${CPA_TARGET} 🟢 ≤$15 🟡)`, value: t.cpa ? formatCurrency(t.cpa, currency) : '—', color: cpaColor(t.cpa), delta: deltaLabel(pct(t.cpa, y.cpa), true) },
+    { label: 'Add to Cart', value: formatNumber(td.add_to_cart), delta: deltaLabel(pct(td.add_to_cart, yd.add_to_cart || 0)), color: '#F1F5F9' },
+    { label: 'Costo por ATC', value: t.cost_atc ? formatCurrency(t.cost_atc, currency) : '—', delta: deltaLabel(pct(t.cost_atc, y.cost_atc), true), color: '#F1F5F9' },
+    { label: 'Ventas (resultados)', value: String(td.purchases), color: td.purchases > 0 ? '#22C55E' : '#64748B', delta: deltaLabel(pct(td.purchases, yd.purchases || 0)) },
+    { label: `CPA  ≤$${CPA_TARGET} ✓`, value: t.cpa ? formatCurrency(t.cpa, currency) : '—', color: cpaColor(t.cpa), delta: deltaLabel(pct(t.cpa, y.cpa), true) },
   ]
   const row3 = [
     { label: 'ROAS', value: t.roas ? formatROAS(t.roas) : '—', color: roasColor(t.roas), delta: deltaLabel(pct(t.roas, y.roas)) },
-    { label: 'Importe gastado', value: formatCurrency(td.spend, currency), delta: deltaLabel(pct(td.spend, yd.spend || 0)) },
-    { label: 'Tráfico efectivo', value: (td.link_clicks || td.clicks) > 0 ? `${(td.landing_page_views / (td.link_clicks || td.clicks) * 100).toFixed(2)}%` : '—', sub: `${td.landing_page_views} llegaron`, delta: (() => { const tv = (td.link_clicks || td.clicks) > 0 ? td.landing_page_views / (td.link_clicks || td.clicks) * 100 : null; const yv = (yd.link_clicks || yd.clicks) > 0 ? yd.landing_page_views / (yd.link_clicks || yd.clicks) * 100 : null; return deltaLabel(pct(tv, yv)) })() },
-    { label: 'Frecuencia', value: t.frequency ? t.frequency.toFixed(2) : '—', color: t.frequency && t.frequency > 3.5 ? '#EF4444' : '#F1F5F9' },
+    { label: 'Gasto total', value: formatCurrency(td.spend, currency), delta: deltaLabel(pct(td.spend, yd.spend || 0)), color: '#F1F5F9' },
+    { label: 'Tráfico efectivo', value: (td.link_clicks || td.clicks) > 0 ? `${(td.landing_page_views / (td.link_clicks || td.clicks) * 100).toFixed(1)}%` : '—', sub: `${td.landing_page_views} llegaron`, delta: (() => { const tv = (td.link_clicks || td.clicks) > 0 ? td.landing_page_views / (td.link_clicks || td.clicks) * 100 : null; const yv = (yd.link_clicks || yd.clicks) > 0 ? yd.landing_page_views / (yd.link_clicks || yd.clicks) * 100 : null; return deltaLabel(pct(tv, yv)) })(), color: '#F1F5F9' },
+    { label: 'Frecuencia', value: t.frequency ? t.frequency.toFixed(2) : '—', color: t.frequency && t.frequency > 3.5 ? '#EF4444' : t.frequency && t.frequency > 2.5 ? '#F59E0B' : '#F1F5F9' },
   ]
   const row4 = [
-    { label: 'Hook Rate', value: t.hook_rate ? `${t.hook_rate.toFixed(1)}%` : '—', color: t.hook_rate ? (t.hook_rate >= 40 ? '#22C55E' : t.hook_rate >= 20 ? '#F59E0B' : '#EF4444') : '#64748B', sub: t.hook_rate ? (t.hook_rate >= 40 ? 'Excelente' : t.hook_rate >= 20 ? 'Aceptable' : 'Mejorar hook') : undefined },
-    { label: 'Tiempo prom. video (seg)', value: t.video_avg ? `${t.video_avg.toFixed(1)}s` : '—' },
-    { label: 'Campañas activas', value: String(activeCampaigns) },
+    { label: 'Hook Rate', value: t.hook_rate ? `${t.hook_rate.toFixed(1)}%` : '—', color: t.hook_rate ? (t.hook_rate >= 40 ? '#22C55E' : t.hook_rate >= 20 ? '#F59E0B' : '#EF4444') : '#64748B', sub: t.hook_rate ? (t.hook_rate >= 40 ? '▲ Excelente' : t.hook_rate >= 20 ? '~ Aceptable' : '▼ Mejorar') : undefined },
+    { label: 'Video promedio', value: t.video_avg ? `${t.video_avg.toFixed(1)}s` : '—', color: '#F1F5F9' },
+    { label: 'Campañas activas', value: String(activeCampaigns), color: activeCampaigns > 0 ? '#6366F1' : '#64748B' },
   ]
 
-  const gridStyle = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '10px' }
-  const grid3Style = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }
+  const grid4 = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '10px' }
+  const grid3 = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }
+
+  const thStyle: any = {
+    padding: '8px 10px', textAlign: 'right' as const, color: '#64748B',
+    fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #2D3244',
+    whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const,
+    letterSpacing: '0.05em', backgroundColor: '#13151F',
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
       <Sidebar />
       <AutoRefresh />
-      <div style={{ marginLeft: '240px', flex: 1 }}>
-        <Header title="Overview" subtitle={`Hoy — ${dateLabel}`} />
-        <main style={{ padding: '20px 16px', maxWidth: '100%' }}>
+      <div style={{ marginLeft: '220px', flex: 1 }}>
+        <Header title="Overview" subtitle={dateLabel} />
+        <main style={{ padding: '20px 20px', maxWidth: '100%' }}>
+
+          {/* Today hero banner */}
+          <div style={{
+            marginBottom: '16px',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            background: `linear-gradient(135deg, ${heroColor}10 0%, transparent 100%)`,
+            border: `1px solid ${heroColor}30`,
+            display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+              <div style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                background: heroColor, boxShadow: `0 0 8px ${heroColor}`,
+                flexShrink: 0,
+              }} />
+              <span style={{ fontSize: '13px', fontWeight: 700, color: heroColor }}>
+                {heroText}
+              </span>
+              <span style={{ fontSize: '12px', color: '#64748B' }}>—</span>
+              <span style={{ fontSize: '12px', color: '#94A3B8' }}>Hoy</span>
+            </div>
+            <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap' }}>
+              {[
+                { label: 'VENTAS', value: String(td.purchases), color: td.purchases > 0 ? '#22C55E' : '#64748B' },
+                { label: 'ROAS', value: t.roas ? `${t.roas.toFixed(2)}x` : '—', color: roasColor(t.roas) },
+                { label: 'CPA', value: t.cpa ? formatCurrency(t.cpa, currency) : '—', color: cpaColor(t.cpa) },
+                { label: 'GASTO', value: formatCurrency(td.spend, currency), color: '#F1F5F9' },
+              ].map(k => (
+                <div key={k.label}>
+                  <div style={{ fontSize: '9px', color: '#64748B', letterSpacing: '0.08em', marginBottom: '2px' }}>{k.label}</div>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: k.color, letterSpacing: '-0.02em' }}>{k.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Range selector */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
             <Suspense fallback={null}>
               <RangeSelector />
             </Suspense>
           </div>
 
-          {/* Rows 1-3: 4 cols each */}
-          <div style={gridStyle}>
-            {row1.map(k => <KPI key={k.label} {...k} />)}
-          </div>
-          <div style={gridStyle}>
-            {row2.map(k => <KPI key={k.label} {...k} />)}
-          </div>
-          <div style={gridStyle}>
-            {row3.map(k => <KPI key={k.label} {...k} />)}
-          </div>
-          {/* Row 4: 3 cols (video metrics + activas) */}
-          <div style={grid3Style}>
-            {row4.map(k => <KPI key={k.label} {...k} />)}
-          </div>
+          {/* KPI grids */}
+          <div style={grid4}>{row1.map(k => <KPI key={k.label} {...k} />)}</div>
+          <div style={grid4}>{row2.map(k => <KPI key={k.label} {...k} />)}</div>
+          <div style={grid4}>{row3.map(k => <KPI key={k.label} {...k} />)}</div>
+          <div style={grid3}>{row4.map(k => <KPI key={k.label} {...k} />)}</div>
 
           {/* Spend chart */}
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: '20px' }}>
             <SpendChart data={dailyData} />
           </div>
 
-          {/* Day-by-day table + Alerts */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: '16px', marginBottom: '24px' }}>
+          {/* Day table + alerts */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '16px', marginBottom: '20px' }}>
+            {/* Daily table */}
             <div style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '14px 18px', borderBottom: '1px solid #2D3244' }}>
-                <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#F1F5F9' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #2D3244', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#F1F5F9' }}>
                   📅 {customFrom && customTo ? `${customFrom} → ${customTo}` : `Últimos ${days} días`}
                 </h3>
+                <span style={{ fontSize: '10px', color: '#64748B' }}>CPA target ≤${CPA_TARGET}</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                   <thead>
                     <tr>
-                      {['Fecha', 'Ventas', 'CPA', 'ROAS', 'Gasto', 'CTR', 'CPM', 'ATC', 'Tráf.ef.', 'Frec'].map(h => (
-                        <th key={h} style={{ padding: '7px 10px', textAlign: 'right', color: '#64748B', fontWeight: 500, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' }}>{h}</th>
+                      {['Fecha', 'Ventas', 'CPA', 'ROAS', 'Gasto', 'CTR', 'CPM', 'ATC', 'Tráf.', 'Frec.'].map((h, i) => (
+                        <th key={h} style={{ ...thStyle, textAlign: i === 0 ? 'left' as const : 'right' as const }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -287,19 +342,20 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                     {[...dailyData].reverse().map((d: any) => {
                       const isToday = d.date === today
                       return (
-                        <tr key={d.date} style={{ backgroundColor: isToday ? '#1e2235' : 'transparent' }}>
-                          <td style={{ padding: '7px 10px', color: isToday ? '#6366F1' : '#F1F5F9', fontWeight: isToday ? 600 : 400, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <tr key={d.date} className="tr-hover" style={{ backgroundColor: isToday ? '#1E2235' : 'transparent' }}>
+                          <td style={{ padding: '7px 10px', color: isToday ? '#6366F1' : '#F1F5F9', fontWeight: isToday ? 700 : 400, textAlign: 'left', whiteSpace: 'nowrap', fontSize: '11px' }}>
                             {new Date(d.date + 'T12:00:00Z').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}
+                            {isToday && <span style={{ marginLeft: '5px', fontSize: '9px', color: '#6366F1', backgroundColor: '#6366F120', padding: '1px 5px', borderRadius: '3px' }}>HOY</span>}
                           </td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: d.purchases > 0 ? '#22C55E' : '#64748B' }}>{d.purchases}</td>
+                          <td style={{ padding: '7px 10px', textAlign: 'right', color: d.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d.purchases}</td>
                           <td style={{ padding: '7px 10px', textAlign: 'right', color: cpaColor(d.cpa), fontWeight: 600 }}>{d.cpa ? formatCurrency(d.cpa, currency) : '—'}</td>
                           <td style={{ padding: '7px 10px', textAlign: 'right', color: roasColor(d.roas) }}>{d.roas ? `${d.roas.toFixed(2)}x` : '—'}</td>
                           <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{formatCurrency(d.spend, currency)}</td>
                           <td style={{ padding: '7px 10px', textAlign: 'right', color: ctrColor(d.ctr) }}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
+                          <td style={{ padding: '7px 10px', textAlign: 'right', color: '#94A3B8' }}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
                           <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{d.add_to_cart || 0}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{(d.clicks || 0) > 0 ? `${(d.landing_page_views / d.clicks * 100).toFixed(1)}%` : '—'}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: d.frequency && d.frequency > 3.5 ? '#EF4444' : '#F1F5F9' }}>{d.frequency ? d.frequency.toFixed(1) : '—'}</td>
+                          <td style={{ padding: '7px 10px', textAlign: 'right', color: '#94A3B8' }}>{(d.clicks || 0) > 0 ? `${(d.landing_page_views / d.clicks * 100).toFixed(1)}%` : '—'}</td>
+                          <td style={{ padding: '7px 10px', textAlign: 'right', color: d.frequency && d.frequency > 3.5 ? '#EF4444' : d.frequency && d.frequency > 2.5 ? '#F59E0B' : '#94A3B8' }}>{d.frequency ? d.frequency.toFixed(1) : '—'}</td>
                         </tr>
                       )
                     })}
@@ -312,36 +368,38 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
 
           {/* Campaigns table */}
           <div style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden' }}>
-            <div style={{ padding: '14px 18px', borderBottom: '1px solid #2D3244', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 600, color: '#F1F5F9' }}>📣 Campañas — hoy</h3>
-              <Link href="/campaigns" style={{ fontSize: '12px', color: '#6366F1', textDecoration: 'none' }}>Ver todas →</Link>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #2D3244', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#F1F5F9' }}>Campañas — hoy</h3>
+              <Link href="/campaigns" style={{ fontSize: '11px', color: '#6366F1', textDecoration: 'none', fontWeight: 500 }}>Ver todas →</Link>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                 <thead>
                   <tr>
-                    {['Campaña', '', 'Ventas', 'CPA', 'ROAS', 'Gasto', 'CTR', 'ATC', 'Tráf.ef.', 'Tend.'].map((h, i) => (
-                      <th key={i} style={{ padding: '7px 10px', textAlign: i <= 1 ? 'left' : 'right', color: '#64748B', fontWeight: 500, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' }}>{h}</th>
+                    {['Campaña', '', 'Ventas', 'CPA', 'ROAS', 'Gasto', 'CTR', 'ATC', 'Tráf.', 'Tend.'].map((h, i) => (
+                      <th key={i} style={{ ...thStyle, textAlign: (i === 0 || i === 1) ? 'left' as const : 'right' as const }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {campaignsWithMetrics.slice(0, 12).map((c: any) => (
-                    <tr key={c.id} style={{ borderBottom: '1px solid #1a1d27' }}>
-                      <td style={{ padding: '9px 10px', maxWidth: '180px' }}>
+                  {campaignsWithMetrics.slice(0, 15).map((c: any) => (
+                    <tr key={c.id} className="tr-hover" style={{ borderBottom: '1px solid #1A1D2750' }}>
+                      <td style={{ padding: '9px 10px', maxWidth: '200px' }}>
                         <Link href={`/campaigns/${c.id}`} style={{ color: '#F1F5F9', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {c.name}
                         </Link>
                       </td>
-                      <td style={{ padding: '9px 6px' }}>{statusEmoji(c.status)}</td>
-                      <td style={{ padding: '9px 10px', textAlign: 'right', color: c.m.purchases > 0 ? '#22C55E' : '#64748B' }}>{c.m.purchases}</td>
+                      <td style={{ padding: '9px 6px', textAlign: 'left' }}>
+                        <span className={c.status === 'ACTIVE' ? 'status-active' : 'status-paused'} />
+                      </td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: c.m.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{c.m.purchases}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: cpaColor(c.m.cpa), fontWeight: 600 }}>{c.m.cpa ? formatCurrency(c.m.cpa, currency) : '—'}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: roasColor(c.m.roas) }}>{c.m.roas ? `${c.m.roas.toFixed(2)}x` : '—'}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: '#F1F5F9' }}>{formatCurrency(c.m.spend, currency)}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: ctrColor(c.m.ctr) }}>{c.m.ctr ? `${c.m.ctr.toFixed(2)}%` : '—'}</td>
-                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#F1F5F9' }}>{c.m.add_to_cart}</td>
-                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#F1F5F9' }}>{c.m.link_clicks > 0 ? `${(c.m.landing_page_views / c.m.link_clicks * 100).toFixed(1)}%` : '—'}</td>
-                      <td style={{ padding: '9px 10px', textAlign: 'right', color: c.trend === '▲' ? '#22C55E' : c.trend === '▼' ? '#EF4444' : '#64748B' }}>{c.trend}</td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#94A3B8' }}>{c.m.add_to_cart}</td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#94A3B8' }}>{c.m.link_clicks > 0 ? `${(c.m.landing_page_views / c.m.link_clicks * 100).toFixed(1)}%` : '—'}</td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: c.trend === '▲' ? '#22C55E' : c.trend === '▼' ? '#EF4444' : '#64748B', fontWeight: 600 }}>{c.trend}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -124,7 +124,7 @@ export default async function CampaignDetailPage({
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
       <Sidebar />
-      <div style={{ marginLeft: '240px', flex: 1, minWidth: 0 }}>
+      <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
         <Header
           title={campaign.name}
           subtitle={`${statusEmoji(campaign.status)} ${campaign.status} · ${campaign.objective || 'Sin objetivo'}`}
