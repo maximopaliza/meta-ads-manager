@@ -16,6 +16,8 @@ interface DayRow {
   ctr: number | null
   add_to_cart?: number
   landing_page_views?: number
+  hook_rate?: number | null
+  frequency?: number | null
 }
 
 interface Props {
@@ -105,6 +107,8 @@ export default function TrendCharts({ data, currency, cpaTarget, cpaBreakeven }:
     CPM: d.cpm ? parseFloat(d.cpm.toFixed(2)) : null,
     CTR: d.ctr ? parseFloat(d.ctr.toFixed(2)) : null,
     ATC: d.add_to_cart || 0,
+    HookRate: d.hook_rate ? parseFloat(d.hook_rate.toFixed(1)) : null,
+    Frecuencia: d.frequency ? parseFloat(d.frequency.toFixed(2)) : null,
   }))
 
   const fmtCurr = (v: number) =>
@@ -116,12 +120,16 @@ export default function TrendCharts({ data, currency, cpaTarget, cpaBreakeven }:
   const trendG  = trendArrow(sorted, 'spend')
   const trendP  = trendArrow(sorted, 'cpm')
   const trendT  = trendArrow(sorted, 'ctr')
+  const trendH  = trendArrow(sorted, 'hook_rate')
+  const trendF  = trendArrow(sorted, 'frequency')
 
   const tickStyle = { fill: MUTED, fontSize: 9 }
   const axisProps = { axisLine: false, tickLine: false }
 
+  const PURPLE = '#A78BFA'
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
 
       {/* Ventas */}
       <MiniCard title="Ventas" color={GREEN} trend={trendV}>
@@ -200,6 +208,35 @@ export default function TrendCharts({ data, currency, cpaTarget, cpaBreakeven }:
             <YAxis tick={tickStyle} {...axisProps} tickFormatter={v => `${v}%`} />
             <Tooltip {...tooltipStyle} formatter={((v: number) => [`${v}%`, 'CTR único']) as any} />
             <Line type="monotone" dataKey="CTR" stroke={SKY} strokeWidth={2} dot={{ fill: SKY, r: 2 }} connectNulls />
+          </LineChart>
+        </ResponsiveContainer>
+      </MiniCard>
+
+      {/* Hook Rate */}
+      <MiniCard title="Hook Rate (↑ mejor)" color={PURPLE} trend={trendH}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
+            <XAxis dataKey="date" tick={tickStyle} {...axisProps} />
+            <YAxis tick={tickStyle} {...axisProps} tickFormatter={v => `${v}%`} />
+            <Tooltip {...tooltipStyle} formatter={((v: number) => [`${v}%`, 'Hook Rate']) as any} />
+            <ReferenceLine y={30} stroke={GREEN} strokeDasharray="4 2" strokeWidth={1} />
+            <ReferenceLine y={15} stroke={YELLOW} strokeDasharray="4 2" strokeWidth={1} />
+            <Line type="monotone" dataKey="HookRate" stroke={PURPLE} strokeWidth={2} dot={{ fill: PURPLE, r: 2 }} connectNulls />
+          </LineChart>
+        </ResponsiveContainer>
+      </MiniCard>
+
+      {/* Frecuencia */}
+      <MiniCard title="Frecuencia (↓ mejor)" color={trendF.color} trend={trendF}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
+            <XAxis dataKey="date" tick={tickStyle} {...axisProps} />
+            <YAxis tick={tickStyle} {...axisProps} tickFormatter={v => `${v}x`} />
+            <Tooltip {...tooltipStyle} formatter={((v: number) => [`${v}x`, 'Frecuencia']) as any} />
+            <ReferenceLine y={3} stroke={YELLOW} strokeDasharray="4 2" strokeWidth={1} />
+            <Line type="monotone" dataKey="Frecuencia" stroke={MUTED} strokeWidth={2} dot={{ fill: MUTED, r: 2 }} connectNulls />
           </LineChart>
         </ResponsiveContainer>
       </MiniCard>
