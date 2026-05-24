@@ -51,6 +51,8 @@ async def start_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 # ── Paso 1: Recibir creativo ──────────────────────────────────────────────────
 
+VIDEO_MIMES = {"video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska"}
+
 async def receive_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     message = update.message
 
@@ -60,8 +62,14 @@ async def receive_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     elif message.video:
         file = await message.video.get_file()
         suffix = ".mp4"
+    elif message.document and (
+        message.document.mime_type in VIDEO_MIMES
+        or (message.document.file_name or "").lower().endswith((".mp4", ".mov", ".avi", ".mkv"))
+    ):
+        file = await message.document.get_file()
+        suffix = ".mp4"
     else:
-        await message.reply_text("Enviame una imagen o video.")
+        await message.reply_text("Enviame una imagen o video (JPG, PNG, MP4, MOV).")
         return CREATIVE
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -272,14 +280,17 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 # ── Handler ───────────────────────────────────────────────────────────────────
 
+_CREATIVE_FILTER = filters.PHOTO | filters.VIDEO | filters.Document.VIDEO | filters.Document.IMAGE
+
+
 def get_create_campaign_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[
             CommandHandler("crear", start_campaign),
-            MessageHandler(filters.PHOTO | filters.VIDEO, receive_creative),
+            MessageHandler(_CREATIVE_FILTER, receive_creative),
         ],
         states={
-            CREATIVE: [MessageHandler(filters.PHOTO | filters.VIDEO, receive_creative)],
+            CREATIVE: [MessageHandler(_CREATIVE_FILTER, receive_creative)],
             URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_url)],
             OBJECTIVE: [CallbackQueryHandler(receive_objective, pattern="^obj_")],
             BUDGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_budget)],
