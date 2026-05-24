@@ -39,6 +39,35 @@ def _get_account_id() -> str:
     return accounts[0]["id"]
 
 
+def _get_page_id() -> str:
+    """Devuelve el META_PAGE_ID del env, o lo detecta automáticamente desde la API."""
+    page_id = os.environ.get("META_PAGE_ID", "").strip()
+    if page_id:
+        return page_id
+
+    # Auto-detect: busca páginas asociadas al access token
+    try:
+        import requests
+        token = os.environ["META_ACCESS_TOKEN"]
+        r = requests.get(
+            "https://graph.facebook.com/v21.0/me/accounts",
+            params={"access_token": token, "fields": "id,name"},
+            timeout=30,
+        )
+        data = r.json()
+        pages = data.get("data", [])
+        if pages:
+            page = pages[0]
+            logger.info(f"Auto-detected page: {page['name']} ({page['id']})")
+            return page["id"]
+    except Exception as e:
+        logger.error(f"Could not auto-detect page: {e}")
+
+    raise ValueError(
+        "No se encontró META_PAGE_ID. Agregalo en las variables de entorno de Railway."
+    )
+
+
 def _is_video(creative_path: str) -> bool:
     return Path(creative_path).suffix.lower() in (".mp4", ".mov", ".avi", ".mkv")
 
@@ -77,7 +106,7 @@ def build_campaign(spec: dict) -> dict:
     account_id = spec.get("account_id") or _get_account_id()
     objective_key = spec["objective"].lower()
     objective = OBJECTIVE_MAP.get(objective_key, "OUTCOME_SALES")
-    page_id = spec.get("page_id") or os.environ.get("META_PAGE_ID", "")
+    page_id = spec.get("page_id") or _get_page_id()
     destination_url = spec.get("destination_url", "")
 
     # 1. Campaña
