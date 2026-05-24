@@ -1,6 +1,17 @@
+"""
+Flujo de creación de campaña via Telegram:
+  1. Recibe creativo (foto o video)
+  2. Pide URL de destino
+  3. Gemini analiza ambos → sugiere objetivo, copy y targeting
+  4. Usuario confirma o cambia el objetivo
+  5. Usuario ingresa presupuesto diario
+  6. Resumen completo + botón Confirmar → crea en Meta (PAUSED)
+"""
 import logging
 import os
+import re
 import tempfile
+from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
@@ -10,12 +21,12 @@ from telegram.ext import (
     CallbackQueryHandler,
     filters,
 )
-from ai.analyst import generate_copy, generate_targeting
-from ai.creative_analyst import analyze_creative
+from ai.creative_analyst import analyze_for_campaign
 
 logger = logging.getLogger(__name__)
 
-CREATIVE, ANALYZE_CONFIRM, OBJECTIVE, BUDGET, AUDIENCE, COPY_CHOICE, CONFIRM = range(7)
+# Estados de la conversación
+CREATIVE, URL, OBJECTIVE, BUDGET, CONFIRM = range(5)
 
 OBJECTIVE_LABELS = {
     "ventas": "🛍️ Ventas",
@@ -23,15 +34,22 @@ OBJECTIVE_LABELS = {
     "alcance": "📢 Alcance",
 }
 
+URL_RE = re.compile(r"https?://\S+")
+
+
+# ── Paso 0: Arrancar ──────────────────────────────────────────────────────────
 
 async def start_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data.clear()
     await update.message.reply_text(
-        "🎨 <b>Crear nueva campaña</b>\n\n"
+        "🎨 <b>Nueva campaña</b>\n\n"
         "Enviame la imagen o video que vas a usar como creativo.",
         parse_mode="HTML",
     )
     return CREATIVE
 
+
+# ── Paso 1: Recibir creativo ──────────────────────────────────────────────────
 
 async def receive_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     message = update.message
@@ -49,132 +67,137 @@ async def receive_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     await file.download_to_drive(tmp.name)
     context.user_data["creative_path"] = tmp.name
+    context.user_data["is_video"] = suffix == ".mp4"
 
-    keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Sí, analizalo", callback_data="analyze_yes"),
-         InlineKeyboardButton("❌ No, continuar", callback_data="analyze_no")]
-    ])
     await message.reply_text(
-        "✅ Creativo recibido. ¿Querés que lo analice antes de usarlo?",
-        reply_markup=keyboard,
+        "✅ Creativo recibido.\n\n"
+        "Ahora enviame la <b>URL de destino</b> (landing page donde van a llegar los usuarios).",
+        parse_mode="HTML",
     )
-    return ANALYZE_CONFIRM
+    return URL
 
 
-async def analyze_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
+# ── Paso 2: Recibir URL → analizar con Gemini ─────────────────────────────────
 
-    if query.data == "analyze_yes":
-        await query.edit_message_text("⏳ Analizando creativo con IA...")
-        result = analyze_creative(context.user_data["creative_path"])
-        await query.message.reply_text(result)
+async def receive_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    match = URL_RE.search(text)
+    if not match:
+        await update.message.reply_text(
+            "No encontré una URL válida. Enviame algo como:\n"
+            "<code>https://tutienda.com/producto</code>",
+            parse_mode="HTML",
+        )
+        return URL
+
+    url = match.group()
+    context.user_data["destination_url"] = url
+
+    msg = await update.message.reply_text("⏳ Analizando creativo con IA…")
+
+    plan = analyze_for_campaign(context.user_data["creative_path"], url)
+    context.user_data["plan"] = plan
+
+    obj_label = OBJECTIVE_LABELS.get(plan["objective"], "🛍️ Ventas")
+    analysis_text = (
+        f"📊 <b>Análisis del creativo</b>\n\n"
+        f"{plan['analysis']}\n\n"
+        f"✏️ <b>Copy sugerido</b>\n"
+        f"<i>{plan['primary_text']}</i>\n"
+        f"<b>{plan['headline']}</b>\n\n"
+        f"👥 <b>Público:</b> {plan['audience_summary']}\n\n"
+        f"🎯 <b>Objetivo sugerido:</b> {obj_label}\n\n"
+        f"¿Cambiamos el objetivo o lo dejamos así?"
+    )
 
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton("🛍️ Ventas", callback_data="obj_ventas"),
         InlineKeyboardButton("🌐 Tráfico", callback_data="obj_trafico"),
         InlineKeyboardButton("📢 Alcance", callback_data="obj_alcance"),
+    ], [
+        InlineKeyboardButton(f"✅ Mantener ({obj_label})", callback_data=f"obj_{plan['objective']}"),
     ]])
-    await query.message.reply_text("¿Cuál es el objetivo de la campaña?", reply_markup=keyboard)
+
+    await msg.delete()
+    await update.message.reply_text(analysis_text, parse_mode="HTML", reply_markup=keyboard)
     return OBJECTIVE
 
+
+# ── Paso 3: Confirmar objetivo ────────────────────────────────────────────────
 
 async def receive_objective(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+
     objective = query.data.replace("obj_", "")
-    context.user_data["objective"] = objective
-    await query.edit_message_text(f"Objetivo: {OBJECTIVE_LABELS[objective]} ✅")
-    await query.message.reply_text("💰 ¿Cuál es el presupuesto diario? (en tu moneda, ej: 5000)")
+    context.user_data["plan"]["objective"] = objective
+
+    await query.edit_message_text(
+        f"Objetivo: {OBJECTIVE_LABELS.get(objective, objective)} ✅",
+    )
+
+    accounts = __import__("db.queries", fromlist=["get_accounts"]).get_accounts()
+    currency = accounts[0]["currency"] if accounts else "ARS"
+    context.user_data["currency"] = currency
+
+    await query.message.reply_text(
+        f"💰 ¿Cuánto querés gastar por día? (en {currency}, solo el número)\n"
+        f"<i>Ej: 5000</i>",
+        parse_mode="HTML",
+    )
     return BUDGET
 
+
+# ── Paso 4: Presupuesto ───────────────────────────────────────────────────────
 
 async def receive_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         budget = float(update.message.text.replace(",", ".").replace("$", "").strip())
+        if budget <= 0:
+            raise ValueError
         context.user_data["daily_budget"] = budget
-        await update.message.reply_text(
-            f"Presupuesto: ${budget:,.0f} ✅\n\n"
-            "👥 Describí tu público en texto libre. Ej:\n"
-            "<i>Mujeres 25-45 años de Buenos Aires interesadas en moda y compras online</i>",
-            parse_mode="HTML",
-        )
-        return AUDIENCE
+        return await _show_confirm(update.message, context)
     except ValueError:
         await update.message.reply_text("Enviá solo el número. Ej: 5000")
         return BUDGET
 
 
-async def receive_audience(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    description = update.message.text
-    context.user_data["audience_description"] = description
-    await update.message.reply_text("⏳ Generando targeting con IA...")
-
-    targeting = generate_targeting(description)
-    context.user_data["targeting"] = targeting
-
-    keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("✍️ Escribir copy yo", callback_data="copy_manual"),
-        InlineKeyboardButton("🤖 Generar con IA", callback_data="copy_ai"),
-    ]])
-    await update.message.reply_text(
-        f"Targeting generado: <code>{str(targeting)[:200]}</code>\n\n"
-        "✏️ ¿Cómo querés hacer el texto del anuncio?",
-        parse_mode="HTML",
-        reply_markup=keyboard,
-    )
-    return COPY_CHOICE
-
-
-async def copy_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "copy_ai":
-        await query.edit_message_text("⏳ Generando copy con IA...")
-        copy_data = generate_copy(
-            context.user_data["objective"],
-            f"Público: {context.user_data['audience_description']}",
-        )
-        copy_text = copy_data.get("primary_text", "")
-        context.user_data["copy"] = copy_text
-        context.user_data["copy_data"] = copy_data
-        await query.message.reply_text(
-            f"Copy generado:\n\n<i>{copy_text}</i>\n\n"
-            f"Titular: <b>{copy_data.get('headline', '')}</b>",
-            parse_mode="HTML",
-        )
-        return await _show_confirm(query.message, context)
-    else:
-        await query.edit_message_text("✍️ Escribí el texto del anuncio:")
-        return COPY_CHOICE
-
-
-async def receive_manual_copy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data["copy"] = update.message.text
-    return await _show_confirm(update.message, context)
-
+# ── Resumen y confirmación ────────────────────────────────────────────────────
 
 async def _show_confirm(message, context: ContextTypes.DEFAULT_TYPE) -> int:
-    ud = context.user_data
-    accounts = __import__("db.queries", fromlist=["get_accounts"]).get_accounts()
-    currency = accounts[0]["currency"] if accounts else "ARS"
+    plan = context.user_data["plan"]
+    budget = context.user_data["daily_budget"]
+    currency = context.user_data.get("currency", "ARS")
+    url = context.user_data["destination_url"]
+    is_video = context.user_data.get("is_video", False)
+    creative_type = "🎬 Video" if is_video else "🖼️ Imagen"
+
+    campaign_name = f"Campaña {plan['objective'].capitalize()} — Bot {datetime.now().strftime('%d/%m %H:%M')}"
+    context.user_data["campaign_name"] = campaign_name
 
     summary = (
         f"📋 <b>Resumen de la campaña</b>\n\n"
-        f"🎯 Objetivo: {OBJECTIVE_LABELS.get(ud.get('objective', ''), ud.get('objective', ''))}\n"
-        f"💰 Presupuesto diario: ${ud.get('daily_budget', 0):,.0f} {currency}\n"
-        f"👥 Público: {ud.get('audience_description', '')[:100]}\n"
-        f"✏️ Copy: {ud.get('copy', '')[:100]}\n\n"
-        f"¿Confirmás la creación?"
+        f"📣 Nombre: <code>{campaign_name}</code>\n"
+        f"🎯 Objetivo: {OBJECTIVE_LABELS.get(plan['objective'], plan['objective'])}\n"
+        f"💰 Presupuesto diario: <b>${budget:,.0f} {currency}</b>\n"
+        f"{creative_type}: recibido\n"
+        f"🔗 URL: {url}\n\n"
+        f"✏️ <b>Copy:</b>\n"
+        f"<i>{plan['primary_text']}</i>\n"
+        f"<b>{plan['headline']}</b>\n\n"
+        f"👥 Público: {plan['audience_summary']}\n\n"
+        f"⚠️ La campaña se crea en modo <b>PAUSED</b>. La activás vos cuando estés listo."
     )
+
     keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("✅ Confirmar", callback_data="confirm_yes"),
+        InlineKeyboardButton("✅ Confirmar y crear", callback_data="confirm_yes"),
         InlineKeyboardButton("❌ Cancelar", callback_data="confirm_no"),
     ]])
     await message.reply_text(summary, parse_mode="HTML", reply_markup=keyboard)
     return CONFIRM
 
+
+# ── Paso 5: Crear en Meta ─────────────────────────────────────────────────────
 
 async def confirm_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -185,7 +208,7 @@ async def confirm_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         context.user_data.clear()
         return ConversationHandler.END
 
-    await query.edit_message_text("⏳ Creando campaña en Meta Ads...")
+    await query.edit_message_text("⏳ Creando campaña en Meta Ads…")
 
     try:
         from meta.campaign_builder import build_campaign
@@ -196,42 +219,58 @@ async def confirm_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await query.message.reply_text("❌ No hay ad accounts. Ejecutá /sync primero.")
             return ConversationHandler.END
 
-        account_id = accounts[0]["id"]
-        name = f"Campaña {context.user_data.get('objective', 'nueva').capitalize()} — Bot"
-
+        plan = context.user_data["plan"]
         spec = {
-            "name": name,
-            "objective": context.user_data.get("objective", "ventas"),
-            "daily_budget": context.user_data.get("daily_budget", 1000),
-            "targeting": context.user_data.get("targeting", {"geo_locations": {"countries": ["AR"]}}),
-            "copy": context.user_data.get("copy", ""),
-            "image_path": context.user_data.get("creative_path", ""),
-            "account_id": account_id,
+            "name": context.user_data["campaign_name"],
+            "objective": plan["objective"],
+            "daily_budget": context.user_data["daily_budget"],
+            "targeting": plan["targeting"],
+            "primary_text": plan["primary_text"],
+            "headline": plan["headline"],
+            "cta": plan.get("cta", "SHOP_NOW"),
+            "destination_url": context.user_data["destination_url"],
+            "creative_path": context.user_data["creative_path"],
+            "account_id": accounts[0]["id"],
         }
 
         result = build_campaign(spec)
+
         await query.message.reply_text(
-            f"✅ <b>Campaña creada exitosamente</b>\n\n"
-            f"📣 Nombre: {name}\n"
-            f"🆔 Campaign ID: <code>{result['campaign_id']}</code>\n"
-            f"🎯 Ad Set ID: <code>{result['ad_set_id']}</code>\n"
-            f"🖼️ Ad ID: <code>{result['ad_id']}</code>\n\n"
-            f"<i>La campaña está en PAUSED. Activala desde Meta Ads Manager cuando estés listo.</i>",
+            f"✅ <b>¡Campaña creada!</b>\n\n"
+            f"📣 {result['campaign_name']}\n"
+            f"🆔 Campaign: <code>{result['campaign_id']}</code>\n"
+            f"🆔 Ad Set: <code>{result['ad_set_id']}</code>\n"
+            f"🆔 Ad: <code>{result['ad_id']}</code>\n\n"
+            f"📌 Está en <b>PAUSED</b>. Activala desde Meta Ads Manager cuando quieras.",
             parse_mode="HTML",
         )
+
     except Exception as e:
         logger.error(f"Campaign creation error: {e}")
-        await query.message.reply_text(f"❌ Error creando la campaña: {str(e)[:300]}")
+        await query.message.reply_text(f"❌ Error al crear la campaña:\n<code>{str(e)[:400]}</code>", parse_mode="HTML")
 
-    context.user_data.clear()
+    finally:
+        # Limpiar archivo temporal
+        try:
+            creative_path = context.user_data.get("creative_path")
+            if creative_path:
+                os.unlink(creative_path)
+        except Exception:
+            pass
+        context.user_data.clear()
+
     return ConversationHandler.END
 
+
+# ── Cancelar ──────────────────────────────────────────────────────────────────
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.message.reply_text("Flujo cancelado.")
+    await update.message.reply_text("❌ Cancelado.")
     context.user_data.clear()
     return ConversationHandler.END
 
+
+# ── Handler ───────────────────────────────────────────────────────────────────
 
 def get_create_campaign_handler() -> ConversationHandler:
     return ConversationHandler(
@@ -241,17 +280,13 @@ def get_create_campaign_handler() -> ConversationHandler:
         ],
         states={
             CREATIVE: [MessageHandler(filters.PHOTO | filters.VIDEO, receive_creative)],
-            ANALYZE_CONFIRM: [CallbackQueryHandler(analyze_confirm, pattern="^analyze_")],
+            URL: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_url)],
             OBJECTIVE: [CallbackQueryHandler(receive_objective, pattern="^obj_")],
             BUDGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_budget)],
-            AUDIENCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_audience)],
-            COPY_CHOICE: [
-                CallbackQueryHandler(copy_choice, pattern="^copy_"),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_manual_copy),
-            ],
             CONFIRM: [CallbackQueryHandler(confirm_campaign, pattern="^confirm_")],
         },
         fallbacks=[CommandHandler("cancelar", cancel)],
         per_user=True,
         per_chat=True,
+        allow_reentry=True,
     )

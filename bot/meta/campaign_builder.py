@@ -1,11 +1,11 @@
 import os
 import logging
-import tempfile
-import requests
+from pathlib import Path
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adimage import AdImage
+from facebook_business.adobjects.advideo import AdVideo
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
@@ -39,19 +39,48 @@ def _get_account_id() -> str:
     return accounts[0]["id"]
 
 
+def _is_video(creative_path: str) -> bool:
+    return Path(creative_path).suffix.lower() in (".mp4", ".mov", ".avi", ".mkv")
+
+
 def upload_image(image_path: str, account_id: str) -> str:
-    account = AdAccount(account_id)
     img = AdImage(parent_id=account_id)
     img[AdImage.Field.filename] = image_path
     img.remote_create()
     return img[AdImage.Field.hash]
 
 
+def upload_video(video_path: str, account_id: str) -> str:
+    """Sube un video a Meta y devuelve el video_id."""
+    video = AdVideo(parent_id=account_id)
+    video[AdVideo.Field.filepath] = video_path
+    video.remote_create()
+    return video[AdVideo.Field.id]
+
+
 def build_campaign(spec: dict) -> dict:
+    """
+    Crea campaña completa en Meta Ads (PAUSED).
+    spec debe tener:
+      - name: str
+      - objective: "ventas" | "trafico" | "alcance"
+      - daily_budget: float (en moneda local)
+      - targeting: dict (Meta targeting spec)
+      - primary_text: str
+      - headline: str
+      - cta: str (ej: "SHOP_NOW")
+      - destination_url: str
+      - creative_path: str (ruta local al archivo)
+      - account_id: str (opcional, usa el primero si no se pasa)
+      - page_id: str (opcional, usa META_PAGE_ID del env)
+    """
     account_id = spec.get("account_id") or _get_account_id()
     objective_key = spec["objective"].lower()
     objective = OBJECTIVE_MAP.get(objective_key, "OUTCOME_SALES")
+    page_id = spec.get("page_id") or os.environ.get("META_PAGE_ID", "")
+    destination_url = spec.get("destination_url", "")
 
+    # 1. Campaña
     campaign = Campaign(parent_id=account_id)
     campaign.update({
         Campaign.Field.name: spec["name"],
@@ -63,6 +92,7 @@ def build_campaign(spec: dict) -> dict:
     campaign_id = campaign[Campaign.Field.id]
     logger.info(f"Campaign created: {campaign_id}")
 
+    # 2. Ad Set
     ad_set = AdSet(parent_id=account_id)
     daily_budget_cents = int(float(spec["daily_budget"]) * 100)
     ad_set.update({
@@ -79,24 +109,50 @@ def build_campaign(spec: dict) -> dict:
     ad_set_id = ad_set[AdSet.Field.id]
     logger.info(f"Ad Set created: {ad_set_id}")
 
-    image_hash = upload_image(spec["image_path"], account_id)
-
+    # 3. Creative (imagen o video)
+    creative_path = spec.get("creative_path", "")
     creative = AdCreative(parent_id=account_id)
+
+    if creative_path and _is_video(creative_path):
+        video_id = upload_video(creative_path, account_id)
+        story_spec = {
+            "page_id": page_id,
+            "video_data": {
+                "video_id": video_id,
+                "message": spec.get("primary_text", ""),
+                "title": spec.get("headline", ""),
+                "link_description": spec.get("headline", ""),
+                "call_to_action": {
+                    "type": spec.get("cta", "SHOP_NOW"),
+                    "value": {"link": destination_url},
+                },
+            },
+        }
+    else:
+        image_hash = upload_image(creative_path, account_id)
+        story_spec = {
+            "page_id": page_id,
+            "link_data": {
+                "message": spec.get("primary_text", ""),
+                "link": destination_url,
+                "image_hash": image_hash,
+                "name": spec.get("headline", ""),
+                "call_to_action": {
+                    "type": spec.get("cta", "SHOP_NOW"),
+                    "value": {"link": destination_url},
+                },
+            },
+        }
+
     creative.update({
         AdCreative.Field.name: f"{spec['name']} — Creative",
-        AdCreative.Field.object_story_spec: {
-            "page_id": spec.get("page_id", os.environ.get("META_PAGE_ID", "")),
-            "link_data": {
-                "message": spec.get("copy", ""),
-                "link": spec.get("destination_url", "https://www.facebook.com"),
-                "image_hash": image_hash,
-                "call_to_action": {"type": "SHOP_NOW"},
-            },
-        },
+        AdCreative.Field.object_story_spec: story_spec,
     })
     creative.remote_create()
     creative_id = creative[AdCreative.Field.id]
+    logger.info(f"Creative created: {creative_id}")
 
+    # 4. Ad
     ad = Ad(parent_id=account_id)
     ad.update({
         Ad.Field.name: f"{spec['name']} — Anuncio",

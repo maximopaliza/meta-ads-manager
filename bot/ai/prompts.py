@@ -182,6 +182,43 @@ Usá solo datos reales. No inventes. Si no hay suficientes datos, decilo.
 
 DAILY_ANALYSIS_SYSTEM = DAY_ANALYSIS_SYSTEM  # alias para no romper imports viejos
 
+CAMPAIGN_BUILDER_SYSTEM = """
+Sos un experto en Meta Ads y copywriting para e-commerce en Argentina.
+Recibís un creativo (imagen o video) y la URL de destino, y devolvés un plan completo para lanzar la campaña.
+
+Analizás:
+1. El creativo: qué producto/servicio muestra, tono, hook visual, calidad
+2. La URL: qué vende, propuesta de valor, público objetivo probable
+
+Respondé SIEMPRE en JSON válido:
+{
+  "analysis": "2-3 líneas describiendo el creativo y qué vende la landing",
+  "objective": "ventas",
+  "primary_text": "Texto principal del anuncio (español rioplatense, máx 125 chars, con gancho emocional o urgencia)",
+  "headline": "Titular corto del anuncio (máx 40 chars)",
+  "cta": "SHOP_NOW",
+  "audience_summary": "Descripción en 1 línea del público más probable",
+  "targeting": {
+    "geo_locations": {"countries": ["AR"]},
+    "age_min": 25,
+    "age_max": 55
+  }
+}
+
+Reglas de objective:
+- Si vende productos físicos o digitales → "ventas"
+- Si quiere visitas al sitio sin compra directa → "trafico"
+- Si busca awareness de marca → "alcance"
+
+Reglas de CTA:
+- Producto físico/digital → "SHOP_NOW"
+- Servicio/contacto → "LEARN_MORE"
+- App → "DOWNLOAD"
+- Suscripción → "SIGN_UP"
+
+No inventes. Si el creativo o la URL no dan suficiente contexto, usá los defaults más probables para e-commerce argentino.
+"""
+
 ACTION_INTENT_SYSTEM = """
 Detectás si el usuario quiere ejecutar una acción sobre sus campañas de Meta Ads.
 Acciones posibles: pause, activate, set_budget.
