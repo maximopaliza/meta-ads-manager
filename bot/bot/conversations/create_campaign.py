@@ -1,15 +1,21 @@
 """
 Flujo de creación de campaña via Telegram.
 
-Opciones de creativo:
-  A) Elegir de la biblioteca de Meta (videos ya subidos) ← flujo principal
-  B) Subir imagen pequeña por Telegram
-  C) Video pesado via Google Drive
+Pantalla inicial — elegís la fuente del creativo:
+  📚 Biblioteca Meta  →  muestra videos categorizados por performance
+  📁 Google Drive     →  muestra videos de tu carpeta (si Drive está conectado)
+  📎 Subir nuevo      →  imagen/video chico por Telegram, o link de Drive para pesados
 
-Pasos comunes:
+Categorías en Biblioteca Meta y Drive:
+  🏆 Winners   — ROAS ≥ 2x o CPA ≤ target
+  💸 Poco gasto — gasto < $5 (sin datos reales todavía)
+  ❌ Malos      — ROAS < 1.5 o CPA > breakeven
+  🆕 Sin datos  — videos nuevos sin historial
+
+Pasos comunes tras elegir creativo:
   → URL de destino
   → Gemini analiza y sugiere objetivo + copy + targeting
-  → Usuario confirma objetivo
+  → Confirmar objetivo
   → Presupuesto diario
   → Resumen + Confirmar → crea en Meta (PAUSED)
 """
@@ -33,7 +39,8 @@ from ai.creative_analyst import analyze_for_campaign
 logger = logging.getLogger(__name__)
 
 # Estados
-CHOOSE_SOURCE, PICK_VIDEO, VIDEO_LINK, UPLOAD_CREATIVE, URL, OBJECTIVE, BUDGET, CONFIRM = range(8)
+(CHOOSE_SOURCE, CHOOSE_CATEGORY, PICK_VIDEO,
+ UPLOAD_CREATIVE, URL, OBJECTIVE, BUDGET, CONFIRM) = range(8)
 
 OBJECTIVE_LABELS = {
     "ventas": "🛍️ Ventas",
@@ -45,6 +52,21 @@ URL_RE = re.compile(r"https?://\S+")
 VIDEO_MIMES = {"video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska"}
 MAX_TG_MB = 19
 
+CATEGORY_LABELS = {
+    "winners":    "🏆 Winners",
+    "poco_gasto": "💸 Poco gasto",
+    "malos":      "❌ Malos",
+    "sin_datos":  "🆕 Sin historial",
+}
+
+
+def _fmt_dur(seconds) -> str:
+    try:
+        s = int(float(seconds))
+        return f"{s//60}:{s%60:02d}"
+    except Exception:
+        return "?"
+
 
 def _gdrive_to_direct(url: str) -> str:
     m = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
@@ -53,120 +75,202 @@ def _gdrive_to_direct(url: str) -> str:
     return url
 
 
-def _fmt_duration(seconds) -> str:
-    try:
-        s = int(float(seconds))
-        return f"{s//60}:{s%60:02d}"
-    except Exception:
-        return "?"
-
-
-# ── Arrancar ──────────────────────────────────────────────────────────────────
+# ── Paso 0: Elegir fuente ─────────────────────────────────────────────────────
 
 async def start_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
-    keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("📚 Elegir de mi biblioteca Meta", callback_data="src_library"),
-        InlineKeyboardButton("📎 Subir imagen/video", callback_data="src_upload"),
-    ]])
+
+    from meta.drive_client import is_configured as drive_ok
+    drive_connected = drive_ok()
+
+    rows = [
+        [InlineKeyboardButton("📚 Biblioteca Meta", callback_data="src_library")],
+        [InlineKeyboardButton("📎 Subir nuevo", callback_data="src_upload")],
+    ]
+    if drive_connected:
+        rows.insert(1, [InlineKeyboardButton("📁 Google Drive", callback_data="src_drive")])
+
+    note = "" if drive_connected else "\n<i>💡 Conectá Drive para ver tus videos organizados.</i>"
     await update.message.reply_text(
-        "🎨 <b>Nueva campaña</b>\n\n¿Cómo agregás el creativo?",
+        f"🎨 <b>Nueva campaña</b>\n\n¿De dónde tomamos el creativo?{note}",
         parse_mode="HTML",
-        reply_markup=keyboard,
+        reply_markup=InlineKeyboardMarkup(rows),
     )
     return CHOOSE_SOURCE
 
 
-# ── Opción A: Biblioteca Meta ─────────────────────────────────────────────────
+# ── Selección de fuente ───────────────────────────────────────────────────────
 
 async def choose_source(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
+    src = query.data  # src_library | src_drive | src_upload
 
-    if query.data == "src_upload":
+    if src == "src_upload":
         await query.edit_message_text(
             "📎 Enviame la imagen o video.\n"
-            "<i>Videos &gt;19MB: mandá el link de Google Drive.</i>",
+            "<i>Videos pesados: mandá el link de Google Drive.</i>",
             parse_mode="HTML",
         )
         return UPLOAD_CREATIVE
 
-    # Biblioteca Meta
-    await query.edit_message_text("⏳ Cargando tus videos de Meta…")
+    # Biblioteca Meta o Drive → mostrar categorías
+    await query.edit_message_text("⏳ Cargando videos…")
+    context.user_data["video_source"] = src
+
     try:
-        from meta.campaign_builder import get_library_videos
-        videos = get_library_videos(15)
+        if src == "src_library":
+            from meta.video_library import get_videos_with_performance
+            categorized = get_videos_with_performance()
+            context.user_data["categorized"] = categorized
+        else:
+            from meta.drive_client import list_drive_videos
+            videos = list_drive_videos()
+            # Drive no tiene métricas → todos van a sin_datos
+            categorized = {"winners": [], "poco_gasto": [], "malos": [], "sin_datos": videos}
+            context.user_data["categorized"] = categorized
+            context.user_data["drive_videos"] = {v["id"]: v for v in videos}
     except Exception as e:
-        await query.message.reply_text(f"❌ No pude cargar la biblioteca: {e}")
+        await query.message.reply_text(f"❌ Error: {e}")
         return ConversationHandler.END
+
+    return await _show_categories(query.message, context)
+
+
+async def _show_categories(message, context: ContextTypes.DEFAULT_TYPE) -> int:
+    categorized = context.user_data["categorized"]
+    src = context.user_data.get("video_source", "src_library")
+    source_name = "Meta" if src == "src_library" else "Google Drive"
+
+    rows = []
+    for key, label in CATEGORY_LABELS.items():
+        vids = categorized.get(key, [])
+        if vids:
+            rows.append([InlineKeyboardButton(
+                f"{label} ({len(vids)})", callback_data=f"cat_{key}"
+            )])
+
+    if not rows:
+        await message.reply_text(f"No encontré videos en {source_name}.")
+        return ConversationHandler.END
+
+    total = sum(len(v) for v in categorized.values())
+    await message.reply_text(
+        f"📹 <b>{total} videos en {source_name}</b>\n\n"
+        f"¿De qué categoría querés el creativo?",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+    return CHOOSE_CATEGORY
+
+
+# ── Elegir categoría → lista de videos ───────────────────────────────────────
+
+async def choose_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    cat = query.data.replace("cat_", "")
+    context.user_data["selected_category"] = cat
+    videos = context.user_data["categorized"].get(cat, [])
 
     if not videos:
-        await query.message.reply_text(
-            "No encontré videos en tu biblioteca de Meta.\n"
-            "Usá 📎 Subir imagen/video."
-        )
-        return ConversationHandler.END
+        await query.edit_message_text("No hay videos en esa categoría.")
+        return CHOOSE_CATEGORY
 
-    context.user_data["library_videos"] = {v["id"]: v for v in videos}
-
-    # Mostrar lista como botones inline (máx 15, Telegram permite hasta ~100 botones)
+    label = CATEGORY_LABELS.get(cat, cat)
     rows = []
-    for v in videos:
-        dur = _fmt_duration(v.get("length", 0))
-        title = (v.get("title") or "Sin título")[:35]
-        label = f"🎬 {title} ({dur})"
-        rows.append([InlineKeyboardButton(label, callback_data=f"vid_{v['id']}")])
+    for v in videos[:20]:  # máx 20 botones
+        # Formato del botón
+        name = (v.get("title") or v.get("name") or "Sin título")[:32]
+        extra = ""
+        roas = v.get("roas")
+        cpa = v.get("cpa")
+        spend = v.get("spend")
+        dur = v.get("length") or v.get("duration")
 
-    await query.message.reply_text(
-        "📚 <b>Tus videos en Meta</b>\n\nElegí el creativo:",
-        parse_mode="HTML",
+        if roas:
+            extra = f" · {roas:.1f}x"
+        elif spend:
+            extra = f" · ${spend:.0f}"
+        if dur:
+            extra += f" · {_fmt_dur(dur)}"
+
+        rows.append([InlineKeyboardButton(
+            f"{name}{extra}", callback_data=f"vid_{v['id']}"
+        )])
+
+    rows.append([InlineKeyboardButton("← Volver", callback_data="back_categories")])
+
+    await query.edit_message_text(
+        f"{label} — elegí el creativo:",
         reply_markup=InlineKeyboardMarkup(rows),
     )
     return PICK_VIDEO
 
+
+async def back_categories(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    return await _show_categories(query.message, context)
+
+
+# ── Elegir video específico ───────────────────────────────────────────────────
 
 async def pick_video(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
 
     video_id = query.data.replace("vid_", "")
-    videos = context.user_data.get("library_videos", {})
-    video = videos.get(video_id, {})
-    title = video.get("title") or "Sin título"
+    src = context.user_data.get("video_source", "src_library")
 
-    context.user_data["library_video_id"] = video_id
+    # Buscar metadata en la categoría seleccionada
+    cat = context.user_data.get("selected_category", "sin_datos")
+    videos = context.user_data["categorized"].get(cat, [])
+    video = next((v for v in videos if v["id"] == video_id), {"id": video_id})
+
+    title = video.get("title") or video.get("name") or "Sin título"
+
+    context.user_data["library_video_id"] = video_id if src == "src_library" else None
+    context.user_data["drive_file_id"] = video_id if src == "src_drive" else None
     context.user_data["library_video_title"] = title
     context.user_data["is_video"] = True
     context.user_data["creative_path"] = None
     context.user_data["video_url"] = None
 
-    await query.edit_message_text(f"✅ Video seleccionado: <b>{title}</b>", parse_mode="HTML")
+    # Si es Drive, convertir a URL directa
+    if src == "src_drive":
+        from meta.drive_client import get_direct_url
+        context.user_data["video_url"] = get_direct_url(video_id)
+
+    await query.edit_message_text(f"✅ <b>{title}</b> seleccionado.", parse_mode="HTML")
     await query.message.reply_text(
-        "🔗 Enviame la <b>URL de destino</b> (la landing page del anuncio).",
+        "🔗 Enviame la <b>URL de destino</b> (landing page del anuncio).",
         parse_mode="HTML",
     )
     return URL
 
 
-# ── Opción B/C: Subir archivo ─────────────────────────────────────────────────
+# ── Subir nuevo archivo ───────────────────────────────────────────────────────
 
 async def upload_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     message = update.message
 
-    # Texto con URL de Drive
+    # Texto → puede ser link de Drive
     if message.text:
         match = URL_RE.search(message.text)
         if match:
             raw = match.group()
             context.user_data["video_url"] = _gdrive_to_direct(raw)
             context.user_data["creative_path"] = None
+            context.user_data["library_video_id"] = None
             context.user_data["is_video"] = True
             await message.reply_text(
                 "✅ Link recibido.\n\n🔗 Enviame la <b>URL de destino</b>.",
                 parse_mode="HTML",
             )
             return URL
-        await message.reply_text("Enviame el archivo o el link de Google Drive.")
+        await message.reply_text("Enviame el archivo o link de Google Drive.")
         return UPLOAD_CREATIVE
 
     # Archivo
@@ -178,7 +282,6 @@ async def upload_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if message.photo:
         tg_file = message.photo[-1]
         file_size = tg_file.file_size or 0
-        suffix = ".jpg"
     elif message.video:
         tg_file = message.video
         file_size = tg_file.file_size or 0
@@ -191,8 +294,6 @@ async def upload_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if tg_file.mime_type in VIDEO_MIMES or fn.endswith((".mp4", ".mov", ".avi", ".mkv")):
             suffix = ".mp4"
             is_video = True
-        else:
-            suffix = ".jpg"
     else:
         await message.reply_text("Enviame una imagen, video o link de Google Drive.")
         return UPLOAD_CREATIVE
@@ -202,9 +303,9 @@ async def upload_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if file_size > MAX_TG_MB * 1024 * 1024:
         size_mb = file_size / (1024 * 1024)
         await message.reply_text(
-            f"📦 El video pesa <b>{size_mb:.0f} MB</b>.\n\n"
-            f"Subilo a <b>Google Drive</b> (compartido como \"cualquiera con el link\") "
-            f"y enviame el link acá.",
+            f"📦 El archivo pesa <b>{size_mb:.0f} MB</b>.\n\n"
+            f"Subilo a <b>Google Drive</b> (compartido como 'cualquiera con el link') "
+            f"y pegá el link acá.",
             parse_mode="HTML",
         )
         return UPLOAD_CREATIVE
@@ -219,9 +320,7 @@ async def upload_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     except BadRequest as e:
         if "too big" in str(e).lower() or "too large" in str(e).lower():
             await message.reply_text(
-                "📦 Archivo muy pesado.\n"
-                "Subilo a <b>Google Drive</b> y enviame el link.",
-                parse_mode="HTML",
+                "📦 Archivo muy pesado. Subilo a Google Drive y pegá el link.",
             )
             return UPLOAD_CREATIVE
         raise
@@ -240,14 +339,13 @@ async def receive_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     match = URL_RE.search(text)
     if not match:
         await update.message.reply_text(
-            "No encontré una URL válida.\nEj: <code>https://tutienda.com/producto</code>",
+            "URL inválida. Ej: <code>https://tutienda.com/producto</code>",
             parse_mode="HTML",
         )
         return URL
 
     url = match.group()
     context.user_data["destination_url"] = url
-
     msg = await update.message.reply_text("⏳ Analizando con IA…")
 
     creative_path = context.user_data.get("creative_path")
@@ -255,27 +353,18 @@ async def receive_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     context.user_data["plan"] = plan
 
     obj_label = OBJECTIVE_LABELS.get(plan["objective"], "🛍️ Ventas")
+    lib_title = context.user_data.get("library_video_title", "")
+    source_note = f"\n🎬 <b>{lib_title}</b>" if lib_title else ""
 
-    # Nota sobre la fuente del creativo
-    lib_title = context.user_data.get("library_video_title")
-    if lib_title:
-        source_note = f"\n🎬 Creativo: <b>{lib_title}</b> (de tu biblioteca Meta)"
-    elif context.user_data.get("video_url"):
-        source_note = "\n🎬 Video: desde Google Drive"
-    else:
-        source_note = ""
-
-    analysis_text = (
+    text_out = (
         f"📊 <b>Análisis</b>{source_note}\n\n"
         f"{plan['analysis']}\n\n"
         f"✏️ <b>Copy sugerido</b>\n"
         f"<i>{plan['primary_text']}</i>\n"
         f"<b>{plan['headline']}</b>\n\n"
-        f"👥 <b>Público:</b> {plan['audience_summary']}\n\n"
-        f"🎯 <b>Objetivo sugerido:</b> {obj_label}\n\n"
-        f"¿Cambiamos el objetivo?"
+        f"👥 {plan['audience_summary']}\n\n"
+        f"🎯 Objetivo sugerido: <b>{obj_label}</b>\n\n¿Lo cambiamos?"
     )
-
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton("🛍️ Ventas", callback_data="obj_ventas"),
         InlineKeyboardButton("🌐 Tráfico", callback_data="obj_trafico"),
@@ -285,7 +374,7 @@ async def receive_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     ]])
 
     await msg.delete()
-    await update.message.reply_text(analysis_text, parse_mode="HTML", reply_markup=keyboard)
+    await update.message.reply_text(text_out, parse_mode="HTML", reply_markup=keyboard)
     return OBJECTIVE
 
 
@@ -303,7 +392,7 @@ async def receive_objective(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["currency"] = currency
 
     await query.message.reply_text(
-        f"💰 ¿Cuánto querés gastar por día? (en {currency})\n<i>Ej: 5000</i>",
+        f"💰 ¿Cuánto por día? (en {currency})\n<i>Ej: 5000</i>",
         parse_mode="HTML",
     )
     return BUDGET
@@ -330,12 +419,12 @@ async def _show_confirm(message, context: ContextTypes.DEFAULT_TYPE) -> int:
     budget = context.user_data["daily_budget"]
     currency = context.user_data.get("currency", "ARS")
     url = context.user_data["destination_url"]
+    lib_title = context.user_data.get("library_video_title", "")
 
-    lib_title = context.user_data.get("library_video_title")
     if lib_title:
-        creative_line = f"🎬 {lib_title} (biblioteca Meta)"
+        creative_line = f"🎬 {lib_title}"
     elif context.user_data.get("video_url"):
-        creative_line = "🎬 Video (Google Drive)"
+        creative_line = "🎬 Video (Drive)"
     elif context.user_data.get("is_video"):
         creative_line = "🎬 Video (subido)"
     else:
@@ -371,7 +460,7 @@ async def confirm_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     await query.answer()
 
     if query.data == "confirm_no":
-        await query.edit_message_text("❌ Campaña cancelada.")
+        await query.edit_message_text("❌ Cancelado.")
         context.user_data.clear()
         return ConversationHandler.END
 
@@ -403,17 +492,14 @@ async def confirm_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         }
 
         result = build_campaign(spec)
-
         await query.message.reply_text(
             f"✅ <b>¡Campaña creada!</b>\n\n"
             f"📣 {result['campaign_name']}\n"
             f"🆔 Campaign: <code>{result['campaign_id']}</code>\n"
-            f"🆔 Ad Set: <code>{result['ad_set_id']}</code>\n"
             f"🆔 Ad: <code>{result['ad_id']}</code>\n\n"
-            f"📌 Está en <b>PAUSED</b>. Activala desde Meta cuando quieras.",
+            f"📌 Está en <b>PAUSED</b>. Activala cuando quieras.",
             parse_mode="HTML",
         )
-
     except Exception as e:
         logger.error(f"Campaign creation error: {e}")
         await query.message.reply_text(
@@ -449,14 +535,21 @@ def get_create_campaign_handler() -> ConversationHandler:
         entry_points=[CommandHandler("crear", start_campaign)],
         states={
             CHOOSE_SOURCE:   [CallbackQueryHandler(choose_source, pattern="^src_")],
-            PICK_VIDEO:      [CallbackQueryHandler(pick_video, pattern="^vid_")],
+            CHOOSE_CATEGORY: [
+                CallbackQueryHandler(choose_category, pattern="^cat_"),
+                CallbackQueryHandler(back_categories, pattern="^back_categories"),
+            ],
+            PICK_VIDEO:      [
+                CallbackQueryHandler(pick_video, pattern="^vid_"),
+                CallbackQueryHandler(back_categories, pattern="^back_categories"),
+            ],
             UPLOAD_CREATIVE: [
                 MessageHandler(_FILE_FILTER | (filters.TEXT & ~filters.COMMAND), upload_creative)
             ],
-            URL:      [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_url)],
-            OBJECTIVE:[CallbackQueryHandler(receive_objective, pattern="^obj_")],
-            BUDGET:   [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_budget)],
-            CONFIRM:  [CallbackQueryHandler(confirm_campaign, pattern="^confirm_")],
+            URL:       [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_url)],
+            OBJECTIVE: [CallbackQueryHandler(receive_objective, pattern="^obj_")],
+            BUDGET:    [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_budget)],
+            CONFIRM:   [CallbackQueryHandler(confirm_campaign, pattern="^confirm_")],
         },
         fallbacks=[CommandHandler("cancelar", cancel)],
         per_user=True,
