@@ -52,14 +52,15 @@ def analyze_creative(image_path: str, metrics_context: str = "") -> str:
 def analyze_for_campaign(creative_path: str, destination_url: str) -> dict:
     """
     Analiza el creativo + URL y devuelve un plan completo para lanzar la campaña.
+    Si creative_path está vacío o no existe, analiza solo por la URL de destino.
     Retorna un dict con: analysis, objective, primary_text, headline, cta,
                          audience_summary, targeting
     """
     defaults = {
-        "analysis": "Creativo recibido.",
+        "analysis": "Anuncio listo para lanzar.",
         "objective": "ventas",
-        "primary_text": "",
-        "headline": "",
+        "primary_text": "¡Mirá lo que tenemos para vos! Calidad garantizada.",
+        "headline": "Comprá ahora",
         "cta": "SHOP_NOW",
         "audience_summary": "Público general Argentina",
         "targeting": {"geo_locations": {"countries": ["AR"]}, "age_min": 18, "age_max": 65},
@@ -71,17 +72,24 @@ def analyze_for_campaign(creative_path: str, destination_url: str) -> dict:
             system_instruction=CAMPAIGN_BUILDER_SYSTEM,
         )
 
-        path = Path(creative_path)
-        if not path.exists():
-            return defaults
+        path = Path(creative_path) if creative_path else None
+        has_file = path and path.exists()
 
-        with open(creative_path, "rb") as f:
-            creative_data = f.read()
-
-        parts = [
-            {"inline_data": {"mime_type": _get_mime(path), "data": creative_data}},
-            f"URL de destino: {destination_url}\n\nAnalizá el creativo y la landing. Devolvé el plan de campaña en JSON.",
-        ]
+        if has_file:
+            with open(creative_path, "rb") as f:
+                creative_data = f.read()
+            parts = [
+                {"inline_data": {"mime_type": _get_mime(path), "data": creative_data}},
+                f"URL de destino: {destination_url}\n\nAnalizá el creativo y la landing. Devolvé el plan de campaña en JSON.",
+            ]
+        else:
+            # Sin archivo local: analizar solo por URL
+            parts = [
+                f"URL de destino: {destination_url}\n\n"
+                f"No tengo el archivo del creativo (es un video de la biblioteca de Meta). "
+                f"Analizá la landing page y generá el copy y targeting más adecuado. "
+                f"Devolvé el plan de campaña en JSON.",
+            ]
 
         response = model.generate_content(
             parts,
