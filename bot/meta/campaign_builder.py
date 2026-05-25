@@ -80,9 +80,17 @@ def upload_image(image_path: str, account_id: str) -> str:
 
 
 def upload_video(video_path: str, account_id: str) -> str:
-    """Sube un video a Meta y devuelve el video_id."""
+    """Sube un video a Meta desde archivo local y devuelve el video_id."""
     video = AdVideo(parent_id=account_id)
     video[AdVideo.Field.filepath] = video_path
+    video.remote_create()
+    return video[AdVideo.Field.id]
+
+
+def upload_video_from_url(video_url: str, account_id: str) -> str:
+    """Sube un video a Meta desde URL remota (Google Drive, etc.) y devuelve el video_id."""
+    video = AdVideo(parent_id=account_id)
+    video[AdVideo.Field.file_url] = video_url
     video.remote_create()
     return video[AdVideo.Field.id]
 
@@ -142,8 +150,14 @@ def build_campaign(spec: dict) -> dict:
     creative_path = spec.get("creative_path", "")
     creative = AdCreative(parent_id=account_id)
 
-    if creative_path and _is_video(creative_path):
-        video_id = upload_video(creative_path, account_id)
+    video_url = spec.get("video_url", "")
+    is_video_creative = (video_url and not creative_path) or (creative_path and _is_video(creative_path))
+
+    if is_video_creative:
+        if video_url and not creative_path:
+            video_id = upload_video_from_url(video_url, account_id)
+        else:
+            video_id = upload_video(creative_path, account_id)
         story_spec = {
             "page_id": page_id,
             "video_data": {
