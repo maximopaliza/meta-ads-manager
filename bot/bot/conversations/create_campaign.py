@@ -91,11 +91,18 @@ async def start_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             from meta.drive_client import list_drive_videos
             videos = list_drive_videos()
             context.user_data["drive_videos_list"] = videos
+            try:
+                await msg.delete()
+            except Exception:
+                pass
+            return await _show_drive_videos(update.message, context)
         except Exception as e:
-            await msg.edit_text(f"❌ Error al cargar Drive: {e}")
+            logger.error(f"Error cargando Drive: {e}")
+            try:
+                await msg.edit_text(f"❌ Error al cargar Drive:\n<code>{str(e)[:300]}</code>", parse_mode="HTML")
+            except Exception:
+                await update.message.reply_text(f"❌ Error al cargar Drive: {e}")
             return ConversationHandler.END
-        await msg.delete()
-        return await _show_drive_videos(update.message, context)
 
     # Sin Drive → menú de opciones
     rows = [
