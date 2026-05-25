@@ -51,20 +51,23 @@ def analyze_creative(image_path: str, metrics_context: str = "") -> str:
 
 def analyze_for_campaign(creative_path: str, destination_url: str) -> dict:
     """
-    Analiza el creativo + URL y devuelve un plan completo para lanzar la campaña.
-    Si creative_path está vacío o no existe, analiza solo por la URL de destino.
-    Retorna un dict con: analysis, objective, primary_text, headline, cta,
-                         audience_summary, targeting
+    Analiza el creativo + datos del producto y devuelve un plan completo de campaña.
+    Detecta el ángulo del video y genera copy alineado a ese ángulo.
+    Si creative_path está vacío o no existe, analiza solo por los datos del producto.
     """
+    from .product_data import get_product_context
+
     defaults = {
-        "analysis": "Anuncio listo para lanzar.",
+        "angle": "fatiga_pantallas",
+        "analysis": "Video de Vision Complete listo para lanzar.",
         "objective": "ventas",
-        "primary_text": "¡Mirá lo que tenemos para vos! Calidad garantizada.",
-        "headline": "Comprá ahora",
+        "primary_text": "Tus ojos trabajan todo el día. Es hora de cuidarlos. 3 cuotas sin interés + envío gratis.",
+        "headline": "Vision Complete — Ovitta",
         "cta": "SHOP_NOW",
-        "audience_summary": "Público general Argentina",
-        "targeting": {"geo_locations": {"countries": ["AR"]}, "age_min": 18, "age_max": 65},
+        "audience_summary": "Personas con fatiga visual, 35-65 años, Argentina",
+        "targeting": {"geo_locations": {"countries": ["AR"]}, "age_min": 35, "age_max": 65},
     }
+
     try:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         model = genai.GenerativeModel(
@@ -72,6 +75,7 @@ def analyze_for_campaign(creative_path: str, destination_url: str) -> dict:
             system_instruction=CAMPAIGN_BUILDER_SYSTEM,
         )
 
+        product_ctx = get_product_context()
         path = Path(creative_path) if creative_path else None
         has_file = path and path.exists()
 
@@ -80,15 +84,24 @@ def analyze_for_campaign(creative_path: str, destination_url: str) -> dict:
                 creative_data = f.read()
             parts = [
                 {"inline_data": {"mime_type": _get_mime(path), "data": creative_data}},
-                f"URL de destino: {destination_url}\n\nAnalizá el creativo y la landing. Devolvé el plan de campaña en JSON.",
+                (
+                    f"{product_ctx}\n\n"
+                    f"URL de destino: {destination_url}\n\n"
+                    f"Analizá el video/imagen, detectá el ángulo que está comunicando, "
+                    f"y generá el copy alineado a ese ángulo usando los datos del producto. "
+                    f"Devolvé el JSON completo."
+                ),
             ]
         else:
-            # Sin archivo local: analizar solo por URL
+            # Sin archivo: generar copy basado en datos del producto
             parts = [
-                f"URL de destino: {destination_url}\n\n"
-                f"No tengo el archivo del creativo (es un video de la biblioteca de Meta). "
-                f"Analizá la landing page y generá el copy y targeting más adecuado. "
-                f"Devolvé el plan de campaña en JSON.",
+                (
+                    f"{product_ctx}\n\n"
+                    f"URL de destino: {destination_url}\n\n"
+                    f"No tengo el archivo del creativo (video de la biblioteca). "
+                    f"Elegí el ángulo más fuerte para este producto y generá el copy. "
+                    f"Devolvé el JSON completo."
+                ),
             ]
 
         response = model.generate_content(
@@ -96,7 +109,6 @@ def analyze_for_campaign(creative_path: str, destination_url: str) -> dict:
             generation_config={"temperature": 0.4, "response_mime_type": "application/json"},
         )
         result = json.loads(response.text)
-        # Merge con defaults para evitar KeyError si Gemini omite algún campo
         return {**defaults, **result}
 
     except Exception as e:

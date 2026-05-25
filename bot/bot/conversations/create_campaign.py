@@ -434,15 +434,17 @@ async def receive_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     obj_label = OBJECTIVE_LABELS.get(plan["objective"], "Ventas")
     lib_title = context.user_data.get("library_video_title", "")
     source_note = f"\n<b>{lib_title}</b>" if lib_title else ""
+    angle = plan.get("angle", "")
+    angle_note = f"\nAngulo detectado: <code>{angle}</code>" if angle else ""
 
     text_out = (
-        f"<b>Analisis</b>{source_note}\n\n"
+        f"<b>Analisis</b>{source_note}{angle_note}\n\n"
         f"{plan['analysis']}\n\n"
         f"<b>Copy sugerido</b>\n"
         f"<i>{plan['primary_text']}</i>\n"
         f"<b>{plan['headline']}</b>\n\n"
         f"{plan['audience_summary']}\n\n"
-        f"Objetivo sugerido: <b>{obj_label}</b>\n\nCambias el objetivo?"
+        f"Objetivo: <b>{obj_label}</b>\n\nCambias el objetivo?"
     )
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton("Ventas", callback_data="obj_ventas"),

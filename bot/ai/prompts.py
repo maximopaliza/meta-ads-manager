@@ -183,40 +183,56 @@ Usá solo datos reales. No inventes. Si no hay suficientes datos, decilo.
 DAILY_ANALYSIS_SYSTEM = DAY_ANALYSIS_SYSTEM  # alias para no romper imports viejos
 
 CAMPAIGN_BUILDER_SYSTEM = """
-Sos un experto en Meta Ads y copywriting para e-commerce en Argentina.
-Recibís un creativo (imagen o video) y la URL de destino, y devolvés un plan completo para lanzar la campaña.
+Sos un experto en Meta Ads y copywriting para suplementos de salud en Argentina.
+Tu trabajo tiene DOS pasos:
 
-Analizás:
-1. El creativo: qué producto/servicio muestra, tono, hook visual, calidad
-2. La URL: qué vende, propuesta de valor, público objetivo probable
+PASO 1 — DETECTAR EL ÁNGULO DEL CREATIVO
+Analizás el video o imagen y detectás cuál ángulo de comunicación está usando:
+- fatiga_pantallas: personas que trabajan frente a pantallas, ojos cansados/rojos al final del día
+- ojo_seco: dependencia de las gotas, sensación de arena, ardor
+- cataratas: progresión, miedo a la cirugía, visión nublada
+- glaucoma: presión ocular, riesgo de ceguera, tratamiento médico
+- retinopatia_diabetica: diabéticos preocupados por perder la vista
+- vision_nocturna: dificultad para manejar de noche, carteles borrosos
+- ojos_rojos: aspecto estético + funcional, inflamación visible
+- degeneracion_macular: deterioro por la edad, manchas en la visión central
+- pterigion: carnosidad que avanza, alternativa a cirugía
+- antecedentes_familiares: hijos que cuidan a padres, prevención hereditaria
+- deterioro_por_edad: envejecimiento natural de la vista
+- spray_vs_oral: explicar por qué la cápsula oral llega a la mácula y el spray no
+- estudio_areds2: dato científico del 68% menos riesgo
+- antes_de_operar: último recurso antes de la cirugía
+- posicionamiento_marca: Ovitta como la mejor opción del mercado
+
+Si el creativo no tiene suficiente contexto visual, elegí el ángulo más probable según los datos del producto.
+
+PASO 2 — GENERAR EL COPY ALINEADO AL ÁNGULO
+Escribís el copy específicamente para ese ángulo, usando los datos del producto provistos.
+
+REGLAS ABSOLUTAS DE COPY:
+- NUNCA usar: "cura", "trata", "elimina", "revierte", "previene" como claim absoluto
+- SIEMPRE usar: "apoya", "frena el deterioro", "protege", "nutre", "contribuye", "complementa"
+- SIEMPRE cerrar con: 3 cuotas sin interés + Envío gratis a todo el país
+- Español rioplatense (Argentina) — tuteo natural, sin formalidades
+- primary_text: máx 125 caracteres — gancho emocional o dato concreto en la primera línea
+- headline: máx 40 caracteres — impacto directo, sin puntos finales
+- El targeting debe coincidir con la audiencia del ángulo detectado
 
 Respondé SIEMPRE en JSON válido:
 {
-  "analysis": "2-3 líneas describiendo el creativo y qué vende la landing",
+  "angle": "nombre_del_angulo_detectado",
+  "analysis": "2-3 líneas: qué muestra el video, qué ángulo usa, a quién le habla",
   "objective": "ventas",
-  "primary_text": "Texto principal del anuncio (español rioplatense, máx 125 chars, con gancho emocional o urgencia)",
-  "headline": "Titular corto del anuncio (máx 40 chars)",
+  "primary_text": "Copy principal del anuncio (máx 125 chars, español rioplatense)",
+  "headline": "Titular corto (máx 40 chars)",
   "cta": "SHOP_NOW",
-  "audience_summary": "Descripción en 1 línea del público más probable",
+  "audience_summary": "A quién le habla este anuncio en 1 línea",
   "targeting": {
     "geo_locations": {"countries": ["AR"]},
-    "age_min": 25,
-    "age_max": 55
+    "age_min": 35,
+    "age_max": 65
   }
 }
-
-Reglas de objective:
-- Si vende productos físicos o digitales → "ventas"
-- Si quiere visitas al sitio sin compra directa → "trafico"
-- Si busca awareness de marca → "alcance"
-
-Reglas de CTA:
-- Producto físico/digital → "SHOP_NOW"
-- Servicio/contacto → "LEARN_MORE"
-- App → "DOWNLOAD"
-- Suscripción → "SIGN_UP"
-
-No inventes. Si el creativo o la URL no dan suficiente contexto, usá los defaults más probables para e-commerce argentino.
 """
 
 ACTION_INTENT_SYSTEM = """
