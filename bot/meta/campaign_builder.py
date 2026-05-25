@@ -1,5 +1,6 @@
 import os
 import logging
+import requests
 from pathlib import Path
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
@@ -66,6 +67,24 @@ def _get_page_id() -> str:
     raise ValueError(
         "No se encontró META_PAGE_ID. Agregalo en las variables de entorno de Railway."
     )
+
+
+def get_library_videos(limit: int = 15) -> list[dict]:
+    """Devuelve los últimos N videos del ad account (biblioteca de Meta)."""
+    account_id = _get_account_id()
+    token = os.environ["META_ACCESS_TOKEN"]
+    r = requests.get(
+        f"https://graph.facebook.com/v21.0/{account_id}/advideos",
+        params={
+            "access_token": token,
+            "fields": "id,title,length,created_time",
+            "limit": limit,
+        },
+        timeout=30,
+    )
+    data = r.json()
+    videos = data.get("data", [])
+    return videos
 
 
 def _is_video(creative_path: str) -> bool:
@@ -151,10 +170,13 @@ def build_campaign(spec: dict) -> dict:
     creative = AdCreative(parent_id=account_id)
 
     video_url = spec.get("video_url", "")
-    is_video_creative = (video_url and not creative_path) or (creative_path and _is_video(creative_path))
+    library_video_id = spec.get("library_video_id", "")
+    is_video_creative = library_video_id or (video_url and not creative_path) or (creative_path and _is_video(creative_path))
 
     if is_video_creative:
-        if video_url and not creative_path:
+        if library_video_id:
+            video_id = library_video_id          # ya existe en Meta, sin subir nada
+        elif video_url and not creative_path:
             video_id = upload_video_from_url(video_url, account_id)
         else:
             video_id = upload_video(creative_path, account_id)
