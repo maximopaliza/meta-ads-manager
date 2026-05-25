@@ -39,8 +39,8 @@ from ai.creative_analyst import analyze_for_campaign
 logger = logging.getLogger(__name__)
 
 # Estados
-(CHOOSE_SOURCE, CHOOSE_CATEGORY, PICK_VIDEO,
- UPLOAD_CREATIVE, URL, OBJECTIVE, BUDGET, CONFIRM) = range(8)
+(CHOOSE_SOURCE, CHOOSE_CATEGORY, PICK_VIDEO, PICK_DRIVE_VIDEO,
+ UPLOAD_CREATIVE, URL, OBJECTIVE, BUDGET, CONFIRM) = range(9)
 
 OBJECTIVE_LABELS = {
     "ventas": "🛍️ Ventas",
@@ -83,28 +83,64 @@ async def start_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     from meta.drive_client import is_configured as drive_ok
     drive_connected = drive_ok()
 
+    if drive_connected:
+        # Drive configurado → ir directo a lista de videos
+        context.user_data["video_source"] = "src_drive"
+        msg = await update.message.reply_text("⏳ Cargando videos de Drive…")
+        try:
+            from meta.drive_client import list_drive_videos
+            videos = list_drive_videos()
+            context.user_data["drive_videos_list"] = videos
+        except Exception as e:
+            await msg.edit_text(f"❌ Error al cargar Drive: {e}")
+            return ConversationHandler.END
+        await msg.delete()
+        return await _show_drive_videos(update.message, context)
+
+    # Sin Drive → menú de opciones
     rows = [
         [InlineKeyboardButton("📚 Biblioteca Meta", callback_data="src_library")],
         [InlineKeyboardButton("📎 Subir nuevo", callback_data="src_upload")],
     ]
-    if drive_connected:
-        rows.insert(1, [InlineKeyboardButton("📁 Google Drive", callback_data="src_drive")])
-
-    note = "" if drive_connected else "\n<i>💡 Conectá Drive para ver tus videos organizados.</i>"
     await update.message.reply_text(
-        f"🎨 <b>Nueva campaña</b>\n\n¿De dónde tomamos el creativo?{note}",
+        "🎨 <b>Nueva campaña</b>\n\n"
+        "¿De dónde tomamos el creativo?\n"
+        "<i>💡 Conectá Google Drive para ver tus videos directamente.</i>",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(rows),
     )
     return CHOOSE_SOURCE
 
 
-# ── Selección de fuente ───────────────────────────────────────────────────────
+async def _show_drive_videos(message, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Lista todos los videos de Drive en botones."""
+    videos = context.user_data.get("drive_videos_list", [])
+
+    if not videos:
+        await message.reply_text("📁 No encontré videos en tu carpeta de Drive.")
+        return ConversationHandler.END
+
+    rows = []
+    for v in videos[:20]:
+        name = (v.get("name") or "Sin nombre")[:38]
+        size_mb = v.get("size", 0) / (1024 * 1024)
+        label = f"{name} · {size_mb:.0f}MB" if size_mb > 0 else name
+        rows.append([InlineKeyboardButton(label, callback_data=f"drv_{v['id']}")])
+
+    await message.reply_text(
+        f"📁 <b>{len(videos)} videos en Drive</b>\n\nElegí el creativo:",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+    return PICK_DRIVE_VIDEO
+
+
+# ── Selección de fuente (sin Drive) ──────────────────────────────────────────
 
 async def choose_source(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    src = query.data  # src_library | src_drive | src_upload
+    src = query.data  # src_library | src_upload
 
     if src == "src_upload":
         await query.edit_message_text(
@@ -114,22 +150,14 @@ async def choose_source(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         )
         return UPLOAD_CREATIVE
 
-    # Biblioteca Meta o Drive → mostrar categorías
-    await query.edit_message_text("⏳ Cargando videos…")
+    # Biblioteca Meta → mostrar categorías
+    await query.edit_message_text("⏳ Cargando videos de Meta…")
     context.user_data["video_source"] = src
 
     try:
-        if src == "src_library":
-            from meta.video_library import get_videos_with_performance
-            categorized = get_videos_with_performance()
-            context.user_data["categorized"] = categorized
-        else:
-            from meta.drive_client import list_drive_videos
-            videos = list_drive_videos()
-            # Drive no tiene métricas → todos van a sin_datos
-            categorized = {"winners": [], "poco_gasto": [], "malos": [], "sin_datos": videos}
-            context.user_data["categorized"] = categorized
-            context.user_data["drive_videos"] = {v["id"]: v for v in videos}
+        from meta.video_library import get_videos_with_performance
+        categorized = get_videos_with_performance()
+        context.user_data["categorized"] = categorized
     except Exception as e:
         await query.message.reply_text(f"❌ Error: {e}")
         return ConversationHandler.END
@@ -215,7 +243,35 @@ async def back_categories(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return await _show_categories(query.message, context)
 
 
-# ── Elegir video específico ───────────────────────────────────────────────────
+# ── Elegir video de Drive (flujo directo) ────────────────────────────────────
+
+async def pick_drive_video(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    file_id = query.data.replace("drv_", "")
+    videos = context.user_data.get("drive_videos_list", [])
+    video = next((v for v in videos if v["id"] == file_id), {"id": file_id, "name": "Video"})
+
+    name = video.get("name") or "Video"
+    context.user_data["drive_file_id"] = file_id
+    context.user_data["library_video_id"] = None
+    context.user_data["library_video_title"] = name
+    context.user_data["is_video"] = True
+    context.user_data["creative_path"] = None
+
+    from meta.drive_client import get_direct_url
+    context.user_data["video_url"] = get_direct_url(file_id)
+
+    await query.edit_message_text(f"✅ <b>{name}</b> seleccionado.", parse_mode="HTML")
+    await query.message.reply_text(
+        "🔗 Enviame la <b>URL de destino</b> (landing page del anuncio).",
+        parse_mode="HTML",
+    )
+    return URL
+
+
+# ── Elegir video específico (Biblioteca Meta) ─────────────────────────────────
 
 async def pick_video(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -534,16 +590,17 @@ def get_create_campaign_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CommandHandler("crear", start_campaign)],
         states={
-            CHOOSE_SOURCE:   [CallbackQueryHandler(choose_source, pattern="^src_")],
-            CHOOSE_CATEGORY: [
+            CHOOSE_SOURCE:    [CallbackQueryHandler(choose_source, pattern="^src_")],
+            CHOOSE_CATEGORY:  [
                 CallbackQueryHandler(choose_category, pattern="^cat_"),
                 CallbackQueryHandler(back_categories, pattern="^back_categories"),
             ],
-            PICK_VIDEO:      [
+            PICK_VIDEO:       [
                 CallbackQueryHandler(pick_video, pattern="^vid_"),
                 CallbackQueryHandler(back_categories, pattern="^back_categories"),
             ],
-            UPLOAD_CREATIVE: [
+            PICK_DRIVE_VIDEO: [CallbackQueryHandler(pick_drive_video, pattern="^drv_")],
+            UPLOAD_CREATIVE:  [
                 MessageHandler(_FILE_FILTER | (filters.TEXT & ~filters.COMMAND), upload_creative)
             ],
             URL:       [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_url)],
