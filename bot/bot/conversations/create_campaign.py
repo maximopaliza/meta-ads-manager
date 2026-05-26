@@ -425,10 +425,25 @@ async def receive_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     url = match.group()
     context.user_data["destination_url"] = url
-    msg = await update.message.reply_text("Analizando con IA...")
 
-    creative_path = context.user_data.get("creative_path")
-    plan = analyze_for_campaign(creative_path or "", url)
+    drive_file_id = context.user_data.get("drive_file_id")
+
+    if drive_file_id:
+        # Video de Drive → análisis completo con video + audio via Gemini File API
+        file_name = context.user_data.get("library_video_title", "video.mp4")
+        msg = await update.message.reply_text(
+            "Descargando y analizando video con IA (video + audio)...\n"
+            "<i>Puede tardar hasta 60 segundos.</i>",
+            parse_mode="HTML",
+        )
+        from ai.video_analyzer import analyze_video
+        plan = analyze_video(drive_file_id, file_name, destination_url=url)
+    else:
+        # Archivo local o URL externa → análisis estándar
+        msg = await update.message.reply_text("Analizando con IA...")
+        creative_path = context.user_data.get("creative_path")
+        plan = analyze_for_campaign(creative_path or "", url)
+
     context.user_data["plan"] = plan
 
     obj_label = OBJECTIVE_LABELS.get(plan["objective"], "Ventas")
