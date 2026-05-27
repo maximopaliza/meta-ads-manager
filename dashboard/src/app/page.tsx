@@ -10,6 +10,7 @@ import Link from 'next/link'
 import RangeSelector from '@/components/dashboard/RangeSelector'
 import { Suspense } from 'react'
 
+
 const CPA_BREAKEVEN = 15
 const CPA_TARGET = 7
 
