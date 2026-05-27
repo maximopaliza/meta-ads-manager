@@ -49,12 +49,15 @@ function cpcColor(v: number | null) {
   return '#EF4444'
 }
 
-function deltaLabel(delta: number | null, invertSign = false) {
+// lowerIsBetter=true → CPM, CPC, CPA, Costo ATC (bajar es bueno)
+// lowerIsBetter=false → CTR, Clics, ATC, Ventas, ROAS, Tráfico efectivo (subir es bueno)
+function deltaLabel(delta: number | null, lowerIsBetter = false) {
   if (delta === null || delta === undefined) return null
-  const d = invertSign ? -delta : delta
+  const isUp = delta >= 0
+  const isGood = lowerIsBetter ? !isUp : isUp
   return {
-    text: `${d >= 0 ? '▲' : '▼'} ${Math.abs(d).toFixed(1)}%`,
-    color: d >= 0 ? '#22C55E' : '#EF4444',
+    text: `${isUp ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)}%`,
+    color: isGood ? '#22C55E' : '#EF4444',
   }
 }
 
