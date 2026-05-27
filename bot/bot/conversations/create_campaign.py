@@ -1,52 +1,44 @@
 """
-Flujo de creación de campaña via Telegram.
+create_campaign.py — Flujo de creación de campañas.
 
-Con Drive configurado, flujo principal:
-  /crear → subcarpetas (No subidos / En uso / Winners / Poco gasto / Malos)
-         → lista de videos → URL → Gemini → objetivo → presupuesto → Confirmar
-         → crea campaña en Meta (PAUSED) + mueve video a "En uso" en Drive
+Flujo principal (Drive configurado):
+  /crear → lista videos en "No subidos"
+         → usuario elige todos o cuáles
+         → bot analiza cada video con Gemini (ángulo + copy)
+         → agrupa por ángulo, propone estructura CBO
+         → por cada grupo: pide URL de destino → genera copy final → pide presupuesto
+         → confirmación global → crea todas las campañas → mueve videos a "Nuevos subidos"
 
-Sin Drive → menú: Biblioteca Meta | Subir nuevo
+Flujo fallback (sin Drive):
+  /crear → Biblioteca Meta | Subir nuevo (flujo original)
 """
 import logging
 import os
 import re
+import asyncio
 import tempfile
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import (
-    ContextTypes,
-    ConversationHandler,
-    CommandHandler,
-    MessageHandler,
-    CallbackQueryHandler,
-    filters,
+    ContextTypes, ConversationHandler, CommandHandler,
+    MessageHandler, CallbackQueryHandler, filters,
 )
-from ai.creative_analyst import analyze_for_campaign
 
 logger = logging.getLogger(__name__)
 
-# Estados
+# ── Estados flujo Drive (multi-ads) ──────────────────────────────────────────
+(DRIVE_SELECT_MODE, DRIVE_PICK_SPECIFIC, DRIVE_REVIEW_GROUPS,
+ DRIVE_GROUP_URL, DRIVE_GROUP_BUDGET, DRIVE_CONFIRM_ALL) = range(10, 16)
+
+# ── Estados flujo fallback (single ad) ───────────────────────────────────────
 (CHOOSE_SOURCE, CHOOSE_CATEGORY, PICK_VIDEO, PICK_DRIVE_VIDEO,
  UPLOAD_CREATIVE, URL, OBJECTIVE, BUDGET, CONFIRM) = range(9)
 
-OBJECTIVE_LABELS = {
-    "ventas":  "Ventas",
-    "trafico": "Trafico",
-    "alcance": "Alcance",
-}
-
+OBJECTIVE_LABELS = {"ventas": "Ventas", "trafico": "Tráfico", "alcance": "Alcance"}
 URL_RE = re.compile(r"https?://\S+")
 VIDEO_MIMES = {"video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska"}
 MAX_TG_MB = 19
-
-CATEGORY_LABELS = {
-    "winners":    "Winners",
-    "poco_gasto": "Poco gasto",
-    "malos":      "Malos",
-    "sin_datos":  "Sin historial",
-}
 
 
 def _fmt_dur(seconds) -> str:
@@ -57,204 +49,476 @@ def _fmt_dur(seconds) -> str:
         return "?"
 
 
-def _gdrive_to_direct(url: str) -> str:
-    m = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
-    if m:
-        return f"https://drive.google.com/uc?export=download&id={m.group(1)}"
-    return url
-
-
-# ── Paso 0: Inicio ────────────────────────────────────────────────────────────
+# ── Entrada ───────────────────────────────────────────────────────────────────
 
 async def start_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
 
     from meta.drive_client import is_configured as drive_ok
-    drive_connected = drive_ok()
+    if not drive_ok():
+        return await _start_fallback(update, context)
 
-    if drive_connected:
-        context.user_data["video_source"] = "src_drive"
-        msg = await update.message.reply_text("Cargando carpetas de Drive...")
-        try:
-            from meta.drive_client import get_structure
-            structure = get_structure()
-            context.user_data["drive_structure"] = structure
-        except Exception as e:
-            logger.error(f"Error cargando Drive: {e}")
-            try:
-                await msg.edit_text(
-                    f"Error al cargar Drive:\n<code>{str(e)[:300]}</code>",
-                    parse_mode="HTML",
-                )
-            except Exception:
-                await update.message.reply_text(f"Error al cargar Drive: {e}")
-            return ConversationHandler.END
+    msg = await update.message.reply_text("⏳ Cargando videos de <b>No subidos</b>...", parse_mode="HTML")
+    try:
+        from meta.drive_client import get_structure
+        structure = get_structure()
+        videos = structure.get("No subidos", {}).get("videos", [])
+    except Exception as e:
+        await msg.edit_text(f"❌ Error al conectar con Drive:\n<code>{str(e)[:200]}</code>", parse_mode="HTML")
+        return ConversationHandler.END
 
+    try:
+        await msg.delete()
+    except Exception:
+        pass
+
+    if not videos:
+        await update.message.reply_text(
+            "📂 No hay videos en la carpeta <b>No subidos</b> de Drive.\n\n"
+            "Subí los videos ahí y volvé a escribir /crear.",
+            parse_mode="HTML",
+        )
+        return ConversationHandler.END
+
+    context.user_data["no_subidos"] = videos
+    return await _show_video_selection(update.message, context, videos)
+
+
+async def _show_video_selection(message, context: ContextTypes.DEFAULT_TYPE, videos: list) -> int:
+    lines = ["📂 <b>No subidos</b> — elegí qué analizar:\n"]
+    for i, v in enumerate(videos[:20], 1):
+        name = (v.get("name") or "Sin nombre")[:45]
+        mb = v.get("size", 0) / (1024 * 1024)
+        lines.append(f"<code>{i:2d}.</code> {name} <i>({mb:.0f}MB)</i>")
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎯 Analizar todos", callback_data="drv_all")],
+        [InlineKeyboardButton("🔢 Elegir cuáles", callback_data="drv_pick")],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="drv_cancel")],
+    ])
+    await message.reply_text("\n".join(lines), parse_mode="HTML", reply_markup=keyboard)
+    return DRIVE_SELECT_MODE
+
+
+async def drive_select_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "drv_cancel":
+        await query.edit_message_text("Cancelado.")
+        return ConversationHandler.END
+
+    videos = context.user_data["no_subidos"]
+
+    if query.data == "drv_all":
+        context.user_data["selected_videos"] = videos
+        await query.edit_message_text(f"✅ Analizando {len(videos)} videos...")
+        return await _run_analysis(query.message, context)
+
+    # drv_pick
+    await query.edit_message_text(
+        "Escribí los números separados por coma.\n"
+        "Ej: <code>1,3,5</code> o <code>todos</code>",
+        parse_mode="HTML",
+    )
+    return DRIVE_PICK_SPECIFIC
+
+
+async def drive_pick_specific(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip().lower()
+    videos = context.user_data["no_subidos"]
+
+    if text in ("todos", "all"):
+        selected = videos
+    else:
         try:
-            await msg.delete()
+            indices = [int(x.strip()) - 1 for x in text.split(",")]
+            selected = [videos[i] for i in indices if 0 <= i < len(videos)]
+        except (ValueError, IndexError):
+            await update.message.reply_text("No entendí. Escribí números separados por coma. Ej: 1,3,5")
+            return DRIVE_PICK_SPECIFIC
+
+    if not selected:
+        await update.message.reply_text("Ningún video válido. Intentá de nuevo.")
+        return DRIVE_PICK_SPECIFIC
+
+    context.user_data["selected_videos"] = selected
+    msg = await update.message.reply_text(f"⏳ Analizando {len(selected)} video(s)...")
+    return await _run_analysis(msg, context)
+
+
+# ── Análisis y agrupación ─────────────────────────────────────────────────────
+
+async def _run_analysis(progress_msg, context: ContextTypes.DEFAULT_TYPE) -> int:
+    videos = context.user_data["selected_videos"]
+    loop = asyncio.get_event_loop()
+    analyses = []
+
+    for i, v in enumerate(videos, 1):
+        file_id = v["id"]
+        name = v.get("name", "video.mp4")
+        try:
+            await progress_msg.edit_text(f"🔍 Analizando <b>{i}/{len(videos)}</b>: {name[:40]}...", parse_mode="HTML")
         except Exception:
             pass
-        return await _show_drive_folders(update.message, context)
 
-    # Sin Drive → menú básico
+        try:
+            from ai.video_analyzer import analyze_video
+            result = await loop.run_in_executor(None, analyze_video, file_id, name, "")
+            result["drive_file_id"] = file_id
+            result["file_name"] = name
+            analyses.append(result)
+            logger.info(f"Analyzed {name}: angle={result.get('angle')}")
+        except Exception as e:
+            logger.error(f"Analysis failed for {name}: {e}")
+            analyses.append({
+                "drive_file_id": file_id,
+                "file_name": name,
+                "angle": "sin_datos",
+                "analysis": "No se pudo analizar.",
+                "primary_text": "",
+                "headline": "",
+                "audience_summary": "",
+                "targeting": {"geo_locations": {"countries": ["AR"]}, "age_min": 35, "age_max": 65},
+            })
+
+    context.user_data["analyses"] = analyses
+    groups = _group_by_angle(analyses)
+    context.user_data["groups"] = groups
+
+    try:
+        await progress_msg.delete()
+    except Exception:
+        pass
+
+    return await _show_groups(progress_msg, context, groups)
+
+
+def _group_by_angle(analyses: list[dict]) -> list[dict]:
+    """Agrupa videos por ángulo detectado."""
+    angle_map: dict[str, list] = {}
+    for a in analyses:
+        angle = a.get("angle") or "sin_datos"
+        angle_map.setdefault(angle, []).append(a)
+
+    groups = []
+    for angle, items in angle_map.items():
+        n = len(items)
+        groups.append({
+            "angle": angle,
+            "videos": items,
+            "structure": f"1-1-{n}",
+        })
+    return groups
+
+
+async def _show_groups(message, context: ContextTypes.DEFAULT_TYPE, groups: list) -> int:
+    lines = ["🎯 <b>Grupos detectados</b> (por ángulo):\n"]
+    for i, g in enumerate(groups, 1):
+        n = len(g["videos"])
+        names = ", ".join(v["file_name"][:25] for v in g["videos"])
+        lines.append(
+            f"<b>{i}. {g['angle']}</b> — {n} video(s)\n"
+            f"   <i>{names}</i>\n"
+            f"   Estructura: CBO {g['structure']}\n"
+        )
+
+    lines.append("¿Confirmás esta estructura?")
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Confirmar grupos", callback_data="groups_ok")],
+        [InlineKeyboardButton("❌ Cancelar todo", callback_data="groups_cancel")],
+    ])
+    await message.reply_text("\n".join(lines), parse_mode="HTML", reply_markup=keyboard)
+    return DRIVE_REVIEW_GROUPS
+
+
+async def drive_review_groups(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "groups_cancel":
+        await query.edit_message_text("Cancelado.")
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    # Confirmar → empezar a recopilar URL por grupo
+    groups = context.user_data["groups"]
+    context.user_data["current_group"] = 0
+    context.user_data["groups_config"] = []
+
+    await query.edit_message_text("✅ Grupos confirmados. Ahora necesito la URL de destino por campaña.")
+    return await _ask_group_url(query.message, context)
+
+
+# ── Recopilación URL + presupuesto por grupo ──────────────────────────────────
+
+async def _ask_group_url(message, context: ContextTypes.DEFAULT_TYPE) -> int:
+    idx = context.user_data["current_group"]
+    groups = context.user_data["groups"]
+    g = groups[idx]
+    n_total = len(groups)
+
+    await message.reply_text(
+        f"📎 <b>Grupo {idx + 1}/{n_total}</b> — <code>{g['angle']}</code>\n"
+        f"{len(g['videos'])} video(s)\n\n"
+        f"Enviame la <b>URL de destino</b> (landing page):",
+        parse_mode="HTML",
+    )
+    return DRIVE_GROUP_URL
+
+
+async def drive_group_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    match = URL_RE.search(text)
+    if not match:
+        await update.message.reply_text("URL inválida. Ej: https://ovitta.store/products/...")
+        return DRIVE_GROUP_URL
+
+    url = match.group()
+    idx = context.user_data["current_group"]
+    groups = context.user_data["groups"]
+    g = groups[idx]
+
+    # Generar copy para este grupo usando referencia de copies ganadores
+    msg = await update.message.reply_text("⏳ Generando copy...")
+    try:
+        copies = await _generate_group_copies(g, url)
+    except Exception as e:
+        logger.error(f"Copy generation error: {e}")
+        copies = [{"primary_text": v.get("primary_text", ""), "headline": v.get("headline", ""), "cta": "SHOP_NOW"} for v in g["videos"]]
+
+    try:
+        await msg.delete()
+    except Exception:
+        pass
+
+    context.user_data["groups_config"].append({"angle": g["angle"], "url": url, "copies": copies})
+
+    # Mostrar preview del copy
+    lines = [f"✏️ <b>Copy generado para {g['angle']}</b>:\n"]
+    for i, (v, c) in enumerate(zip(g["videos"], copies), 1):
+        lines.append(
+            f"<b>Ad {i}</b> — {v['file_name'][:30]}\n"
+            f"<i>{c.get('primary_text', '')}</i>\n"
+            f"<b>{c.get('headline', '')}</b>\n"
+        )
+    lines.append(f"💰 ¿Cuánto por día para esta campaña? (en ARS)\n<i>Ej: 5000</i>")
+    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+    return DRIVE_GROUP_BUDGET
+
+
+async def _generate_group_copies(group: dict, url: str) -> list[dict]:
+    """Genera copies para todos los videos del grupo."""
+    loop = asyncio.get_event_loop()
+    from db.queries import get_copy_winners_by_angle
+    winners = get_copy_winners_by_angle(group["angle"])
+
+    copies = []
+    for v in group["videos"]:
+        try:
+            from ai.video_analyzer import analyze_video
+            result = await loop.run_in_executor(None, analyze_video, v["drive_file_id"], v["file_name"], url)
+            copies.append({
+                "primary_text": result.get("primary_text", ""),
+                "headline": result.get("headline", ""),
+                "cta": result.get("cta", "SHOP_NOW"),
+            })
+        except Exception:
+            copies.append({
+                "primary_text": v.get("primary_text", ""),
+                "headline": v.get("headline", ""),
+                "cta": "SHOP_NOW",
+            })
+    return copies
+
+
+async def drive_group_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    try:
+        budget = float(update.message.text.replace(",", ".").replace("$", "").strip())
+        if budget <= 0:
+            raise ValueError
+    except ValueError:
+        await update.message.reply_text("Solo el número. Ej: 5000")
+        return DRIVE_GROUP_BUDGET
+
+    idx = context.user_data["current_group"]
+    context.user_data["groups_config"][idx]["budget"] = budget
+
+    groups = context.user_data["groups"]
+    next_idx = idx + 1
+    context.user_data["current_group"] = next_idx
+
+    if next_idx < len(groups):
+        return await _ask_group_url(update.message, context)
+
+    # Todos los grupos configurados → mostrar resumen final
+    return await _show_final_confirm(update.message, context)
+
+
+# ── Confirmación final ────────────────────────────────────────────────────────
+
+async def _show_final_confirm(message, context: ContextTypes.DEFAULT_TYPE) -> int:
+    groups = context.user_data["groups"]
+    configs = context.user_data["groups_config"]
+    accounts = __import__("db.queries", fromlist=["get_accounts"]).get_accounts()
+    currency = accounts[0]["currency"] if accounts else "ARS"
+
+    lines = ["📋 <b>Resumen — Campañas a crear</b>\n"]
+    for i, (g, cfg) in enumerate(zip(groups, configs), 1):
+        n = len(g["videos"])
+        lines.append(
+            f"<b>{i}. {g['angle']}</b> — CBO {g['structure']}\n"
+            f"   URL: {cfg['url'][:50]}\n"
+            f"   Presupuesto: <b>${cfg['budget']:,.0f} {currency}/día</b>\n"
+            f"   {n} ad(s) en PAUSED\n"
+        )
+
+    lines.append("¿Creamos todo?")
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Crear todo", callback_data="create_all")],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="create_cancel")],
+    ])
+    await message.reply_text("\n".join(lines), parse_mode="HTML", reply_markup=keyboard)
+    return DRIVE_CONFIRM_ALL
+
+
+async def drive_confirm_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "create_cancel":
+        await query.edit_message_text("Cancelado.")
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    await query.edit_message_text("⏳ Creando campañas en Meta Ads...")
+
+    groups = context.user_data["groups"]
+    configs = context.user_data["groups_config"]
+    loop = asyncio.get_event_loop()
+
+    from db.queries import get_accounts, link_ad_to_drive
+    from meta.drive_client import move_to_subfolder
+    from meta.campaign_builder import build_multi_ad_campaign
+
+    accounts = get_accounts()
+    if not accounts:
+        await query.message.reply_text("❌ No hay ad accounts. Ejecutá /sync.")
+        return ConversationHandler.END
+
+    account_id = accounts[0]["id"]
+    results = []
+    errors = []
+
+    for g, cfg in zip(groups, configs):
+        try:
+            campaign_name = f"Campaña {g['angle'].replace('_', ' ').title()} {datetime.now().strftime('%d/%m %H:%M')}"
+            ads_spec = []
+            for v, copy in zip(g["videos"], cfg["copies"]):
+                ads_spec.append({
+                    "ad_name": f"{g['angle']} — {v['file_name'][:30]}",
+                    "primary_text": copy.get("primary_text", ""),
+                    "headline": copy.get("headline", ""),
+                    "cta": copy.get("cta", "SHOP_NOW"),
+                    "library_video_id": "",
+                    "video_url": f"https://drive.google.com/uc?export=download&id={v['drive_file_id']}",
+                    "creative_path": "",
+                    "drive_file_id": v["drive_file_id"],
+                })
+
+            spec = {
+                "name": campaign_name,
+                "objective": "ventas",
+                "daily_budget": cfg["budget"],
+                "targeting": g["videos"][0].get("targeting", {"geo_locations": {"countries": ["AR"]}, "age_min": 35, "age_max": 65}),
+                "destination_url": cfg["url"],
+                "account_id": account_id,
+                "ads": ads_spec,
+            }
+
+            result = await loop.run_in_executor(None, build_multi_ad_campaign, spec)
+
+            # Vincular ads con Drive y moverlos a "Nuevos subidos"
+            for ad_info in result.get("ads", []):
+                if ad_info.get("drive_file_id") and ad_info.get("ad_id"):
+                    try:
+                        link_ad_to_drive(ad_info["ad_id"], ad_info["drive_file_id"], "Nuevos subidos")
+                        move_to_subfolder(ad_info["drive_file_id"], "Nuevos subidos")
+                    except Exception as e:
+                        logger.warning(f"Could not link/move {ad_info['drive_file_id']}: {e}")
+
+            results.append(f"✅ <b>{campaign_name}</b>\nID: <code>{result['campaign_id']}</code> — {len(result.get('ads', []))} ads")
+
+        except Exception as e:
+            logger.error(f"Campaign creation error for {g['angle']}: {e}", exc_info=True)
+            errors.append(f"❌ {g['angle']}: {str(e)[:100]}")
+
+    lines = ["<b>Resultado</b>\n"] + results
+    if errors:
+        lines += ["\n<b>Errores:</b>"] + errors
+    lines.append("\nTodas en <b>PAUSED</b>. Activálas cuando estés listo.")
+
+    await query.message.reply_text("\n".join(lines), parse_mode="HTML")
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+# ── Flujo fallback (sin Drive) ────────────────────────────────────────────────
+
+CATEGORY_LABELS = {
+    "winners": "Winners", "poco_gasto": "Poco gasto",
+    "malos": "Malos", "sin_datos": "Sin historial",
+}
+
+
+async def _start_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     rows = [
         [InlineKeyboardButton("Biblioteca Meta", callback_data="src_library")],
         [InlineKeyboardButton("Subir nuevo", callback_data="src_upload")],
     ]
     await update.message.reply_text(
-        "<b>Nueva campana</b>\n\nDe donde tomamos el creativo?",
+        "<b>Nueva campaña</b>\n\n¿De dónde tomamos el creativo?",
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(rows),
     )
     return CHOOSE_SOURCE
 
 
-# ── Drive: mostrar subcarpetas ────────────────────────────────────────────────
-
-async def _show_drive_folders(message, context: ContextTypes.DEFAULT_TYPE) -> int:
-    from meta.drive_client import SUBFOLDER_NAMES, SUBFOLDER_EMOJIS
-    structure = context.user_data.get("drive_structure", {})
-
-    rows = []
-    for name in SUBFOLDER_NAMES:
-        info = structure.get(name, {})
-        count = len(info.get("videos", []))
-        emoji = SUBFOLDER_EMOJIS.get(name, "")
-        rows.append([InlineKeyboardButton(
-            f"{emoji} {name} ({count})",
-            callback_data=f"drvf_{name}",
-        )])
-
-    await message.reply_text(
-        "<b>Google Drive</b> — elegí la carpeta:",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(rows),
-    )
-    return PICK_DRIVE_VIDEO
-
-
-async def pick_drive_folder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "back_drive_folders":
-        return await _show_drive_folders(query.message, context)
-
-    if query.data.startswith("drvf_"):
-        folder_name = query.data.replace("drvf_", "")
-        context.user_data["drive_folder_name"] = folder_name
-        return await _show_drive_videos_in_folder(query.message, context, folder_name)
-
-    if query.data.startswith("drv_"):
-        # Video seleccionado
-        file_id = query.data.replace("drv_", "")
-        structure = context.user_data.get("drive_structure", {})
-        folder_name = context.user_data.get("drive_folder_name", "")
-        info = structure.get(folder_name, {})
-        videos = info.get("videos", [])
-        video = next((v for v in videos if v["id"] == file_id), {"id": file_id, "name": "Video"})
-
-        name = video.get("name") or "Video"
-        context.user_data["drive_file_id"] = file_id
-        context.user_data["library_video_id"] = None
-        context.user_data["library_video_title"] = name
-        context.user_data["is_video"] = True
-        context.user_data["creative_path"] = None
-
-        from meta.drive_client import get_direct_url
-        context.user_data["video_url"] = get_direct_url(file_id)
-
-        await query.edit_message_text(f"<b>{name}</b> seleccionado.", parse_mode="HTML")
-        await query.message.reply_text(
-            "Enviame la <b>URL de destino</b> (landing page del anuncio).",
-            parse_mode="HTML",
-        )
-        return URL
-
-    return PICK_DRIVE_VIDEO
-
-
-async def _show_drive_videos_in_folder(message, context: ContextTypes.DEFAULT_TYPE, folder_name: str) -> int:
-    from meta.drive_client import SUBFOLDER_EMOJIS
-    structure = context.user_data.get("drive_structure", {})
-    info = structure.get(folder_name, {})
-    videos = info.get("videos", [])
-    emoji = SUBFOLDER_EMOJIS.get(folder_name, "")
-
-    if not videos:
-        await message.reply_text(
-            f"{emoji} <b>{folder_name}</b> esta vacia.\n"
-            f"Subi videos ahi en Google Drive y volvé a intentar.",
-            parse_mode="HTML",
-        )
-        return await _show_drive_folders(message, context)
-
-    rows = []
-    for v in videos[:20]:
-        name = (v.get("name") or "Sin nombre")[:36]
-        size_mb = v.get("size", 0) / (1024 * 1024)
-        label = f"{name} - {size_mb:.0f}MB" if size_mb > 0 else name
-        rows.append([InlineKeyboardButton(label, callback_data=f"drv_{v['id']}")])
-
-    rows.append([InlineKeyboardButton("Volver", callback_data="back_drive_folders")])
-
-    await message.reply_text(
-        f"{emoji} <b>{folder_name}</b> — elegí el video:",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(rows),
-    )
-    return PICK_DRIVE_VIDEO
-
-
-# ── Selección de fuente (sin Drive) ──────────────────────────────────────────
-
 async def choose_source(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-    src = query.data
 
-    if src == "src_upload":
+    if query.data == "src_upload":
         await query.edit_message_text(
-            "Enviame la imagen o video.\n"
-            "<i>Videos pesados: manda el link de Google Drive.</i>",
+            "Enviame la imagen o video.\n<i>Videos pesados: mandá el link de Google Drive.</i>",
             parse_mode="HTML",
         )
         return UPLOAD_CREATIVE
 
     await query.edit_message_text("Cargando videos de Meta...")
-    context.user_data["video_source"] = src
-
+    context.user_data["video_source"] = query.data
     try:
         from meta.video_library import get_videos_with_performance
-        categorized = get_videos_with_performance()
-        context.user_data["categorized"] = categorized
+        context.user_data["categorized"] = get_videos_with_performance()
     except Exception as e:
         await query.message.reply_text(f"Error: {e}")
         return ConversationHandler.END
-
     return await _show_categories(query.message, context)
 
 
 async def _show_categories(message, context: ContextTypes.DEFAULT_TYPE) -> int:
     categorized = context.user_data["categorized"]
-
     rows = []
     for key, label in CATEGORY_LABELS.items():
-        vids = categorized.get(key, [])
-        if vids:
-            rows.append([InlineKeyboardButton(
-                f"{label} ({len(vids)})", callback_data=f"cat_{key}"
-            )])
-
+        if categorized.get(key):
+            rows.append([InlineKeyboardButton(f"{label} ({len(categorized[key])})", callback_data=f"cat_{key}")])
     if not rows:
-        await message.reply_text("No encontre videos en Meta.")
+        await message.reply_text("No encontré videos en Meta.")
         return ConversationHandler.END
-
     total = sum(len(v) for v in categorized.values())
     await message.reply_text(
-        f"<b>{total} videos en Meta</b>\n\nDe que categoria?",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(rows),
+        f"<b>{total} videos en Meta</b>\n\n¿De qué categoría?",
+        parse_mode="HTML", reply_markup=InlineKeyboardMarkup(rows),
     )
     return CHOOSE_CATEGORY
 
@@ -262,39 +526,22 @@ async def _show_categories(message, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def choose_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-
     cat = query.data.replace("cat_", "")
     context.user_data["selected_category"] = cat
     videos = context.user_data["categorized"].get(cat, [])
-
     if not videos:
-        await query.edit_message_text("No hay videos en esa categoria.")
+        await query.edit_message_text("No hay videos en esa categoría.")
         return CHOOSE_CATEGORY
-
-    label = CATEGORY_LABELS.get(cat, cat)
     rows = []
     for v in videos[:20]:
-        name = (v.get("title") or v.get("name") or "Sin titulo")[:32]
-        extra = ""
-        roas = v.get("roas")
-        spend = v.get("spend")
-        dur = v.get("length")
-
-        if roas:
-            extra = f" - {roas:.1f}x"
-        elif spend:
-            extra = f" - ${spend:.0f}"
-        if dur:
-            extra += f" - {_fmt_dur(dur)}"
-
-        rows.append([InlineKeyboardButton(
-            f"{name}{extra}", callback_data=f"vid_{v['id']}"
-        )])
-
+        name = (v.get("title") or "Sin título")[:32]
+        extra = f" - {v['roas']:.1f}x" if v.get("roas") else (f" - ${v['spend']:.0f}" if v.get("spend") else "")
+        if v.get("length"):
+            extra += f" - {_fmt_dur(v['length'])}"
+        rows.append([InlineKeyboardButton(f"{name}{extra}", callback_data=f"vid_{v['id']}")])
     rows.append([InlineKeyboardButton("Volver", callback_data="back_categories")])
-
     await query.edit_message_text(
-        f"{label} — elegí el creativo:",
+        f"{CATEGORY_LABELS.get(cat, cat)} — elegí el creativo:",
         reply_markup=InlineKeyboardMarkup(rows),
     )
     return PICK_VIDEO
@@ -309,82 +556,48 @@ async def back_categories(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def pick_video(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-
     video_id = query.data.replace("vid_", "")
     cat = context.user_data.get("selected_category", "sin_datos")
     videos = context.user_data["categorized"].get(cat, [])
     video = next((v for v in videos if v["id"] == video_id), {"id": video_id})
-
-    title = video.get("title") or video.get("name") or "Sin titulo"
-
-    context.user_data["library_video_id"] = video_id
-    context.user_data["drive_file_id"] = None
-    context.user_data["library_video_title"] = title
-    context.user_data["is_video"] = True
-    context.user_data["creative_path"] = None
-    context.user_data["video_url"] = None
-
+    title = video.get("title") or video.get("name") or "Sin título"
+    context.user_data.update({
+        "library_video_id": video_id, "drive_file_id": None,
+        "library_video_title": title, "is_video": True,
+        "creative_path": None, "video_url": None,
+    })
     await query.edit_message_text(f"<b>{title}</b> seleccionado.", parse_mode="HTML")
-    await query.message.reply_text(
-        "Enviame la <b>URL de destino</b> (landing page del anuncio).",
-        parse_mode="HTML",
-    )
+    await query.message.reply_text("Enviame la <b>URL de destino</b>.", parse_mode="HTML")
     return URL
 
 
-# ── Subir nuevo ───────────────────────────────────────────────────────────────
-
 async def upload_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     message = update.message
-
     if message.text:
         match = URL_RE.search(message.text)
         if match:
             raw = match.group()
-            context.user_data["video_url"] = _gdrive_to_direct(raw)
-            context.user_data["creative_path"] = None
-            context.user_data["library_video_id"] = None
-            context.user_data["is_video"] = True
-            await message.reply_text(
-                "Link recibido.\n\nEnviame la <b>URL de destino</b>.",
-                parse_mode="HTML",
-            )
+            m = re.search(r"/d/([a-zA-Z0-9_-]+)", raw)
+            url = f"https://drive.google.com/uc?export=download&id={m.group(1)}" if m else raw
+            context.user_data.update({"video_url": url, "creative_path": None, "library_video_id": None, "is_video": True})
+            await message.reply_text("Link recibido.\n\nEnviame la <b>URL de destino</b>.", parse_mode="HTML")
             return URL
         await message.reply_text("Enviame el archivo o link de Google Drive.")
         return UPLOAD_CREATIVE
 
-    is_video = False
-    file_size = 0
-    tg_file = None
-    suffix = ".jpg"
-
-    if message.photo:
-        tg_file = message.photo[-1]
-        file_size = tg_file.file_size or 0
-    elif message.video:
-        tg_file = message.video
-        file_size = tg_file.file_size or 0
-        suffix = ".mp4"
-        is_video = True
-    elif message.document:
-        tg_file = message.document
-        file_size = tg_file.file_size or 0
-        fn = (tg_file.file_name or "").lower()
-        if tg_file.mime_type in VIDEO_MIMES or fn.endswith((".mp4", ".mov", ".avi", ".mkv")):
-            suffix = ".mp4"
-            is_video = True
-    else:
+    tg_file = message.photo[-1] if message.photo else message.video if message.video else message.document if message.document else None
+    if not tg_file:
         await message.reply_text("Enviame una imagen, video o link de Google Drive.")
         return UPLOAD_CREATIVE
 
-    context.user_data["is_video"] = is_video
+    suffix = ".mp4" if message.video or (message.document and message.document.mime_type in VIDEO_MIMES) else ".jpg"
+    is_video = suffix == ".mp4"
+    file_size = tg_file.file_size or 0
 
     if file_size > MAX_TG_MB * 1024 * 1024:
-        size_mb = file_size / (1024 * 1024)
         await message.reply_text(
-            f"El archivo pesa <b>{size_mb:.0f} MB</b>.\n\n"
-            f"Subilo a <b>Google Drive</b> (compartido como 'cualquiera con el link') "
-            f"y pega el link aca.",
+            f"El archivo pesa <b>{file_size / 1024 / 1024:.0f} MB</b>.\n\n"
+            f"Subilo a <b>Google Drive</b> y pegá el link acá.",
             parse_mode="HTML",
         )
         return UPLOAD_CREATIVE
@@ -393,91 +606,58 @@ async def upload_creative(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         file = await tg_file.get_file()
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
         await file.download_to_drive(tmp.name)
-        context.user_data["creative_path"] = tmp.name
-        context.user_data["video_url"] = None
-        context.user_data["library_video_id"] = None
+        context.user_data.update({
+            "creative_path": tmp.name, "video_url": None,
+            "library_video_id": None, "is_video": is_video,
+        })
     except BadRequest as e:
         if "too big" in str(e).lower() or "too large" in str(e).lower():
-            await message.reply_text(
-                "Archivo muy pesado. Subilo a Google Drive y pega el link.",
-            )
+            await message.reply_text("Archivo muy pesado. Subilo a Google Drive y pegá el link.")
             return UPLOAD_CREATIVE
         raise
 
-    await message.reply_text(
-        "Creativo recibido.\n\nEnviame la <b>URL de destino</b>.",
-        parse_mode="HTML",
-    )
+    await message.reply_text("Creativo recibido.\n\nEnviame la <b>URL de destino</b>.", parse_mode="HTML")
     return URL
 
-
-# ── URL de destino ────────────────────────────────────────────────────────────
 
 async def receive_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text = update.message.text.strip()
     match = URL_RE.search(text)
     if not match:
-        await update.message.reply_text(
-            "URL invalida. Ej: <code>https://tutienda.com/producto</code>",
-            parse_mode="HTML",
-        )
+        await update.message.reply_text("URL inválida. Ej: https://tutienda.com/producto")
         return URL
-
     url = match.group()
     context.user_data["destination_url"] = url
+    msg = await update.message.reply_text("Analizando con IA...")
 
-    drive_file_id = context.user_data.get("drive_file_id")
-
-    if drive_file_id:
-        # Video de Drive → análisis completo con video + audio via Gemini File API
-        file_name = context.user_data.get("library_video_title", "video.mp4")
-        msg = await update.message.reply_text(
-            "Descargando y analizando video con IA (video + audio)...\n"
-            "<i>Puede tardar hasta 60 segundos.</i>",
-            parse_mode="HTML",
-        )
-        from ai.video_analyzer import analyze_video
-        plan = analyze_video(drive_file_id, file_name, destination_url=url)
-    else:
-        # Archivo local o URL externa → análisis estándar
-        msg = await update.message.reply_text("Analizando con IA...")
-        creative_path = context.user_data.get("creative_path")
-        plan = analyze_for_campaign(creative_path or "", url)
+    try:
+        from ai.creative_analyst import analyze_for_campaign
+        plan = analyze_for_campaign(context.user_data.get("creative_path", ""), url)
+    except Exception as e:
+        plan = {"angle": "ventas", "analysis": "Sin análisis.", "objective": "ventas",
+                "primary_text": "", "headline": "", "cta": "SHOP_NOW",
+                "audience_summary": "", "targeting": {"geo_locations": {"countries": ["AR"]}, "age_min": 35, "age_max": 65}}
 
     context.user_data["plan"] = plan
-
     obj_label = OBJECTIVE_LABELS.get(plan["objective"], "Ventas")
-    lib_title = context.user_data.get("library_video_title", "")
-    source_note = f"\n<b>{lib_title}</b>" if lib_title else ""
-    angle = plan.get("angle", "")
-    angle_note = f"\nAngulo detectado: <code>{angle}</code>" if angle else ""
-
-    text_out = (
-        f"<b>Analisis</b>{source_note}{angle_note}\n\n"
-        f"{plan['analysis']}\n\n"
-        f"<b>Copy sugerido</b>\n"
-        f"<i>{plan['primary_text']}</i>\n"
-        f"<b>{plan['headline']}</b>\n\n"
-        f"{plan['audience_summary']}\n\n"
-        f"Objetivo: <b>{obj_label}</b>\n\nCambias el objetivo?"
-    )
-    keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("Ventas", callback_data="obj_ventas"),
-        InlineKeyboardButton("Trafico", callback_data="obj_trafico"),
-        InlineKeyboardButton("Alcance", callback_data="obj_alcance"),
-    ], [
-        InlineKeyboardButton(f"Mantener ({obj_label})", callback_data=f"obj_{plan['objective']}"),
-    ]])
-
     try:
         await msg.delete()
     except Exception:
         pass
+
+    text_out = (
+        f"<b>Análisis</b>\n\n{plan['analysis']}\n\n"
+        f"<b>Copy sugerido</b>\n<i>{plan['primary_text']}</i>\n<b>{plan['headline']}</b>\n\n"
+        f"{plan['audience_summary']}\n\nObjetivo: <b>{obj_label}</b>\n\n¿Cambiás el objetivo?"
+    )
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("Ventas", callback_data="obj_ventas"),
+        InlineKeyboardButton("Tráfico", callback_data="obj_trafico"),
+        InlineKeyboardButton("Alcance", callback_data="obj_alcance"),
+    ], [InlineKeyboardButton(f"Mantener ({obj_label})", callback_data=f"obj_{plan['objective']}")]])
     await update.message.reply_text(text_out, parse_mode="HTML", reply_markup=keyboard)
     return OBJECTIVE
 
-
-# ── Objetivo ──────────────────────────────────────────────────────────────────
 
 async def receive_objective(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
@@ -485,19 +665,12 @@ async def receive_objective(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     objective = query.data.replace("obj_", "")
     context.user_data["plan"]["objective"] = objective
     await query.edit_message_text(f"Objetivo: {OBJECTIVE_LABELS.get(objective, objective)}")
-
     accounts = __import__("db.queries", fromlist=["get_accounts"]).get_accounts()
     currency = accounts[0]["currency"] if accounts else "ARS"
     context.user_data["currency"] = currency
-
-    await query.message.reply_text(
-        f"Cuanto por dia? (en {currency})\n<i>Ej: 5000</i>",
-        parse_mode="HTML",
-    )
+    await query.message.reply_text(f"¿Cuánto por día? (en {currency})\n<i>Ej: 5000</i>", parse_mode="HTML")
     return BUDGET
 
-
-# ── Presupuesto ───────────────────────────────────────────────────────────────
 
 async def receive_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
@@ -507,11 +680,9 @@ async def receive_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         context.user_data["daily_budget"] = budget
         return await _show_confirm(update.message, context)
     except ValueError:
-        await update.message.reply_text("Solo el numero. Ej: 5000")
+        await update.message.reply_text("Solo el número. Ej: 5000")
         return BUDGET
 
-
-# ── Resumen ───────────────────────────────────────────────────────────────────
 
 async def _show_confirm(message, context: ContextTypes.DEFAULT_TYPE) -> int:
     plan = context.user_data["plan"]
@@ -519,30 +690,15 @@ async def _show_confirm(message, context: ContextTypes.DEFAULT_TYPE) -> int:
     currency = context.user_data.get("currency", "ARS")
     url = context.user_data["destination_url"]
     lib_title = context.user_data.get("library_video_title", "")
-
-    if lib_title:
-        creative_line = f"Video: {lib_title}"
-    elif context.user_data.get("video_url"):
-        creative_line = "Video (Drive)"
-    elif context.user_data.get("is_video"):
-        creative_line = "Video (subido)"
-    else:
-        creative_line = "Imagen"
-
-    campaign_name = f"Campana {plan['objective'].capitalize()} Bot {datetime.now().strftime('%d/%m %H:%M')}"
+    creative_line = f"Video: {lib_title}" if lib_title else ("Video (Drive)" if context.user_data.get("video_url") else ("Video" if context.user_data.get("is_video") else "Imagen"))
+    campaign_name = f"Campaña {plan['objective'].capitalize()} Bot {datetime.now().strftime('%d/%m %H:%M')}"
     context.user_data["campaign_name"] = campaign_name
-
     summary = (
-        f"<b>Resumen</b>\n\n"
-        f"<code>{campaign_name}</code>\n"
+        f"<b>Resumen</b>\n\n<code>{campaign_name}</code>\n"
         f"Objetivo: {OBJECTIVE_LABELS.get(plan['objective'], plan['objective'])}\n"
-        f"Presupuesto: <b>${budget:,.0f} {currency}</b> / dia\n"
-        f"{creative_line}\n"
-        f"URL: {url}\n\n"
-        f"<i>{plan['primary_text']}</i>\n"
-        f"<b>{plan['headline']}</b>\n\n"
-        f"{plan['audience_summary']}\n\n"
-        f"Se crea en modo <b>PAUSED</b>."
+        f"Presupuesto: <b>${budget:,.0f} {currency}</b>/día\n{creative_line}\nURL: {url}\n\n"
+        f"<i>{plan['primary_text']}</i>\n<b>{plan['headline']}</b>\n\n"
+        f"{plan['audience_summary']}\n\nSe crea en modo <b>PAUSED</b>."
     )
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton("Confirmar y crear", callback_data="confirm_yes"),
@@ -552,68 +708,48 @@ async def _show_confirm(message, context: ContextTypes.DEFAULT_TYPE) -> int:
     return CONFIRM
 
 
-# ── Crear en Meta ─────────────────────────────────────────────────────────────
-
 async def confirm_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
-
     if query.data == "confirm_no":
         await query.edit_message_text("Cancelado.")
         context.user_data.clear()
         return ConversationHandler.END
 
-    await query.edit_message_text("Creando campana en Meta Ads...")
-
+    await query.edit_message_text("Creando campaña en Meta Ads...")
     try:
         from meta.campaign_builder import build_campaign
         from db.queries import get_accounts
-
         accounts = get_accounts()
         if not accounts:
-            await query.message.reply_text("No hay ad accounts. Ejecuta /sync.")
+            await query.message.reply_text("No hay ad accounts. Ejecutá /sync.")
             return ConversationHandler.END
 
         plan = context.user_data["plan"]
         spec = {
-            "name":             context.user_data["campaign_name"],
-            "objective":        plan["objective"],
-            "daily_budget":     context.user_data["daily_budget"],
-            "targeting":        plan["targeting"],
-            "primary_text":     plan["primary_text"],
-            "headline":         plan["headline"],
-            "cta":              plan.get("cta", "SHOP_NOW"),
-            "destination_url":  context.user_data["destination_url"],
-            "creative_path":    context.user_data.get("creative_path") or "",
-            "video_url":        context.user_data.get("video_url") or "",
+            "name": context.user_data["campaign_name"],
+            "objective": plan["objective"],
+            "daily_budget": context.user_data["daily_budget"],
+            "targeting": plan["targeting"],
+            "primary_text": plan["primary_text"],
+            "headline": plan["headline"],
+            "cta": plan.get("cta", "SHOP_NOW"),
+            "destination_url": context.user_data["destination_url"],
+            "creative_path": context.user_data.get("creative_path") or "",
+            "video_url": context.user_data.get("video_url") or "",
             "library_video_id": context.user_data.get("library_video_id") or "",
-            "account_id":       accounts[0]["id"],
+            "account_id": accounts[0]["id"],
         }
-
         result = build_campaign(spec)
-
-        # Si el video viene de Drive, moverlo a "En uso"
-        drive_file_id = context.user_data.get("drive_file_id")
-        if drive_file_id:
-            from meta.drive_client import move_to_subfolder
-            moved = move_to_subfolder(drive_file_id, "En uso")
-            move_note = "\nVideo movido a <b>En uso</b> en Drive." if moved else ""
-        else:
-            move_note = ""
-
         await query.message.reply_text(
-            f"<b>Campana creada!</b>\n\n"
-            f"{result['campaign_name']}\n"
+            f"✅ <b>Campaña creada!</b>\n\n{result['campaign_name']}\n"
             f"Campaign ID: <code>{result['campaign_id']}</code>\n"
-            f"Ad ID: <code>{result['ad_id']}</code>\n\n"
-            f"Esta en <b>PAUSED</b>. Activala cuando quieras.{move_note}",
+            f"Ad ID: <code>{result['ad_id']}</code>\n\nEstá en <b>PAUSED</b>.",
             parse_mode="HTML",
         )
     except Exception as e:
         logger.error(f"Campaign creation error: {e}")
-        await query.message.reply_text(
-            f"Error:\n<code>{str(e)[:400]}</code>", parse_mode="HTML"
-        )
+        await query.message.reply_text(f"Error:\n<code>{str(e)[:400]}</code>", parse_mode="HTML")
     finally:
         try:
             p = context.user_data.get("creative_path")
@@ -622,11 +758,8 @@ async def confirm_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         except Exception:
             pass
         context.user_data.clear()
-
     return ConversationHandler.END
 
-
-# ── Cancelar ──────────────────────────────────────────────────────────────────
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Cancelado.")
@@ -634,7 +767,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-# ── Handler ───────────────────────────────────────────────────────────────────
+# ── Handlers ──────────────────────────────────────────────────────────────────
 
 _FILE_FILTER = filters.PHOTO | filters.VIDEO | filters.Document.ALL
 
@@ -643,21 +776,25 @@ def get_create_campaign_handler() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CommandHandler("crear", start_campaign)],
         states={
-            CHOOSE_SOURCE:    [CallbackQueryHandler(choose_source, pattern="^src_")],
-            CHOOSE_CATEGORY:  [
+            # ── Flujo Drive (multi-ads) ──
+            DRIVE_SELECT_MODE:   [CallbackQueryHandler(drive_select_mode, pattern="^drv_")],
+            DRIVE_PICK_SPECIFIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, drive_pick_specific)],
+            DRIVE_REVIEW_GROUPS: [CallbackQueryHandler(drive_review_groups, pattern="^groups_")],
+            DRIVE_GROUP_URL:     [MessageHandler(filters.TEXT & ~filters.COMMAND, drive_group_url)],
+            DRIVE_GROUP_BUDGET:  [MessageHandler(filters.TEXT & ~filters.COMMAND, drive_group_budget)],
+            DRIVE_CONFIRM_ALL:   [CallbackQueryHandler(drive_confirm_all, pattern="^create_")],
+
+            # ── Flujo fallback (single ad) ──
+            CHOOSE_SOURCE:   [CallbackQueryHandler(choose_source, pattern="^src_")],
+            CHOOSE_CATEGORY: [
                 CallbackQueryHandler(choose_category, pattern="^cat_"),
                 CallbackQueryHandler(back_categories, pattern="^back_categories"),
             ],
-            PICK_VIDEO:       [
+            PICK_VIDEO: [
                 CallbackQueryHandler(pick_video, pattern="^vid_"),
                 CallbackQueryHandler(back_categories, pattern="^back_categories"),
             ],
-            PICK_DRIVE_VIDEO: [
-                CallbackQueryHandler(pick_drive_folder, pattern="^(drvf_|drv_|back_drive_folders)"),
-            ],
-            UPLOAD_CREATIVE:  [
-                MessageHandler(_FILE_FILTER | (filters.TEXT & ~filters.COMMAND), upload_creative)
-            ],
+            UPLOAD_CREATIVE: [MessageHandler(_FILE_FILTER | (filters.TEXT & ~filters.COMMAND), upload_creative)],
             URL:       [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_url)],
             OBJECTIVE: [CallbackQueryHandler(receive_objective, pattern="^obj_")],
             BUDGET:    [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_budget)],

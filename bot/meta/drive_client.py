@@ -27,14 +27,15 @@ VIDEO_MIMES = {
 }
 
 # Nombres de subcarpetas (orden de visualización)
-SUBFOLDER_NAMES = ["No subidos", "En uso", "Winners", "Poco gasto", "Malos"]
+SUBFOLDER_NAMES = ["No subidos", "Nuevos subidos", "Winners", "Poco gasto", "Malos", "Quemados"]
 
 SUBFOLDER_EMOJIS = {
-    "No subidos": "🆕",
-    "En uso":     "🔄",
-    "Winners":    "🏆",
-    "Poco gasto": "💸",
-    "Malos":      "❌",
+    "No subidos":    "🆕",
+    "Nuevos subidos": "🔄",
+    "Winners":       "🏆",
+    "Poco gasto":    "💸",
+    "Malos":         "❌",
+    "Quemados":      "🔥",
 }
 
 

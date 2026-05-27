@@ -39,6 +39,14 @@ async def sync_job() -> None:
         logger.error(f"Scheduled sync failed: {e}")
 
 
+async def categorizer_job() -> None:
+    try:
+        from scheduler.video_categorizer import run_categorizer
+        run_categorizer()
+    except Exception as e:
+        logger.error(f"Categorizer failed: {e}")
+
+
 async def analysis_job() -> None:
     try:
         from scheduler.analyzer import run_analysis
@@ -72,6 +80,8 @@ def main() -> None:
     scheduler = AsyncIOScheduler(timezone=tz_arg)
     scheduler.add_job(sync_job, IntervalTrigger(minutes=15, timezone=tz_arg), id="sync", replace_existing=True)
     scheduler.add_job(alerter_job, IntervalTrigger(minutes=5, timezone=tz_arg), id="alerter", replace_existing=True)
+    # Categoriza videos de Drive 2 min después del sync (para tener datos frescos)
+    scheduler.add_job(categorizer_job, IntervalTrigger(minutes=17, timezone=tz_arg), id="categorizer", replace_existing=True)
     # Análisis profundo una vez al día a las 23:00 Argentina
     scheduler.add_job(analysis_job, CronTrigger(hour=23, minute=0, timezone=tz_arg), id="analysis", replace_existing=True)
 

@@ -270,6 +270,101 @@ def _deterministic_alerts(campaigns, today_camp_metrics, campaign_metrics_14d, a
     return alerts
 
 
+def _trend_alerts(campaigns: list[dict], campaign_metrics: list[dict]) -> list[dict]:
+    """
+    Detecta rachas consecutivas de días buenos o malos por campaña.
+    Solo genera alerta al alcanzar exactamente 3, 5 o 7 días de racha.
+    """
+    alerts = []
+    camp_map = {c["id"]: c for c in campaigns}
+
+    # Agrupar métricas por campaña y ordenar por fecha DESC
+    by_camp: dict[str, list] = {}
+    for m in campaign_metrics:
+        by_camp.setdefault(m["object_id"], []).append(m)
+
+    for cid, rows in by_camp.items():
+        camp = camp_map.get(cid)
+        if not camp or camp.get("status") != "ACTIVE":
+            continue
+
+        # Ordenar por fecha DESC, solo días con gasto
+        days = sorted(
+            [r for r in rows if (r.get("spend") or 0) > 0],
+            key=lambda x: x["date"],
+            reverse=True,
+        )
+        if len(days) < 3:
+            continue
+
+        bad_streak = 0
+        good_streak = 0
+        for day in days:
+            cpa = day["spend"] / day["purchases"] if day.get("purchases", 0) > 0 else None
+            is_bad = cpa is None or cpa > CPA_BREAKEVEN
+            is_good = cpa is not None and cpa <= CPA_TARGET
+
+            if is_bad:
+                if good_streak > 0:
+                    break
+                bad_streak += 1
+            elif is_good:
+                if bad_streak > 0:
+                    break
+                good_streak += 1
+            else:
+                break
+
+        streak = bad_streak or good_streak
+        if streak not in (3, 5, 7):
+            continue
+
+        # Resumen de los últimos N días con gasto
+        streak_rows = days[:streak]
+        total_spend = sum(r.get("spend", 0) for r in streak_rows)
+        total_purch = sum(r.get("purchases", 0) for r in streak_rows)
+        avg_cpa = total_spend / total_purch if total_purch > 0 else None
+        avg_roas = (
+            sum(r.get("purchase_value", 0) for r in streak_rows) / total_spend
+            if total_spend > 0 else None
+        )
+        since_date = streak_rows[-1]["date"]
+
+        if bad_streak:
+            alerts.append({
+                "type": "trend",
+                "severity": "critical" if streak >= 5 else "warning",
+                "title": f"{streak} días malos seguidos — {camp['name'][:40]}",
+                "message": (
+                    f"'{camp['name']}' lleva {streak} días consecutivos con mal rendimiento "
+                    f"(desde {since_date}).\n"
+                    f"Gasto acumulado: ${total_spend:.2f} | Ventas: {total_purch} | "
+                    f"CPA promedio: {_fmt(avg_cpa)} (breakeven: ${CPA_BREAKEVEN})\n\n"
+                    f"💡 Revisá creativos, audiencias y landing. "
+                    f"Si no mejora hoy, considerá pausarla."
+                ),
+                "object_id": cid,
+                "sent_to_telegram": False,
+            })
+        elif good_streak:
+            alerts.append({
+                "type": "trend",
+                "severity": "info",
+                "title": f"{streak} días buenos seguidos — {camp['name'][:40]}",
+                "message": (
+                    f"'{camp['name']}' lleva {streak} días consecutivos con buen rendimiento "
+                    f"(desde {since_date}).\n"
+                    f"Gasto acumulado: ${total_spend:.2f} | Ventas: {total_purch} | "
+                    f"CPA promedio: {_fmt(avg_cpa)} | ROAS: {_fmt(avg_roas, prefix='', suffix='x')}\n\n"
+                    f"📈 Considerá escalar el presupuesto 20-30% para capitalizar."
+                ),
+                "object_id": cid,
+                "sent_to_telegram": False,
+            })
+
+    return alerts
+
+
 def run_analysis() -> None:
     logger.info("Starting deep analysis...")
     try:
@@ -286,7 +381,13 @@ def run_analysis() -> None:
             queries.insert_alert(a)
         logger.info(f"Inserted {len(det_alerts)} deterministic alerts")
 
-        # 2. Análisis IA profundo día por día
+        # 2. Alertas de tendencia (rachas de 3/5/7 días)
+        trend_alerts = _trend_alerts(campaigns, campaign_metrics)
+        for a in trend_alerts:
+            queries.insert_alert(a)
+        logger.info(f"Inserted {len(trend_alerts)} trend alerts")
+
+        # 3. Análisis IA profundo día por día
         if campaign_metrics:
             context = _build_context(campaigns, ad_sets, campaign_metrics, adset_metrics)
             ai_alerts = analyze_days(context)

@@ -236,3 +236,130 @@ def build_campaign(spec: dict) -> dict:
         "ad_id": ad_id,
         "campaign_name": spec["name"],
     }
+
+
+def build_multi_ad_campaign(spec: dict) -> dict:
+    """
+    Crea una campaña CBO con múltiples ads (uno por creativo).
+    spec debe tener:
+      - name: str
+      - objective: "ventas" | "trafico" | "alcance"
+      - daily_budget: float (en moneda local)
+      - targeting: dict
+      - destination_url: str
+      - account_id: str (opcional)
+      - ads: list de dicts, cada uno con:
+          - primary_text: str
+          - headline: str
+          - cta: str
+          - library_video_id: str (opcional)
+          - video_url: str (opcional)
+          - creative_path: str (opcional)
+          - ad_name: str
+    """
+    account_id = spec.get("account_id") or _get_account_id()
+    objective_key = spec["objective"].lower()
+    objective = OBJECTIVE_MAP.get(objective_key, "OUTCOME_SALES")
+    page_id = spec.get("page_id") or _get_page_id()
+    destination_url = spec.get("destination_url", "")
+
+    # 1. Campaña CBO
+    campaign = Campaign(parent_id=account_id)
+    campaign.update({
+        Campaign.Field.name: spec["name"],
+        Campaign.Field.objective: objective,
+        Campaign.Field.status: Campaign.Status.paused,
+        Campaign.Field.special_ad_categories: [],
+    })
+    campaign.remote_create(params={"status": "PAUSED"})
+    campaign_id = campaign[Campaign.Field.id]
+    logger.info(f"Multi-ad campaign created: {campaign_id}")
+
+    # 2. Ad Set único
+    ad_set = AdSet(parent_id=account_id)
+    daily_budget_cents = int(float(spec["daily_budget"]) * 100)
+    ad_set.update({
+        AdSet.Field.name: f"{spec['name']} — Ad Set",
+        AdSet.Field.campaign_id: campaign_id,
+        AdSet.Field.daily_budget: daily_budget_cents,
+        AdSet.Field.billing_event: BILLING_MAP[objective],
+        AdSet.Field.optimization_goal: OPTIMIZATION_MAP[objective],
+        AdSet.Field.targeting: spec.get("targeting", {"geo_locations": {"countries": ["AR"]}}),
+        AdSet.Field.status: AdSet.Status.paused,
+        AdSet.Field.bid_strategy: "LOWEST_COST_WITHOUT_CAP",
+    })
+    ad_set.remote_create()
+    ad_set_id = ad_set[AdSet.Field.id]
+    logger.info(f"Ad Set created: {ad_set_id}")
+
+    # 3. Un creative + ad por cada creativo
+    ad_ids = []
+    for ad_spec in spec.get("ads", []):
+        library_video_id = ad_spec.get("library_video_id", "")
+        video_url = ad_spec.get("video_url", "")
+        creative_path = ad_spec.get("creative_path", "")
+
+        is_video = library_video_id or video_url or (creative_path and _is_video(creative_path))
+
+        if is_video:
+            if library_video_id:
+                video_id = library_video_id
+            elif video_url:
+                video_id = upload_video_from_url(video_url, account_id)
+            else:
+                video_id = upload_video(creative_path, account_id)
+            story_spec = {
+                "page_id": page_id,
+                "video_data": {
+                    "video_id": video_id,
+                    "message": ad_spec.get("primary_text", ""),
+                    "title": ad_spec.get("headline", ""),
+                    "link_description": ad_spec.get("headline", ""),
+                    "call_to_action": {
+                        "type": ad_spec.get("cta", "SHOP_NOW"),
+                        "value": {"link": destination_url},
+                    },
+                },
+            }
+        else:
+            image_hash = upload_image(creative_path, account_id)
+            story_spec = {
+                "page_id": page_id,
+                "link_data": {
+                    "message": ad_spec.get("primary_text", ""),
+                    "link": destination_url,
+                    "image_hash": image_hash,
+                    "name": ad_spec.get("headline", ""),
+                    "call_to_action": {
+                        "type": ad_spec.get("cta", "SHOP_NOW"),
+                        "value": {"link": destination_url},
+                    },
+                },
+            }
+
+        creative = AdCreative(parent_id=account_id)
+        creative.update({
+            AdCreative.Field.name: f"{ad_spec.get('ad_name', 'Ad')} — Creative",
+            AdCreative.Field.object_story_spec: story_spec,
+        })
+        creative.remote_create()
+        creative_id = creative[AdCreative.Field.id]
+
+        ad = Ad(parent_id=account_id)
+        ad.update({
+            Ad.Field.name: ad_spec.get("ad_name", f"{spec['name']} — Anuncio"),
+            Ad.Field.adset_id: ad_set_id,
+            Ad.Field.creative: {"creative_id": creative_id},
+            Ad.Field.status: Ad.Status.paused,
+        })
+        ad.remote_create()
+        ad_id = ad[Ad.Field.id]
+        ad_ids.append({"ad_id": ad_id, "drive_file_id": ad_spec.get("drive_file_id")})
+        logger.info(f"Ad created: {ad_id} for {ad_spec.get('ad_name')}")
+
+    return {
+        "campaign_id": campaign_id,
+        "ad_set_id": ad_set_id,
+        "campaign_name": spec["name"],
+        "ads": ad_ids,
+    }

@@ -132,3 +132,75 @@ def get_today_metrics_type(object_type: str) -> list[dict]:
         .execute()
     )
     return res.data or []
+
+
+# ── Drive tracking ────────────────────────────────────────────────────────────
+
+def link_ad_to_drive(ad_id: str, drive_file_id: str, folder: str = "Nuevos subidos") -> None:
+    """Asocia un ad de Meta con su video de Drive."""
+    get_client().table("ads").update({
+        "drive_file_id": drive_file_id,
+        "drive_folder": folder,
+    }).eq("id", ad_id).execute()
+
+
+def get_ads_with_drive_file() -> list[dict]:
+    """Retorna todos los ads que tienen un video de Drive asociado."""
+    res = (
+        get_client()
+        .table("ads")
+        .select("id,name,status,ad_set_id,drive_file_id,drive_folder")
+        .not_.is_("drive_file_id", "null")
+        .execute()
+    )
+    return res.data or []
+
+
+def get_ad_metrics_all(ad_id: str) -> list[dict]:
+    """Retorna todas las métricas diarias de un ad."""
+    res = (
+        get_client()
+        .table("metrics")
+        .select("*")
+        .eq("object_id", ad_id)
+        .eq("object_type", "ad")
+        .order("date")
+        .execute()
+    )
+    return res.data or []
+
+
+def update_ad_drive_folder(ad_id: str, folder: str) -> None:
+    get_client().table("ads").update({"drive_folder": folder}).eq("id", ad_id).execute()
+
+
+# ── Copy history ──────────────────────────────────────────────────────────────
+
+def save_copy_history(data: dict) -> None:
+    """Guarda o actualiza el historial de performance de un creativo."""
+    get_client().table("copy_history").upsert(data, on_conflict="drive_file_id").execute()
+
+
+def get_copy_winners_by_angle(angle: str, limit: int = 3) -> list[dict]:
+    """Retorna copies ganadores para un ángulo dado (para usarlos como referencia)."""
+    res = (
+        get_client()
+        .table("copy_history")
+        .select("angle,primary_text,headline,avg_cpa,avg_roas,total_purchases")
+        .eq("angle", angle)
+        .eq("final_folder", "Winners")
+        .order("avg_cpa")
+        .limit(limit)
+        .execute()
+    )
+    return res.data or []
+
+
+def get_ad_set_campaign(ad_set_id: str) -> dict | None:
+    """Retorna la campaña de un ad set."""
+    res = get_client().table("ad_sets").select("campaign_id,status").eq("id", ad_set_id).execute()
+    if not res.data:
+        return None
+    ad_set = res.data[0]
+    camp = get_client().table("campaigns").select("id,status,name").eq("id", ad_set["campaign_id"]).execute()
+    return camp.data[0] if camp.data else None

@@ -237,21 +237,32 @@ Respondé SIEMPRE en JSON válido:
 
 ACTION_INTENT_SYSTEM = """
 Detectás si el usuario quiere ejecutar una acción sobre sus campañas de Meta Ads.
-Acciones posibles: pause, activate, set_budget.
+Acciones posibles: pause, activate, set_budget, adjust_budget.
+- set_budget: el usuario da un valor absoluto ("ponele 5000", "dejala en 3000")
+- adjust_budget: el usuario da un cambio relativo ("subile 10", "bajale 20%", "aumentale 500")
 Si es una pregunta o consulta, la acción es "none".
+
+Para adjust_budget, detectá:
+- delta: número (siempre positivo)
+- delta_type: "absolute" si es un monto fijo | "percentage" si es un porcentaje
+- direction: "up" si sube | "down" si baja
 
 Respondé SIEMPRE en JSON válido:
 {
-  "action": "pause" | "activate" | "set_budget" | "none",
+  "action": "pause" | "activate" | "set_budget" | "adjust_budget" | "none",
   "campaign_name": "nombre aproximado mencionado o null",
-  "budget": 5000 (número, solo para set_budget) | null
+  "budget": 5000 (solo para set_budget) | null,
+  "delta": 500 (solo para adjust_budget, siempre positivo) | null,
+  "delta_type": "absolute" | "percentage" | null,
+  "direction": "up" | "down" | null
 }
 
 Ejemplos:
-- "pausá la campaña verano" → {"action": "pause", "campaign_name": "verano", "budget": null}
-- "activá ventas frío" → {"action": "activate", "campaign_name": "ventas frío", "budget": null}
-- "cambiá el presupuesto de retargeting a 3000" → {"action": "set_budget", "campaign_name": "retargeting", "budget": 3000}
-- "ponele 5000 a la de temporada" → {"action": "set_budget", "campaign_name": "temporada", "budget": 5000}
-- "¿cuánto gasté hoy?" → {"action": "none", "campaign_name": null, "budget": null}
-- "¿cuál es mi mejor campaña?" → {"action": "none", "campaign_name": null, "budget": null}
+- "pausá la campaña verano" → {"action": "pause", "campaign_name": "verano", "budget": null, "delta": null, "delta_type": null, "direction": null}
+- "activá ventas frío" → {"action": "activate", "campaign_name": "ventas frío", "budget": null, "delta": null, "delta_type": null, "direction": null}
+- "ponele 5000 a temporada" → {"action": "set_budget", "campaign_name": "temporada", "budget": 5000, "delta": null, "delta_type": null, "direction": null}
+- "subile 10 USD a esa campaña" → {"action": "adjust_budget", "campaign_name": null, "budget": null, "delta": 10, "delta_type": "absolute", "direction": "up"}
+- "bajale 20% a retargeting" → {"action": "adjust_budget", "campaign_name": "retargeting", "budget": null, "delta": 20, "delta_type": "percentage", "direction": "down"}
+- "aumentale 500 a ventas" → {"action": "adjust_budget", "campaign_name": "ventas", "budget": null, "delta": 500, "delta_type": "absolute", "direction": "up"}
+- "¿cuánto gasté hoy?" → {"action": "none", "campaign_name": null, "budget": null, "delta": null, "delta_type": null, "direction": null}
 """

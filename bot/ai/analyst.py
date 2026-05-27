@@ -89,7 +89,9 @@ def analyze_days(context: str) -> list[dict]:
 
 
 def detect_action_intent(text: str, campaigns: list[dict]) -> dict:
-    """Returns {action, campaign_name, budget} — action='none' if it's a question."""
+    """Returns {action, campaign_name, budget, delta, delta_type, direction}."""
+    _defaults = {"action": "none", "campaign_name": None, "budget": None,
+                 "delta": None, "delta_type": None, "direction": None}
     try:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         model = genai.GenerativeModel(
@@ -102,10 +104,11 @@ def detect_action_intent(text: str, campaigns: list[dict]) -> dict:
             prompt,
             generation_config={"temperature": 0.1, "response_mime_type": "application/json"},
         )
-        return json.loads(response.text)
+        result = json.loads(response.text)
+        return {**_defaults, **result}
     except Exception as e:
         logger.error(f"Intent detection error: {e}", exc_info=True)
-        return {"action": "none", "campaign_name": None, "budget": None}
+        return _defaults
 
 
 def answer_natural_language(question: str, context: str) -> str:

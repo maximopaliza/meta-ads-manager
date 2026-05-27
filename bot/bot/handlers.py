@@ -197,7 +197,7 @@ async def handle_nl_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             verb = "pausada" if action == "pause" else "activada"
             await query.message.reply_text(f"{icon} <b>{campaign_name}</b> {verb}.", parse_mode="HTML")
 
-        elif action == "set_budget":
+        elif action in ("set_budget", "adjust_budget"):
             cents = int(pending["budget"] * 100)
             client.update_campaign_budget(campaign_id, cents)
             db_client().table("campaigns").update({"daily_budget": cents}).eq("id", campaign_id).execute()
@@ -447,7 +447,11 @@ async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # 1. Detectar acción (keywords simples primero, sin Gemini)
     action_keywords_pause = ["paus", "apag", "desactiv", "detené", "detene", "stop"]
     action_keywords_activate = ["activ", "encend", "prendé", "prende", "resum"]
-    action_keywords_budget = ["presupuest", "budget", "ponele", "subí", "subi", "bajá", "baja", "cambiá", "cambia"]
+    action_keywords_budget = [
+        "presupuest", "budget", "ponele", "subí", "subi", "bajá", "baja",
+        "cambiá", "cambia", "subile", "bajale", "aumenta", "aumentale",
+        "reducí", "reducile", "bájale", "subilo", "bajalo",
+    ]
 
     likely_action = False
     if any(w in text_lower for w in action_keywords_pause + action_keywords_activate + action_keywords_budget):
@@ -461,7 +465,7 @@ async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         action = "none"
 
-    if action in ("pause", "activate", "set_budget"):
+    if action in ("pause", "activate", "set_budget", "adjust_budget"):
         campaign_name_hint = intent.get("campaign_name") or ""
         matched = _fuzzy_match(campaign_name_hint, campaigns) if campaign_name_hint else None
 
@@ -481,6 +485,31 @@ async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE)
             confirm_text = f"¿Confirmás <b>pausar</b> la campaña?\n\n⏸ {matched['name']}"
         elif action == "activate":
             confirm_text = f"¿Confirmás <b>activar</b> la campaña?\n\n▶ {matched['name']}"
+        elif action == "adjust_budget":
+            delta = intent.get("delta")
+            delta_type = intent.get("delta_type")
+            direction = intent.get("direction")
+            if not delta or not direction:
+                await update.message.reply_text("No entendí el ajuste. Ej: 'subile 10 USD' o 'bajale 20%'.")
+                return
+            old = (matched.get("daily_budget") or 0) / 100
+            if old == 0:
+                await update.message.reply_text(f"⚠️ <b>{matched['name']}</b> no tiene presupuesto diario configurado.", parse_mode="HTML")
+                return
+            if delta_type == "percentage":
+                change = old * delta / 100
+            else:
+                change = float(delta)
+            new_budget = old + change if direction == "up" else old - change
+            new_budget = max(1, round(new_budget, 2))
+            pct = ((new_budget - old) / old * 100)
+            pct_str = f"+{pct:.0f}%" if pct >= 0 else f"{pct:.0f}%"
+            confirm_text = (
+                f"¿Confirmás ajustar el presupuesto?\n\n"
+                f"💰 {matched['name']}\n"
+                f"Actual: ${old:,.0f} {currency} → Nuevo: <b>${new_budget:,.0f} {currency}</b> ({pct_str})"
+            )
+            intent["budget"] = new_budget
         else:
             budget = intent.get("budget")
             if not budget:
