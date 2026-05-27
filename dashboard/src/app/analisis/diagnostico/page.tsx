@@ -246,9 +246,10 @@ export default async function DiagnosticoPage({
       a: toMetricsDiag(a), b: toMetricsDiag(b), adSets: asNodes,
     }
   }).filter(Boolean).sort((x: any, y: any) => {
-    if (x.status === 'ACTIVE' && y.status !== 'ACTIVE') return -1
-    if (y.status === 'ACTIVE' && x.status !== 'ACTIVE') return 1
-    return (y.a?.spend || 0) - (x.a?.spend || 0)
+    // Orden puro por gasto total (A + B) de mayor a menor
+    const xs = (x.a?.spend || 0) + (x.b?.spend || 0)
+    const ys = (y.a?.spend || 0) + (y.b?.spend || 0)
+    return ys - xs
   }) as CampDiag[]
 
   // ── Render helpers ─────────────────────────────────────────────────────────

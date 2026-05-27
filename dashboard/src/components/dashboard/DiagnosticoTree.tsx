@@ -129,9 +129,12 @@ export default function DiagnosticoTree({ hierarchy, currency, labelA, labelB, a
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {hierarchy.map((camp: CampDiag) => {
         const isOpen = openC.has(camp.id)
-        const sc = camp.status === 'ACTIVE' ? G : camp.status === 'PAUSED' ? Y : M
+        const isActive = camp.status === 'ACTIVE'
+        const hadSpend = (camp.a?.spend || 0) + (camp.b?.spend || 0) > 0
+        const warnPaused = !isActive && hadSpend   // pausada ahora pero tuvo gasto en el período
+        const sc = isActive ? G : Y
         return (
-          <div key={camp.id} style={{ backgroundColor: '#1A1D27', border: `1px solid ${BORDER}`, borderRadius: 12, overflow: 'hidden', borderTop: `2px solid ${sc}40` }}>
+          <div key={camp.id} style={{ backgroundColor: '#1A1D27', border: `1px solid ${warnPaused ? '#F59E0B40' : BORDER}`, borderRadius: 12, overflow: 'hidden', borderTop: `2px solid ${sc}40` }}>
 
             {/* ── Campaign header ── */}
             <div
@@ -141,7 +144,21 @@ export default function DiagnosticoTree({ hierarchy, currency, labelA, labelB, a
               <span style={{ fontSize: 9, color: M, width: 12, flexShrink: 0 }}>{isOpen ? '▼' : '▶'}</span>
               <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: sc, flexShrink: 0, display: 'inline-block' }} />
               <span style={{ fontSize: 13, fontWeight: 700, color: TEXT, flex: 1 }}>{camp.name}</span>
-              <span style={{ fontSize: 10, color: M }}>{camp.status}</span>
+              {warnPaused && (
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4, backgroundColor: '#F59E0B20', color: Y, border: '1px solid #F59E0B40', whiteSpace: 'nowrap' as const }}>
+                  ⚠ Pausada ahora
+                </span>
+              )}
+              {!camp.a?.spend && (camp.b?.spend || 0) > 0 && (
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4, backgroundColor: '#6366F120', color: '#818CF8', border: '1px solid #6366F140', whiteSpace: 'nowrap' as const }}>
+                  Solo en B
+                </span>
+              )}
+              {!camp.b?.spend && (camp.a?.spend || 0) > 0 && (
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4, backgroundColor: '#6366F120', color: '#818CF8', border: '1px solid #6366F140', whiteSpace: 'nowrap' as const }}>
+                  Solo en A
+                </span>
+              )}
               <span style={{ fontSize: 11, color: camp.a?.purchases && camp.a.purchases > 0 ? G : M, fontWeight: 600 }}>
                 {camp.a?.purchases ? `${Math.round(camp.a.purchases)} ventas (A)` : '0 ventas (A)'}
               </span>
@@ -160,7 +177,10 @@ export default function DiagnosticoTree({ hierarchy, currency, labelA, labelB, a
                 {/* ── Ad sets ── */}
                 {camp.adSets.map((as: AsDiag) => {
                   const isAsOpen = openA.has(as.id)
-                  const asc = as.status === 'ACTIVE' ? G : Y
+                  const asActive = as.status === 'ACTIVE'
+                  const asHadSpend = (as.a?.spend || 0) + (as.b?.spend || 0) > 0
+                  const asWarn = !asActive && asHadSpend
+                  const asc = asActive ? G : Y
                   return (
                     <div key={as.id} style={{ marginLeft: 24, borderLeft: `2px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
                       <div
@@ -171,7 +191,15 @@ export default function DiagnosticoTree({ hierarchy, currency, labelA, labelB, a
                         <span style={{ fontSize: 9, color: M }}>CONJUNTO</span>
                         <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: asc, flexShrink: 0, display: 'inline-block' }} />
                         <span style={{ fontSize: 12, fontWeight: 600, color: '#CBD5E1', flex: 1 }}>{as.name}</span>
-                        <span style={{ fontSize: 10, color: M }}>{as.status}</span>
+                        {asWarn && (
+                          <span style={{ fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 3, backgroundColor: '#F59E0B18', color: Y, border: '1px solid #F59E0B30' }}>⚠ Pausado</span>
+                        )}
+                        {!as.a?.spend && (as.b?.spend || 0) > 0 && (
+                          <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 3, backgroundColor: '#6366F118', color: '#818CF8', border: '1px solid #6366F130' }}>Solo B</span>
+                        )}
+                        {!as.b?.spend && (as.a?.spend || 0) > 0 && (
+                          <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 3, backgroundColor: '#6366F118', color: '#818CF8', border: '1px solid #6366F130' }}>Solo A</span>
+                        )}
                         <span style={{ fontSize: 11, color: as.a?.purchases && as.a.purchases > 0 ? G : M, fontWeight: 600 }}>
                           {as.a?.purchases ? `${Math.round(as.a.purchases)} ventas` : '—'}
                         </span>
