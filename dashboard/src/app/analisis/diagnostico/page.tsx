@@ -3,12 +3,15 @@ import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import Link from 'next/link'
-import { formatCurrency, formatNumber, formatDate } from '@/lib/utils'
-import { getLatestDate, cpaColor, roasColor } from '@/lib/metrics'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { getLatestDate, cpaColor, roasColor, CPA_TARGET, CPA_BREAKEVEN } from '@/lib/metrics'
+import DecisionCalendar from '@/components/dashboard/DecisionCalendar'
+import DiagnosticoTree from '@/components/dashboard/DiagnosticoTree'
+import type { CampDiag, AsDiag, AdDiag, MetricsDiag } from '@/components/dashboard/DiagnosticoTree'
 
 // ── Tokens ─────────────────────────────────────────────────────────────────
 const G = '#22C55E', Y = '#F59E0B', R = '#EF4444', M = '#64748B'
-const BORDER = '#2D3244', SURFACE = '#1A1D27', PRIMARY = '#6366F1', TEXT = '#F1F5F9'
+const BORDER = '#2D3244', SURFACE = '#1A1D27', TEXT = '#F1F5F9'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function dPct(a: number | null, b: number | null) {
@@ -40,10 +43,10 @@ function aggMetrics(rows: any[]) {
     landing_page_views: acc.landing_page_views + (m.landing_page_views || 0),
     add_to_cart:        acc.add_to_cart        + (m.add_to_cart        || 0),
     video_3s_views:     acc.video_3s_views     + (m.video_3s_views     || 0),
-    hook_rate_w:  acc.hook_rate_w  + ((m.hook_rate  || 0) * (m.impressions || 0)),
-    hold_rate_w:  acc.hold_rate_w  + ((m.hold_rate  || 0) * (m.video_3s_views || 0)),
-    thruplay_rate_w: acc.thruplay_rate_w + ((m.thruplay_rate || 0) * (m.impressions || 0)),
-    ctr_pv_w:     acc.ctr_pv_w    + ((m.ctr_post_view || 0) * (m.video_3s_views || 0)),
+    hook_rate_w:     acc.hook_rate_w     + ((m.hook_rate      || 0) * (m.impressions     || 0)),
+    hold_rate_w:     acc.hold_rate_w     + ((m.hold_rate      || 0) * (m.video_3s_views  || 0)),
+    thruplay_rate_w: acc.thruplay_rate_w + ((m.thruplay_rate  || 0) * (m.impressions     || 0)),
+    ctr_pv_w:        acc.ctr_pv_w        + ((m.ctr_post_view  || 0) * (m.video_3s_views  || 0)),
   }), {
     spend: 0, purchases: 0, purchase_value: 0, impressions: 0,
     link_clicks: 0, unique_link_clicks: 0, reach: 0, landing_page_views: 0,
@@ -60,29 +63,43 @@ function aggMetrics(rows: any[]) {
     cpm:           b.impressions > 0 ? b.spend / b.impressions * 1000 : null,
     trafEf:        b.link_clicks > 0 && b.landing_page_views > 0 ? b.landing_page_views / b.link_clicks * 100 : null,
     convWeb:       b.landing_page_views > 0 && b.purchases > 0 ? b.purchases / b.landing_page_views * 100 : null,
-    hook_rate:     b.impressions > 0 ? b.hook_rate_w / imp : null,
-    hold_rate:     b.video_3s_views > 0 ? b.hold_rate_w / v3s : null,
-    thruplay_rate: b.impressions > 0 ? b.thruplay_rate_w / imp : null,
-    ctr_post_view: b.video_3s_views > 0 ? b.ctr_pv_w / v3s : null,
+    hook_rate:     b.impressions   > 0 ? b.hook_rate_w     / imp : null,
+    hold_rate:     b.video_3s_views > 0 ? b.hold_rate_w    / v3s : null,
+    thruplay_rate: b.impressions   > 0 ? b.thruplay_rate_w / imp : null,
+    ctr_post_view: b.video_3s_views > 0 ? b.ctr_pv_w       / v3s : null,
   }
 }
 
-// ── Root cause diagnosis ───────────────────────────────────────────────────
+function toMetricsDiag(m: any): MetricsDiag {
+  if (!m) return null
+  return {
+    spend: m.spend || 0, purchases: m.purchases || 0, impressions: m.impressions || 0,
+    roas: m.roas, cpa: m.cpa, ctr: m.ctr, cpm: m.cpm,
+    hook_rate: m.hook_rate, hold_rate: m.hold_rate,
+    thruplay_rate: m.thruplay_rate, ctr_post_view: m.ctr_post_view,
+    landing_page_views: m.landing_page_views || 0, add_to_cart: m.add_to_cart || 0,
+    trafEf: m.trafEf, convWeb: m.convWeb,
+  }
+}
+
+// ── Root cause diagnosis ────────────────────────────────────────────────────
 function diagnose(a: any, b: any) {
   const findings: { icon: string; text: string; color: string }[] = []
   if (!a || !b) return findings
-  const chk = (field: string, inv = false) => dPct(a[field], b[field])
 
-  const dImpr = chk('impressions'), dHook = chk('hook_rate')
-  const dHold = chk('hold_rate'), dConvW = chk('convWeb')
-  const dRoas = chk('roas'), dCpa = chk('cpa')
-  const dCpm = chk('cpm'), dFreq = chk('frequency')
+  const dImpr = dPct(a.impressions, b.impressions)
+  const dHook = dPct(a.hook_rate, b.hook_rate)
+  const dHold = dPct(a.hold_rate, b.hold_rate)
+  const dConvW = dPct(a.convWeb, b.convWeb)
+  const dRoas = dPct(a.roas, b.roas)
+  const dCpa  = dPct(a.cpa, b.cpa)
+  const dCpm  = dPct(a.cpm, b.cpm)
+  const dFreq = dPct(a.frequency, b.frequency)
 
   if (dImpr !== null && dImpr < -20)
     findings.push({ icon: '📡', color: R, text: `Impresiones cayeron ${Math.abs(dImpr).toFixed(0)}% — budget bajo o audiencia saturada.` })
   else if (dCpm !== null && dCpm > 25)
     findings.push({ icon: '💸', color: Y, text: `CPM subió ${dCpm.toFixed(0)}% — subasta más cara, mismo gasto con menos alcance.` })
-
   if (dHook !== null && dHook < -15)
     findings.push({ icon: '🎬', color: R, text: `Hook Rate cayó ${Math.abs(dHook).toFixed(0)}% — el primer segundo no engancha. Cambiar apertura.` })
   if (dHold !== null && dHold < -20)
@@ -100,35 +117,15 @@ function diagnose(a: any, b: any) {
   return findings
 }
 
-// ── Metric columns definition ──────────────────────────────────────────────
-const COLS = [
-  { key: 'spend',         label: 'Gasto',      fmt: (v: number, cur: string) => formatCurrency(v, cur) },
-  { key: 'impressions',   label: 'Impr.',      fmt: (v: number) => formatNumber(Math.round(v)) },
-  { key: 'roas',          label: 'ROAS',       fmt: (v: number) => `${v.toFixed(2)}x`,   invert: false },
-  { key: 'purchases',     label: 'Ventas',     fmt: (v: number) => String(Math.round(v)), invert: false },
-  { key: 'cpa',           label: 'CPA',        fmt: (v: number, cur: string) => formatCurrency(v, cur), invert: true },
-  { key: 'cpm',           label: 'CPM',        fmt: (v: number, cur: string) => formatCurrency(v, cur), invert: true },
-  { key: 'ctr',           label: 'CTR%',       fmt: (v: number) => `${v.toFixed(2)}%` },
-  { key: 'landing_page_views', label: 'Visit. LP', fmt: (v: number) => formatNumber(Math.round(v)) },
-  { key: 'add_to_cart',   label: 'ATC',        fmt: (v: number) => String(Math.round(v)) },
-  { key: 'hook_rate',     label: 'Hook',       fmt: (v: number) => `${v.toFixed(1)}%` },
-  { key: 'hold_rate',     label: 'Hold',       fmt: (v: number) => `${v.toFixed(1)}%` },
-  { key: 'thruplay_rate', label: 'ThruPlay',   fmt: (v: number) => `${v.toFixed(1)}%` },
-  { key: 'ctr_post_view', label: 'CTR post-v', fmt: (v: number) => `${v.toFixed(1)}%` },
-]
-
-function metricColor(key: string, v: number | null) {
-  if (v == null) return M
-  if (key === 'hook_rate') return hkColor(v)
-  if (key === 'hold_rate') return hlColor(v)
-  if (key === 'thruplay_rate') return tpColor(v)
-  if (key === 'roas') return roasColor(v)
-  if (key === 'cpa') return cpaColor(v)
-  if (key === 'purchases') return v > 0 ? G : M
-  return TEXT
+// ── Day quality (para calendario) ──────────────────────────────────────────
+function dayQuality(d: { spend: number; purchases: number; cpa: number | null }): 'good' | 'ok' | 'bad' | 'empty' {
+  if (!d || (d.spend || 0) < 5) return 'empty'
+  if ((d.purchases || 0) >= 2 && d.cpa !== null && d.cpa <= CPA_TARGET) return 'good'
+  if ((d.purchases || 0) >= 1 || (d.cpa !== null && d.cpa <= CPA_BREAKEVEN)) return 'ok'
+  return 'bad'
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────
+// ── Page ────────────────────────────────────────────────────────────────────
 export default async function DiagnosticoPage({
   searchParams,
 }: { searchParams: Promise<{ a?: string; b?: string }> }) {
@@ -137,15 +134,20 @@ export default async function DiagnosticoPage({
 
   const today = await getLatestDate()
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
-  const last14 = Array.from({ length: 14 }, (_, i) =>
-    new Date(todayMs - i * 86400000).toISOString().split('T')[0]
+
+  // 180-day window for calendar
+  const cal180start = new Date(todayMs - 179 * 86400000).toISOString().split('T')[0]
+  const calDates = Array.from({ length: 180 }, (_, i) =>
+    new Date(todayMs - (179 - i) * 86400000).toISOString().split('T')[0]
   )
 
-  const dayA = sp?.a && last14.includes(sp.a) ? sp.a : last14[0]
-  const dayB = sp?.b && last14.includes(sp.b) ? sp.b : last14[1]
+  // Validate selected days against 180d window
+  const dayA = sp?.a && sp.a >= cal180start && sp.a <= today ? sp.a : today
+  const dayB = sp?.b && sp.b >= cal180start && sp.b <= today ? sp.b : new Date(todayMs - 86400000).toISOString().split('T')[0]
 
   const [
     accountRes, campsRes, adSetsRes, adsRes,
+    mCal,
     mA_camp, mB_camp,
     mA_adset, mB_adset,
     mA_ad, mB_ad,
@@ -154,6 +156,10 @@ export default async function DiagnosticoPage({
     supabaseAdmin.from('campaigns').select('id,name,status'),
     supabaseAdmin.from('ad_sets').select('id,name,status,campaign_id'),
     supabaseAdmin.from('ads').select('id,name,status,ad_set_id'),
+    // 180 días para el calendario
+    supabaseAdmin.from('metrics').select('date,object_id,spend,purchases,purchase_value')
+      .eq('object_type', 'campaign').gte('date', cal180start).lte('date', today),
+    // métricas de día A y B
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').eq('date', dayA),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').eq('date', dayB),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad_set').eq('date', dayA),
@@ -164,13 +170,28 @@ export default async function DiagnosticoPage({
 
   const currency = accountRes.data?.[0]?.currency || 'USD'
 
-  // Index metadata
+  // ── Calendar data ─────────────────────────────────────────────────────────
+  const byDate = new Map<string, any[]>()
+  for (const m of (mCal.data || [])) {
+    if (!byDate.has(m.date)) byDate.set(m.date, [])
+    byDate.get(m.date)!.push(m)
+  }
+  const calDays = calDates.map(d => {
+    const rows = byDate.get(d) || []
+    if (rows.length === 0) return { date: d, quality: 'empty' as const, spend: 0, purchases: 0, cpa: null, roas: null }
+    const spend = rows.reduce((s: number, m: any) => s + (m.spend || 0), 0)
+    const purchases = rows.reduce((s: number, m: any) => s + (m.purchases || 0), 0)
+    const pv = rows.reduce((s: number, m: any) => s + (m.purchase_value || 0), 0)
+    const cpa = purchases > 0 ? spend / purchases : null
+    const roas = spend > 0 ? pv / spend : null
+    return { date: d, quality: dayQuality({ spend, purchases, cpa }), spend, purchases, cpa, roas }
+  })
+
+  // ── Index metrics ─────────────────────────────────────────────────────────
   const campMeta  = new Map((campsRes.data  || []).map((x: any) => [x.id, x]))
   const adSetMeta = new Map((adSetsRes.data || []).map((x: any) => [x.id, x]))
-  const adMeta    = new Map((adsRes.data    || []).map((x: any) => [x.id, x]))
 
-  // Index metrics by object_id
-  const idx = (rows: any[]) => {
+  const idxRows = (rows: any[]) => {
     const m = new Map<string, any[]>()
     for (const r of rows) {
       if (!m.has(r.object_id)) m.set(r.object_id, [])
@@ -178,61 +199,62 @@ export default async function DiagnosticoPage({
     }
     return m
   }
-  const campA = idx(mA_camp.data || []), campB = idx(mB_camp.data || [])
-  const asA   = idx(mA_adset.data || []), asB  = idx(mB_adset.data || [])
-  const adA   = idx(mA_ad.data   || []), adB   = idx(mB_ad.data   || [])
+  const campA = idxRows(mA_camp.data || []), campB = idxRows(mB_camp.data || [])
+  const asA   = idxRows(mA_adset.data || []), asB  = idxRows(mB_adset.data || [])
+  const adA   = idxRows(mA_ad.data   || []), adB   = idxRows(mB_ad.data   || [])
 
-  // Account-level aggregates
+  // ── Account-level aggregates + diagnosis ──────────────────────────────────
   const accA = aggMetrics(mA_camp.data || [])
   const accB = aggMetrics(mB_camp.data || [])
   const aIsBetter = (accA?.roas || 0) >= (accB?.roas || 0)
   const findings = diagnose(accA, accB)
 
-  // Build hierarchy: campaign → ad_sets → ads
-  // Only include if had spend on at least one day
+  const labelA = formatDate(dayA)
+  const labelB = formatDate(dayB)
+
+  // ── Build hierarchy ────────────────────────────────────────────────────────
   const allCampIds = new Set([
     ...(mA_camp.data || []).map((m: any) => m.object_id),
     ...(mB_camp.data || []).map((m: any) => m.object_id),
   ])
 
-  const hierarchy = Array.from(allCampIds).map(cid => {
+  const campTree: CampDiag[] = Array.from(allCampIds).map(cid => {
     const meta = campMeta.get(cid) as any
     const a = aggMetrics(campA.get(cid) || [])
     const b = aggMetrics(campB.get(cid) || [])
     if (!a?.spend && !b?.spend) return null
 
-    // Ad sets belonging to this campaign that had activity
     const campAdSets = (adSetsRes.data || []).filter((s: any) => s.campaign_id === cid)
-    const adSetRows = campAdSets.map((s: any) => {
+    const asNodes: AsDiag[] = campAdSets.map((s: any) => {
       const sa = aggMetrics(asA.get(s.id) || [])
       const sb = aggMetrics(asB.get(s.id) || [])
       if (!sa?.spend && !sb?.spend) return null
 
-      // Ads belonging to this ad set that had activity
       const setAds = (adsRes.data || []).filter((ad: any) => ad.ad_set_id === s.id)
-      const adRows = setAds.map((ad: any) => {
+      const adNodes: AdDiag[] = setAds.map((ad: any) => {
         const aa = aggMetrics(adA.get(ad.id) || [])
         const ab = aggMetrics(adB.get(ad.id) || [])
         if (!aa?.spend && !ab?.spend) return null
-        return { id: ad.id, name: ad.name, status: ad.status, a: aa, b: ab }
-      }).filter(Boolean)
+        return { id: ad.id, name: ad.name, status: ad.status, a: toMetricsDiag(aa), b: toMetricsDiag(ab) }
+      }).filter(Boolean) as AdDiag[]
 
-      return { id: s.id, name: s.name, status: s.status, a: sa, b: sb, ads: adRows }
-    }).filter(Boolean)
+      return { id: s.id, name: s.name, status: s.status, a: toMetricsDiag(sa), b: toMetricsDiag(sb), ads: adNodes }
+    }).filter(Boolean) as AsDiag[]
 
-    return { id: cid, name: meta?.name || cid, status: meta?.status || 'UNKNOWN', a, b, adSets: adSetRows }
-  }).filter(Boolean)
-    .sort((x: any, y: any) => {
-      if (x.status === 'ACTIVE' && y.status !== 'ACTIVE') return -1
-      if (y.status === 'ACTIVE' && x.status !== 'ACTIVE') return 1
-      return (y.a?.spend || 0) - (x.a?.spend || 0)
-    })
+    return {
+      id: cid, name: meta?.name || cid, status: meta?.status || 'UNKNOWN',
+      a: toMetricsDiag(a), b: toMetricsDiag(b), adSets: asNodes,
+    }
+  }).filter(Boolean).sort((x: any, y: any) => {
+    if (x.status === 'ACTIVE' && y.status !== 'ACTIVE') return -1
+    if (y.status === 'ACTIVE' && x.status !== 'ACTIVE') return 1
+    return (y.a?.spend || 0) - (x.a?.spend || 0)
+  }) as CampDiag[]
 
-  // ── Render helpers ─────────────────────────────────────────────────────
+  // ── Render helpers ─────────────────────────────────────────────────────────
   const thBase: any = { padding: '5px 8px', fontSize: 10, fontWeight: 700, color: M, textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' as const, borderBottom: `1px solid ${BORDER}`, backgroundColor: '#0e1015', whiteSpace: 'nowrap' as const }
-  const tdBase: any = { padding: '6px 8px', fontSize: 11, textAlign: 'right' as const, borderBottom: `1px solid #1a1d27`, whiteSpace: 'nowrap' as const }
+  const tdBase: any = { padding: '6px 8px', fontSize: 11, textAlign: 'right' as const, borderBottom: '1px solid #1a1d27', whiteSpace: 'nowrap' as const }
 
-  // Renders a metric row: value A | value B | delta
   function MetricRow({ label, a, b, fmtFn, invert = false, colorFn }: {
     label: string; a: number | null; b: number | null
     fmtFn: (v: number, cur: string) => string
@@ -251,27 +273,26 @@ export default async function DiagnosticoPage({
     )
   }
 
-  // Compact metrics table for a given pair (a, b)
   function MetricsTable({ a, b }: { a: any; b: any }) {
     return (
       <table style={{ borderCollapse: 'collapse', width: '100%' }}>
         <thead>
           <tr>
             <th style={{ ...thBase, textAlign: 'left' as const, minWidth: 90 }}>Métrica</th>
-            <th style={{ ...thBase, color: aIsBetter ? G : R }}>{formatDate(dayA)}</th>
-            <th style={{ ...thBase }}>{formatDate(dayB)}</th>
+            <th style={{ ...thBase, color: aIsBetter ? G : R }}>{labelA}</th>
+            <th style={{ ...thBase }}>{labelB}</th>
             <th style={{ ...thBase }}>Δ</th>
           </tr>
         </thead>
         <tbody>
           <MetricRow label="Gasto"      a={a?.spend}           b={b?.spend}           fmtFn={(v, c) => formatCurrency(v, c)} />
-          <MetricRow label="Impr."      a={a?.impressions}     b={b?.impressions}     fmtFn={(v) => formatNumber(Math.round(v))} />
+          <MetricRow label="Impr."      a={a?.impressions}     b={b?.impressions}     fmtFn={(v) => String(Math.round(v))} />
           <MetricRow label="Ventas"     a={a?.purchases}       b={b?.purchases}       fmtFn={(v) => String(Math.round(v))} colorFn={(v) => v && v > 0 ? G : M} />
           <MetricRow label="ROAS"       a={a?.roas}            b={b?.roas}            fmtFn={(v) => `${v.toFixed(2)}x`} colorFn={roasColor} />
           <MetricRow label="CPA"        a={a?.cpa}             b={b?.cpa}             fmtFn={(v, c) => formatCurrency(v, c)} invert colorFn={cpaColor} />
           <MetricRow label="CPM"        a={a?.cpm}             b={b?.cpm}             fmtFn={(v, c) => formatCurrency(v, c)} invert />
           <MetricRow label="CTR único%" a={a?.ctr}             b={b?.ctr}             fmtFn={(v) => `${v.toFixed(2)}%`} />
-          <MetricRow label="Visit. LP"  a={a?.landing_page_views} b={b?.landing_page_views} fmtFn={(v) => formatNumber(Math.round(v))} />
+          <MetricRow label="Visit. LP"  a={a?.landing_page_views} b={b?.landing_page_views} fmtFn={(v) => String(Math.round(v))} />
           <MetricRow label="ATC"        a={a?.add_to_cart}     b={b?.add_to_cart}     fmtFn={(v) => String(Math.round(v))} />
           <MetricRow label="Hook Rate"  a={a?.hook_rate}       b={b?.hook_rate}       fmtFn={(v) => `${v.toFixed(1)}%`} colorFn={hkColor} />
           <MetricRow label="Hold Rate"  a={a?.hold_rate}       b={b?.hold_rate}       fmtFn={(v) => `${v.toFixed(1)}%`} colorFn={hlColor} />
@@ -291,35 +312,25 @@ export default async function DiagnosticoPage({
         <main style={{ padding: '20px 16px', maxWidth: 1400 }}>
 
           {/* Breadcrumb */}
-          <div style={{ marginBottom: 20, fontSize: 12, color: M }}>
-            <Link href="/analisis" style={{ color: PRIMARY, textDecoration: 'none' }}>← Análisis</Link>
+          <div style={{ marginBottom: 16, fontSize: 12, color: M }}>
+            <Link href="/analisis" style={{ color: '#6366F1', textDecoration: 'none' }}>← Análisis</Link>
           </div>
 
-          {/* ── Day selectors ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-            {[
-              { label: 'Día A', day: dayA, param: 'a', other: 'b', otherDay: dayB, better: aIsBetter },
-              { label: 'Día B — referencia', day: dayB, param: 'b', other: 'a', otherDay: dayA, better: !aIsBetter },
-            ].map(sel => (
-              <div key={sel.param} style={{ backgroundColor: SURFACE, border: `2px solid ${sel.better ? G : R}30`, borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: sel.better ? G : R, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                  {sel.better ? '🟢' : '🔴'} {sel.label}
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {last14.map(d => (
-                    <a key={d} href={`?${sel.param}=${d}&${sel.other}=${sel.otherDay}`} style={{
-                      padding: '3px 8px', borderRadius: 5, fontSize: 11, textDecoration: 'none',
-                      backgroundColor: d === sel.day ? (sel.better ? '#22C55E20' : '#EF444420') : 'transparent',
-                      color: d === sel.day ? (sel.better ? G : R) : M,
-                      border: `1px solid ${d === sel.day ? (sel.better ? '#22C55E50' : '#EF444450') : BORDER}`,
-                      fontWeight: d === sel.day ? 700 : 400,
-                    }}>
-                      {formatDate(d)}{d === today ? ' ●' : ''}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ))}
+          {/* ── Calendario selector ── */}
+          <div style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
+            <div style={{ padding: '12px 20px 10px', borderBottom: `1px solid ${BORDER}`, backgroundColor: '#151820' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>📅 Seleccionar días a comparar</span>
+              <span style={{ fontSize: 11, color: M, marginLeft: 10 }}>6 meses · 🟢 CPA≤$7 · 🟡 ≤$15 · 🔴 sin ventas con gasto</span>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <DecisionCalendar
+                days={calDays}
+                currency={currency}
+                mode="twodays"
+                dayA={dayA}
+                dayB={dayB}
+              />
+            </div>
           </div>
 
           {/* ── Cuenta — KPIs + Diagnóstico ── */}
@@ -350,90 +361,21 @@ export default async function DiagnosticoPage({
             </div>
           </div>
 
-          {/* ── Desglose jerárquico ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {hierarchy.length === 0 && (
-              <div style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, padding: 32, textAlign: 'center', color: M }}>
-                Sin datos para ninguno de los dos días seleccionados.
-              </div>
-            )}
-
-            {hierarchy.map((camp: any) => {
-              const statusColor = camp.status === 'ACTIVE' ? G : camp.status === 'PAUSED' ? Y : M
-              return (
-                <div key={camp.id} style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, overflow: 'hidden', borderTop: `2px solid ${statusColor}40` }}>
-
-                  {/* ── Campaign header ── */}
-                  <div style={{ padding: '10px 16px', backgroundColor: '#151820', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColor, flexShrink: 0, display: 'inline-block' }} />
-                    <Link href={`/campaigns/${camp.id}`} style={{ fontSize: 13, fontWeight: 700, color: TEXT, textDecoration: 'none', flex: 1 }}>
-                      {camp.name}
-                    </Link>
-                    <span style={{ fontSize: 10, color: M }}>{camp.status}</span>
-                    <span style={{ fontSize: 11, color: camp.a?.purchases > 0 ? G : M, fontWeight: 600 }}>
-                      {camp.a?.purchases ? `${Math.round(camp.a.purchases)} ventas (A)` : '0 ventas (A)'}
-                    </span>
-                    {camp.a?.roas && <span style={{ fontSize: 11, color: roasColor(camp.a.roas) }}>ROAS {camp.a.roas.toFixed(2)}x</span>}
-                  </div>
-
-                  {/* Campaign metrics */}
-                  <div style={{ padding: '12px 16px', borderBottom: camp.adSets.length > 0 ? `1px solid ${BORDER}` : 'none' }}>
-                    <MetricsTable a={camp.a} b={camp.b} />
-                  </div>
-
-                  {/* ── Ad sets ── */}
-                  {camp.adSets.map((as: any) => {
-                    const asStatusColor = as.status === 'ACTIVE' ? G : Y
-                    return (
-                      <div key={as.id} style={{ marginLeft: 24, borderLeft: `2px solid ${BORDER}`, borderBottom: `1px solid ${BORDER}` }}>
-
-                        {/* Ad set header */}
-                        <div style={{ padding: '8px 14px', backgroundColor: '#13151e', borderBottom: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 9, color: M }}>▸ CONJUNTO</span>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: asStatusColor, flexShrink: 0, display: 'inline-block' }} />
-                          <span style={{ fontSize: 12, fontWeight: 600, color: '#CBD5E1', flex: 1 }}>{as.name}</span>
-                          <span style={{ fontSize: 10, color: M }}>{as.status}</span>
-                          <span style={{ fontSize: 11, color: as.a?.purchases > 0 ? G : M, fontWeight: 600 }}>
-                            {as.a?.purchases ? `${Math.round(as.a.purchases)} ventas` : '—'}
-                          </span>
-                          {as.a?.roas && <span style={{ fontSize: 11, color: roasColor(as.a.roas) }}>{as.a.roas.toFixed(2)}x</span>}
-                        </div>
-
-                        {/* Ad set metrics */}
-                        <div style={{ padding: '10px 14px', borderBottom: as.ads.length > 0 ? `1px solid ${BORDER}` : 'none' }}>
-                          <MetricsTable a={as.a} b={as.b} />
-                        </div>
-
-                        {/* ── Ads ── */}
-                        {as.ads.map((ad: any) => (
-                          <div key={ad.id} style={{ marginLeft: 20, borderLeft: `2px solid #1e2235`, borderBottom: `1px solid #1a1d27` }}>
-
-                            {/* Ad header */}
-                            <div style={{ padding: '6px 12px', backgroundColor: '#0e1015', borderBottom: `1px solid #1a1d27`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontSize: 9, color: '#3A4060' }}>▸ AD</span>
-                              <Link href={`/ads/${ad.id}`} style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', textDecoration: 'none', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                                {ad.name}
-                              </Link>
-                              <span style={{ fontSize: 10, color: M }}>{ad.status}</span>
-                              <span style={{ fontSize: 11, color: ad.a?.purchases > 0 ? G : M, fontWeight: 600 }}>
-                                {ad.a?.purchases ? `${Math.round(ad.a.purchases)} ventas` : '—'}
-                              </span>
-                              {ad.a?.hook_rate && <span style={{ fontSize: 10, color: hkColor(ad.a.hook_rate) }}>Hook {ad.a.hook_rate.toFixed(1)}%</span>}
-                              {ad.a?.roas && <span style={{ fontSize: 11, color: roasColor(ad.a.roas) }}>{ad.a.roas.toFixed(2)}x</span>}
-                            </div>
-
-                            {/* Ad metrics */}
-                            <div style={{ padding: '8px 12px' }}>
-                              <MetricsTable a={ad.a} b={ad.b} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })}
+          {/* ── Árbol colapsable Campaña → Conjunto → Anuncio ── */}
+          <div style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', borderBottom: `1px solid ${BORDER}`, backgroundColor: '#151820' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>🎯 Desglose Campaña → Conjunto → Anuncio</span>
+              <span style={{ fontSize: 11, color: M, marginLeft: 10 }}>Clic en campaña o conjunto para expandir</span>
+            </div>
+            <div style={{ padding: 16 }}>
+              <DiagnosticoTree
+                hierarchy={campTree}
+                currency={currency}
+                labelA={labelA}
+                labelB={labelB}
+                aIsBetter={aIsBetter}
+              />
+            </div>
           </div>
 
         </main>
