@@ -155,9 +155,21 @@ def analyze_video(drive_file_id: str, file_name: str, destination_url: str = "",
     try:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
-        # 1. Descargar de Drive
+        # 1. Descargar de Drive (timeout 90s)
         logger.info(f"Downloading {file_name} from Drive...")
+        import signal
+        def _timeout_handler(signum, frame):
+            raise TimeoutError("Download timed out")
+        try:
+            signal.signal(signal.SIGALRM, _timeout_handler)
+            signal.alarm(90)
+        except (AttributeError, OSError):
+            pass  # Windows no tiene SIGALRM
         video_bytes, mime_type = _download_from_drive(drive_file_id)
+        try:
+            signal.alarm(0)
+        except (AttributeError, OSError):
+            pass
         logger.info(f"Downloaded {len(video_bytes) / 1024 / 1024:.1f} MB")
 
         # 2. Subir a Gemini File API

@@ -84,6 +84,9 @@ async def start_campaign(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return await _show_video_selection(update.message, context, videos)
 
 
+MAX_VIDEOS_PER_BATCH = 10
+
+
 async def _show_video_selection(message, context: ContextTypes.DEFAULT_TYPE, videos: list) -> int:
     lines = ["📂 <b>No subidos</b> — elegí qué analizar:\n"]
     for i, v in enumerate(videos[:20], 1):
@@ -91,8 +94,11 @@ async def _show_video_selection(message, context: ContextTypes.DEFAULT_TYPE, vid
         mb = v.get("size", 0) / (1024 * 1024)
         lines.append(f"<code>{i:2d}.</code> {name} <i>({mb:.0f}MB)</i>")
 
+    if len(videos) > MAX_VIDEOS_PER_BATCH:
+        lines.append(f"\n⚠️ <i>Hay {len(videos)} videos. Se analizan hasta {MAX_VIDEOS_PER_BATCH} por vez. Elegí cuáles o seleccioná todos (toma los primeros {MAX_VIDEOS_PER_BATCH}).</i>")
+
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎯 Analizar todos", callback_data="drv_all")],
+        [InlineKeyboardButton(f"🎯 Primeros {min(len(videos), MAX_VIDEOS_PER_BATCH)}", callback_data="drv_all")],
         [InlineKeyboardButton("🔢 Elegir cuáles", callback_data="drv_pick")],
         [InlineKeyboardButton("❌ Cancelar", callback_data="drv_cancel")],
     ])
@@ -111,8 +117,9 @@ async def drive_select_mode(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     videos = context.user_data["no_subidos"]
 
     if query.data == "drv_all":
-        context.user_data["selected_videos"] = videos
-        await query.edit_message_text(f"✅ Analizando {len(videos)} videos...")
+        selected = videos[:MAX_VIDEOS_PER_BATCH]
+        context.user_data["selected_videos"] = selected
+        await query.edit_message_text(f"✅ Analizando {len(selected)} video(s)...")
         return await _run_analysis(query.message, context)
 
     # drv_pick
@@ -141,6 +148,10 @@ async def drive_pick_specific(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not selected:
         await update.message.reply_text("Ningún video válido. Intentá de nuevo.")
         return DRIVE_PICK_SPECIFIC
+
+    if len(selected) > MAX_VIDEOS_PER_BATCH:
+        selected = selected[:MAX_VIDEOS_PER_BATCH]
+        await update.message.reply_text(f"⚠️ Máximo {MAX_VIDEOS_PER_BATCH} videos por vez. Tomando los primeros {MAX_VIDEOS_PER_BATCH}.")
 
     context.user_data["selected_videos"] = selected
     msg = await update.message.reply_text(f"⏳ Analizando {len(selected)} video(s)...")
