@@ -129,8 +129,8 @@ export default function DecisionCalendar({
         </span>
       </div>
 
-      {/* Month calendars */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(285px, 1fr))', gap: '24px' }}>
+      {/* Month calendars — scroll horizontal */}
+      <div style={{ display: 'flex', overflowX: 'auto', gap: '20px', paddingBottom: '10px', scrollSnapType: 'x mandatory' }}>
         {months.map(({ key, label, days: mDays }) => {
           const firstDow = (new Date(mDays[0].date + 'T12:00:00Z').getUTCDay() + 6) % 7
           const cells: (DayData | null)[] = Array(firstDow).fill(null).concat(mDays)
@@ -139,8 +139,8 @@ export default function DecisionCalendar({
           for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
 
           return (
-            <div key={key}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '6px', textTransform: 'capitalize' }}>
+            <div key={key} style={{ flexShrink: 0, width: '252px', scrollSnapAlign: 'start' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', marginBottom: '6px', textTransform: 'capitalize', letterSpacing: '0.02em' }}>
                 {label}
               </div>
               <table style={{ borderCollapse: 'separate', borderSpacing: '2px', width: '100%', tableLayout: 'fixed' }}>
@@ -168,22 +168,25 @@ export default function DecisionCalendar({
                               backgroundColor: isA ? '#EF444430' : isB ? '#22C55E30' : qBg[day.quality],
                               border: isA ? '2px solid #EF4444' : isB ? '2px solid #22C55E' : `1px solid ${qBorder[day.quality]}`,
                               borderRadius: '5px',
-                              padding: '3px 1px 4px',
+                              padding: '4px 1px 5px',
                               textAlign: 'center',
                               verticalAlign: 'top',
                               cursor: mode === 'twodays' ? 'pointer' : 'default',
                               userSelect: 'none',
                             }}
                           >
-                            <div style={{ fontSize: '7px', color: '#64748B80', lineHeight: 1, marginBottom: '1px' }}>{dayNum}</div>
+                            {/* Número de día — visible */}
+                            <div style={{ fontSize: '9px', color: isA ? '#EF444490' : isB ? '#22C55E90' : '#64748B', lineHeight: 1, marginBottom: '2px', fontWeight: 500 }}>{dayNum}</div>
+                            {/* Ventas */}
                             <div style={{
-                              fontSize: day.quality === 'empty' ? '10px' : '17px',
+                              fontSize: day.quality === 'empty' ? '11px' : '16px',
                               fontWeight: 800,
                               color: isA ? '#EF4444' : isB ? '#22C55E' : qColor[day.quality],
                               lineHeight: 1,
                             }}>
                               {day.quality === 'empty' ? '·' : day.purchases}
                             </div>
+                            {/* CPA */}
                             <div style={{ fontSize: '7px', marginTop: '2px', fontWeight: 600, color: day.cpa ? cpaColor(day.cpa) : '#2D3244', lineHeight: 1 }}>
                               {day.cpa ? fmtCurrency(day.cpa, currency) : day.spend > 0 ? <span style={{ color: '#EF444460' }}>$∞</span> : ''}
                             </div>
