@@ -29,7 +29,8 @@ logger = logging.getLogger(__name__)
 
 # ── Estados flujo Drive (multi-ads) ──────────────────────────────────────────
 (DRIVE_SELECT_MODE, DRIVE_PICK_SPECIFIC, DRIVE_REVIEW_GROUPS,
- DRIVE_GROUP_URL, DRIVE_GROUP_BUDGET, DRIVE_CONFIRM_ALL) = range(10, 16)
+ DRIVE_GROUP_URL, DRIVE_GROUP_BUDGET, DRIVE_CONFIRM_ALL,
+ DRIVE_PICK_ANGLE) = range(10, 17)
 
 # ── Estados flujo fallback (single ad) ───────────────────────────────────────
 (CHOOSE_SOURCE, CHOOSE_CATEGORY, PICK_VIDEO, PICK_DRIVE_VIDEO,
@@ -160,64 +161,146 @@ async def drive_pick_specific(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 # ── Análisis y agrupación ─────────────────────────────────────────────────────
 
+ANGLE_CHOICES = [
+    ("fatiga_pantallas", "😩 Fatiga / pantallas"),
+    ("ojo_seco", "💧 Ojo seco"),
+    ("cataratas", "👁️ Cataratas"),
+    ("glaucoma", "🔵 Glaucoma"),
+    ("retinopatia_diabetica", "🩸 Retinopatía diabética"),
+    ("vision_nocturna", "🌙 Visión nocturna"),
+    ("ojos_rojos", "🔴 Ojos rojos"),
+    ("degeneracion_macular", "🔬 Degeneración macular"),
+    ("pterigion", "🌱 Pterigión"),
+    ("antecedentes_familiares", "👨‍👩‍👧 Antecedentes familiares"),
+    ("deterioro_por_edad", "⏳ Deterioro por edad"),
+    ("spray_vs_oral", "💊 Spray vs oral"),
+    ("estudio_areds2", "📊 Estudio AREDS2"),
+    ("antes_de_operar", "🔪 Antes de operar"),
+    ("posicionamiento_marca", "🏆 Marca"),
+]
+
+
 async def _run_analysis(progress_msg, context: ContextTypes.DEFAULT_TYPE) -> int:
     videos = context.user_data["selected_videos"]
     loop = asyncio.get_event_loop()
     analyses = []
+    uncached = []
 
-    for i, v in enumerate(videos, 1):
+    # 1. Revisar cuáles tienen cache
+    try:
+        await progress_msg.edit_text("⏳ Revisando cache de análisis...", parse_mode="HTML")
+    except Exception:
+        pass
+
+    for v in videos:
         file_id = v["id"]
         name = v.get("name", "video.mp4")
         try:
-            await progress_msg.edit_text(f"🔍 Analizando <b>{i}/{len(videos)}</b>: {name[:40]}...", parse_mode="HTML")
+            from ai.video_analyzer import get_cached_analysis
+            cached = get_cached_analysis(file_id)
+            if cached and cached.get("angle") not in ("sin_datos", "fatiga_pantallas", "", None):
+                analyses.append({**cached, "drive_file_id": file_id, "file_name": name})
+                logger.info(f"Cache hit: {name} → {cached.get('angle')}")
+            else:
+                uncached.append(v)
+        except Exception:
+            uncached.append(v)
+
+    # 2. Si hay videos sin cache, preguntar ángulo manualmente
+    if uncached:
+        context.user_data["analyses_so_far"] = analyses
+        context.user_data["uncached_queue"] = uncached
+        context.user_data["uncached_idx"] = 0
+        try:
+            await progress_msg.delete()
         except Exception:
             pass
+        return await _ask_angle_for_next(progress_msg, context)
 
-        try:
-            from ai.video_analyzer import analyze_video
-            result = await asyncio.wait_for(
-                loop.run_in_executor(None, analyze_video, file_id, name, ""),
-                timeout=180,
-            )
-            result["drive_file_id"] = file_id
-            result["file_name"] = name
-            analyses.append(result)
-            logger.info(f"Analyzed {name}: angle={result.get('angle')}")
-        except asyncio.TimeoutError:
-            logger.warning(f"Analysis timed out for {name}")
-            analyses.append({
-                "drive_file_id": file_id,
-                "file_name": name,
-                "angle": "sin_datos",
-                "analysis": "Tiempo de análisis agotado.",
-                "primary_text": "",
-                "headline": "",
-                "audience_summary": "",
-                "targeting": {"geo_locations": {"countries": ["AR"]}, "age_min": 35, "age_max": 65},
-            })
-        except Exception as e:
-            logger.error(f"Analysis failed for {name}: {e}")
-            analyses.append({
-                "drive_file_id": file_id,
-                "file_name": name,
-                "angle": "sin_datos",
-                "analysis": "No se pudo analizar.",
-                "primary_text": "",
-                "headline": "",
-                "audience_summary": "",
-                "targeting": {"geo_locations": {"countries": ["AR"]}, "age_min": 35, "age_max": 65},
-            })
-
+    # 3. Todo cacheado → seguir directo
     context.user_data["analyses"] = analyses
     groups = _group_by_angle(analyses)
     context.user_data["groups"] = groups
-
     try:
         await progress_msg.delete()
     except Exception:
         pass
-
     return await _show_groups(progress_msg, context, groups)
+
+
+async def _ask_angle_for_next(message, context: ContextTypes.DEFAULT_TYPE) -> int:
+    queue = context.user_data["uncached_queue"]
+    idx = context.user_data["uncached_idx"]
+    v = queue[idx]
+    name = v.get("name", "video.mp4")
+    total = len(queue)
+
+    rows = []
+    for i in range(0, len(ANGLE_CHOICES), 2):
+        row = [InlineKeyboardButton(ANGLE_CHOICES[i][1], callback_data=f"ang_{ANGLE_CHOICES[i][0]}")]
+        if i + 1 < len(ANGLE_CHOICES):
+            row.append(InlineKeyboardButton(ANGLE_CHOICES[i+1][1], callback_data=f"ang_{ANGLE_CHOICES[i+1][0]}"))
+        rows.append(row)
+
+    await message.reply_text(
+        f"🎬 <b>{idx+1}/{total}</b>: <code>{name[:50]}</code>\n\n¿Qué ángulo usa este video?",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(rows),
+    )
+    return DRIVE_PICK_ANGLE
+
+
+async def drive_pick_angle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    angle = query.data.replace("ang_", "")
+    queue = context.user_data["uncached_queue"]
+    idx = context.user_data["uncached_idx"]
+    v = queue[idx]
+    name = v.get("name", "video.mp4")
+
+    # Generar copy básico con Gemini para este ángulo
+    loop = asyncio.get_event_loop()
+    try:
+        from ai.analyst import generate_copy
+        copy_result = await asyncio.wait_for(
+            loop.run_in_executor(None, generate_copy, "ventas", f"Video de Vision Complete — ángulo: {angle}"),
+            timeout=30,
+        )
+    except Exception:
+        copy_result = {"primary_text": "", "headline": "", "cta": "SHOP_NOW"}
+
+    angle_label = next((lbl for key, lbl in ANGLE_CHOICES if key == angle), angle)
+    await query.edit_message_text(
+        f"✅ <b>{name[:40]}</b> → {angle_label}",
+        parse_mode="HTML",
+    )
+
+    context.user_data["analyses_so_far"].append({
+        "drive_file_id": v["id"],
+        "file_name": name,
+        "angle": angle,
+        "analysis": f"Ángulo seleccionado manualmente: {angle}",
+        "primary_text": copy_result.get("primary_text", ""),
+        "headline": copy_result.get("headline", ""),
+        "cta": copy_result.get("cta", "SHOP_NOW"),
+        "audience_summary": "",
+        "targeting": {"geo_locations": {"countries": ["AR"]}, "age_min": 35, "age_max": 65},
+    })
+
+    next_idx = idx + 1
+    context.user_data["uncached_idx"] = next_idx
+
+    if next_idx < len(queue):
+        return await _ask_angle_for_next(query.message, context)
+
+    # Todos los ángulos asignados → continuar
+    all_analyses = context.user_data["analyses_so_far"]
+    context.user_data["analyses"] = all_analyses
+    groups = _group_by_angle(all_analyses)
+    context.user_data["groups"] = groups
+    return await _show_groups(query.message, context, groups)
 
 
 def _group_by_angle(analyses: list[dict]) -> list[dict]:
@@ -805,6 +888,7 @@ def get_create_campaign_handler() -> ConversationHandler:
             # ── Flujo Drive (multi-ads) ──
             DRIVE_SELECT_MODE:   [CallbackQueryHandler(drive_select_mode, pattern="^drv_")],
             DRIVE_PICK_SPECIFIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, drive_pick_specific)],
+            DRIVE_PICK_ANGLE:    [CallbackQueryHandler(drive_pick_angle, pattern="^ang_")],
             DRIVE_REVIEW_GROUPS: [CallbackQueryHandler(drive_review_groups, pattern="^groups_")],
             DRIVE_GROUP_URL:     [MessageHandler(filters.TEXT & ~filters.COMMAND, drive_group_url)],
             DRIVE_GROUP_BUDGET:  [MessageHandler(filters.TEXT & ~filters.COMMAND, drive_group_budget)],
