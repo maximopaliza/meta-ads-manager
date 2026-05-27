@@ -150,7 +150,11 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
     const asName   = ad.ad_sets?.name || ''
     return { ...ad, t, p, score, campName, asName }
   }).filter((r: any) => r.t || r.status === 'ACTIVE')
-    .sort((a: any, b: any) => (b.t?.spend || 0) - (a.t?.spend || 0))
+    .sort((a: any, b: any) => {
+      if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
+      if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
+      return (b.t?.spend || 0) - (a.t?.spend || 0)
+    })
 
   // ── Totals ────────────────────────────────────────────────────────────────
   const totalRaw = ZERO()
@@ -228,8 +232,13 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
         <Header title="Análisis de Creativos" subtitle={`${rows.length} anuncios · ${label} · ordenados por gasto`} />
         <main style={{ padding: '20px', maxWidth: '1700px' }}>
 
-          {/* Range selector */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+          {/* Período + selector */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '10px', padding: '10px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '11px', color: M }}>Período analizado:</span>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: TEXT }}>{label}</span>
+              <span style={{ fontSize: '10px', color: '#4A5268' }}>({rangeStart} → {rangeEnd})</span>
+            </div>
             <Suspense fallback={null}><RangeSelector /></Suspense>
           </div>
 
@@ -365,17 +374,28 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
                   const lc  = t.link_clicks || 0
                   const lpv = t.landing_page_views || 0
                   const atc = t.add_to_cart || 0
+                  const chk = t.checkout_initiated || 0
                   const pur = t.purchases || 0
+                  const vav = t.video_avg || null
 
                   const pct = (n: number) => imp > 0 ? Math.max(2, (n / imp) * 100) : 0
 
-                  const steps = [
-                    { label: 'Impr.', value: imp,  pctW: 100, color: '#6366F1', fmt: formatNumber },
-                    { label: '3s view', value: Math.round(v3s), pctW: pct(v3s), color: hkColor(t.hook_rate), fmt: formatNumber, rate: t.hook_rate ? `Hook ${t.hook_rate.toFixed(1)}%` : null },
-                    { label: 'Click', value: lc,  pctW: pct(lc),  color: '#818CF8', fmt: formatNumber, rate: lc && imp ? `CTR ${(lc/imp*100).toFixed(1)}%` : null },
-                    { label: 'LP View', value: lpv, pctW: pct(lpv), color: Y, fmt: formatNumber, rate: t.traf_ef ? `Tráf. ${t.traf_ef.toFixed(0)}%` : null },
-                    { label: 'ATC', value: atc, pctW: pct(atc), color: '#FB923C', fmt: formatNumber, rate: t.atc_rate ? `${t.atc_rate.toFixed(1)}%` : null },
-                    { label: 'Compra', value: pur, pctW: pct(pur), color: G, fmt: (v: number) => String(v), rate: t.conv_web ? `Conv ${t.conv_web.toFixed(1)}%` : null },
+                  const steps: { label: string; value: number | string; pctW: number; color: string; fmt: (v: any) => string; rate?: string | null }[] = [
+                    { label: 'Impr.',      value: imp,           pctW: 100,       color: '#6366F1', fmt: formatNumber },
+                    { label: '3s view',    value: Math.round(v3s), pctW: pct(v3s), color: hkColor(t.hook_rate), fmt: formatNumber,
+                      rate: t.hook_rate ? `Hook ${t.hook_rate.toFixed(1)}%` : null },
+                    { label: 'Video avg',  value: vav ? `${vav.toFixed(0)}s` : '—', pctW: 0, color: '#A78BFA', fmt: (v) => String(v),
+                      rate: t.hold_rate ? `Hold ${t.hold_rate.toFixed(1)}%` : null },
+                    { label: 'Click',      value: lc,            pctW: pct(lc),   color: '#818CF8', fmt: formatNumber,
+                      rate: lc && imp ? `CTR ${(lc/imp*100).toFixed(1)}%` : null },
+                    { label: 'LP View',    value: lpv,           pctW: pct(lpv),  color: Y, fmt: formatNumber,
+                      rate: t.traf_ef ? `Tráf. ${t.traf_ef.toFixed(0)}%` : null },
+                    { label: 'ATC',        value: atc,           pctW: pct(atc),  color: '#FB923C', fmt: formatNumber,
+                      rate: t.atc_rate ? `ATC ${t.atc_rate.toFixed(1)}%` : null },
+                    { label: 'Pagos inic.',value: chk,           pctW: pct(chk),  color: '#F97316', fmt: formatNumber,
+                      rate: atc > 0 && chk > 0 ? `${(chk/atc*100).toFixed(0)}% de ATC` : null },
+                    { label: 'Compra',     value: pur,           pctW: pct(pur),  color: G, fmt: String,
+                      rate: t.conv_web ? `Conv ${t.conv_web.toFixed(1)}%` : null },
                   ]
 
                   return (
@@ -391,10 +411,17 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                         {steps.map((s, i) => (
                           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                            <div style={{ width: '100%', backgroundColor: '#1A1D27', borderRadius: '3px', height: '48px', display: 'flex', alignItems: 'flex-end', overflow: 'hidden' }}>
-                              <div style={{ width: '100%', height: `${s.pctW}%`, backgroundColor: s.color, borderRadius: '3px', transition: 'height 0.3s', minHeight: s.value > 0 ? '3px' : 0 }} />
-                            </div>
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: s.color }}>{s.value > 0 ? s.fmt(s.value) : '—'}</div>
+                            {s.pctW === 0 ? (
+                              /* Video avg: sin barra, solo muestra el valor */
+                              <div style={{ width: '100%', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1D2760', borderRadius: '3px', border: '1px dashed #2D3244' }}>
+                                <span style={{ fontSize: '14px', fontWeight: 800, color: s.color }}>{s.value || '—'}</span>
+                              </div>
+                            ) : (
+                              <div style={{ width: '100%', backgroundColor: '#1A1D27', borderRadius: '3px', height: '48px', display: 'flex', alignItems: 'flex-end', overflow: 'hidden' }}>
+                                <div style={{ width: '100%', height: `${s.pctW}%`, backgroundColor: s.color, borderRadius: '3px', transition: 'height 0.3s', minHeight: Number(s.value) > 0 ? '3px' : 0 }} />
+                              </div>
+                            )}
+                            {s.pctW > 0 && <div style={{ fontSize: '10px', fontWeight: 700, color: s.color }}>{Number(s.value) > 0 ? s.fmt(s.value) : '—'}</div>}
                             <div style={{ fontSize: '9px', color: M }}>{s.label}</div>
                             {s.rate && <div style={{ fontSize: '8px', color: '#4A5268', textAlign: 'center' }}>{s.rate}</div>}
                           </div>
