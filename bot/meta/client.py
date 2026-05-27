@@ -143,6 +143,25 @@ class MetaClient:
             })
         return result
 
+    def get_ad_video_id(self, ad_id: str) -> str | None:
+        """Devuelve el video_id del creativo de un ad, o None si no tiene video."""
+        try:
+            data = self._get(ad_id, {"fields": "creative{object_story_spec}"})
+            story_spec = data.get("creative", {}).get("object_story_spec", {})
+            return story_spec.get("video_data", {}).get("video_id")
+        except Exception as e:
+            logger.warning(f"Could not get video_id for ad {ad_id}: {e}")
+            return None
+
+    def get_video_source_url(self, video_id: str) -> str | None:
+        """Devuelve la URL de descarga del video desde Meta."""
+        try:
+            data = self._get(video_id, {"fields": "source"})
+            return data.get("source")
+        except Exception as e:
+            logger.warning(f"Could not get source URL for video {video_id}: {e}")
+            return None
+
     def _parse_insights_row(self, row: dict, object_id: str, object_type: str) -> dict:
         actions = row.get("actions", [])
         action_values = row.get("action_values", [])

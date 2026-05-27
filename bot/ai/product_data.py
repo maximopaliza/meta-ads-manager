@@ -77,6 +77,14 @@ PRODUCT = {
         "Lucas F.: Manejo camión de larga distancia. Hoy conduzco de noche sin ese miedo. Claridad total.",
         "Diego R.: Diabético 15 años. En el último fondo de ojo no hubo cambios negativos. Para mí eso es todo.",
         "Valeria S.: Soy diseñadora gráfica. Los colores no me parecían tan vivos. Dos meses después, volvieron a ser colores.",
+        "Martín G.: Me operé de cataratas. El cirujano me dijo que tenía que cuidar el ojo sano. Desde que tomo Vision Complete duermo tranquilo.",
+        "María C.: Siempre sufrí de ojos secos y ardor. Desde que empecé mis ojos se sienten más hidratados y descansados.",
+        "Laura M.: Trabajo todo el día frente a la computadora y mis ojos terminaban rojos y cansados. Después de unas semanas siento mucha menos fatiga visual.",
+        "Carla D.: Llego a casa sin esa sensación de arena. Mis ojos ya no se ven rojos todo el tiempo. Cambio total.",
+        "Ana G.: Las compré porque siempre ando con los ojos secos y rojos, especialmente en oficinas con aire acondicionado. La resequedad mejoró notablemente.",
+        "Jorge H.: Soy diseñador gráfico y vivo mirando pantallas de alta resolución. Empecé hace dos meses y la fatiga visual mejoró bastante.",
+        "Luis F.: Mi papá tiene problemas degenerativos en los ojos. Llevo cuatro meses tomando y en mi último control el especialista dijo que todo está bien.",
+        "Mariana C.: Leer el celular me costaba cada vez más aunque ya uso anteojos. Al mes y medio empecé a notar que leía más tiempo sin cansarme.",
     ],
 
     "datos_eficacia": [

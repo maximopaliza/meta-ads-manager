@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import date, timedelta
 import google.generativeai as genai
-from .prompts import ANALYST_SYSTEM, COPY_GENERATOR_SYSTEM, TARGETING_GENERATOR_SYSTEM, NATURAL_LANGUAGE_SYSTEM, DAY_ANALYSIS_SYSTEM, ACTION_INTENT_SYSTEM
+from .prompts import ANALYST_SYSTEM, COPY_GENERATOR_SYSTEM, TARGETING_GENERATOR_SYSTEM, NATURAL_LANGUAGE_SYSTEM, DAY_ANALYSIS_SYSTEM, ACTION_INTENT_SYSTEM, AD_ANALYZER_SYSTEM
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +109,29 @@ def detect_action_intent(text: str, campaigns: list[dict]) -> dict:
     except Exception as e:
         logger.error(f"Intent detection error: {e}", exc_info=True)
         return _defaults
+
+
+def analyze_ad_full(creative_analysis: str, metrics_summary: str) -> dict:
+    """Combina análisis de creativo + métricas y da diagnóstico + recomendación."""
+    try:
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=AD_ANALYZER_SYSTEM,
+        )
+        prompt = f"ANÁLISIS DEL CREATIVO:\n{creative_analysis}\n\nMÉTRICAS REALES:\n{metrics_summary}"
+        response = model.generate_content(
+            prompt,
+            generation_config={"temperature": 0.3, "response_mime_type": "application/json"},
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        logger.error(f"Ad full analysis error: {e}")
+        return {
+            "angle": "sin_datos",
+            "recommendation": "esperar_datos",
+            "recommendation_detail": str(e)[:200],
+        }
 
 
 def answer_natural_language(question: str, context: str) -> str:
