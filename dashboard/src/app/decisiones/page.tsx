@@ -5,6 +5,9 @@ import Header from '@/components/layout/Header'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { getLatestDate, cpaColor, roasColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 import RangeSelector from '@/components/dashboard/RangeSelector'
+import DecisionCalendar from '@/components/dashboard/DecisionCalendar'
+import DecisionTree from '@/components/dashboard/DecisionTree'
+import type { CampNode, AsNode, AdNode } from '@/components/dashboard/DecisionTree'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -174,9 +177,9 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
     new Date(todayMs - (3 - i) * 86400000).toISOString().split('T')[0]
   )
 
-  const calDays = Math.min(histDays, 365)
-  const calDates = Array.from({ length: calDays }, (_, i) =>
-    new Date(new Date(histEnd + 'T12:00:00Z').getTime() - (calDays - 1 - i) * 86400000).toISOString().split('T')[0]
+  // Calendar always shows 180 days regardless of range selector
+  const calDates = Array.from({ length: 180 }, (_, i) =>
+    new Date(todayMs - (179 - i) * 86400000).toISOString().split('T')[0]
   )
 
   const d7start   = new Date(todayMs - 6 * 86400000).toISOString().split('T')[0]
@@ -187,7 +190,8 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
   const prev14start = new Date(todayMs - 27 * 86400000).toISOString().split('T')[0]
   const prev14end   = new Date(todayMs - 14 * 86400000).toISOString().split('T')[0]
 
-  const fetchStart = histStart < d30start ? histStart : d30start
+  const cal180start = new Date(todayMs - 179 * 86400000).toISOString().split('T')[0]
+  const fetchStart = [histStart, d30start, cal180start].sort()[0]
 
   const [mCampAll, mASAll, mAdAll, campaignsRes, adSetsRes, adsRes, accountRes] = await Promise.all([
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', fetchStart).lte('date', today).order('date'),
@@ -242,30 +246,15 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
     })
   }
 
-  // Calendar data
+  // Calendar data — use full mCampAll (180d fetch)
   const accountDays = calDates.map(d => {
-    const rows = (mCamp30.data || []).filter((m: any) => m.date === d)
+    const rows = (mCampAll.data || []).filter((m: any) => m.date === d)
     if (rows.length === 0) return { date: d, quality: 'empty' as const, spend: 0, purchases: 0, cpa: null, roas: null }
     const a = derive(agg(rows))
     return { date: d, quality: dayQuality(a), spend: a.spend, purchases: a.purchases, cpa: a.cpa, roas: a.roas }
   })
 
-  // Build month calendar groups
-  const monthGroups: { key: string; label: string; days: typeof accountDays }[] = []
-  const seenMonths = new Set<string>()
-  for (const d of accountDays) {
-    const key = d.date.slice(0, 7)
-    if (!seenMonths.has(key)) {
-      seenMonths.add(key)
-      const dt = new Date(d.date + 'T12:00:00Z')
-      const label = dt.toLocaleDateString('es-AR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-      monthGroups.push({ key, label, days: [] })
-    }
-    monthGroups[monthGroups.length - 1].days.push(d)
-  }
-
   const goodDays = accountDays.filter(d => d.quality === 'good')
-  const okDays   = accountDays.filter(d => d.quality === 'ok')
   const badDays  = accountDays.filter(d => d.quality === 'bad')
 
   function avgOnDays(dates: string[], metricFn: (m: any) => number | null) {
@@ -375,22 +364,6 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
     return { ad, days4, d7, d14, d30, prev7, prev14, signal, alerts, asObj, campObj }
   }).sort((a: any, b: any) => (b.d7?.spend || 0) - (a.d7?.spend || 0))
 
-  // 7d averages for per-metric badges
-  const _d7valid = adRows.filter((r: any) => r.d7)
-  const avg7dRoas = _d7valid.length ? _d7valid.reduce((s: number, r: any) => s + (r.d7?.roas || 0), 0) / _d7valid.length : null
-  const _d7cpa    = _d7valid.filter((r: any) => r.d7?.cpa)
-  const avg7dCpa  = _d7cpa.length ? _d7cpa.reduce((s: number, r: any) => s + (r.d7.cpa || 0), 0) / _d7cpa.length : null
-  const _d7ctr    = _d7valid.filter((r: any) => r.d7?.ctr)
-  const avg7dCtr  = _d7ctr.length ? _d7ctr.reduce((s: number, r: any) => s + (r.d7.ctr || 0), 0) / _d7ctr.length : null
-  const _d7hook   = _d7valid.filter((r: any) => r.d7?.hook_rate)
-  const avg7dHook = _d7hook.length ? _d7hook.reduce((s: number, r: any) => s + (r.d7.hook_rate || 0), 0) / _d7hook.length : null
-
-  function metricBadge(val: number | null | undefined, avg: number | null, invertGood = false) {
-    if (val == null || avg == null) return null
-    const better = invertGood ? val < avg : val > avg
-    return { label: better ? '▲' : '▼', color: better ? '#22C55E' : '#EF4444', bg: better ? '#22C55E18' : '#EF444418' }
-  }
-
   const campRows = campaigns.map((camp: any) => {
     const days4  = get4Days(campIdx, camp.id)
     const d7     = aggRange(campIdx, camp.id, d7start, today)
@@ -416,37 +389,6 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
 
   // ── components ───────────────────────────────────────────────────────────
 
-  function DayCell({ m }: { m: any }) {
-    if (!m || (m.spend || 0) < 1) return <td style={{ ...TD, color: '#2D3244', fontSize: '10px' }}>—</td>
-    const q = dayQuality(m)
-    return (
-      <td style={{ ...TD, backgroundColor: qBg[q], borderLeft: `2px solid ${qColor[q]}30` }}>
-        <div style={{ color: qColor[q], fontWeight: 700, fontSize: '12px', lineHeight: 1.2 }}>{m.purchases || 0}</div>
-        <div style={{ color: '#94A3B8', fontSize: '10px', marginTop: '1px' }}>{m.roas ? `${m.roas.toFixed(1)}x` : '—'}</div>
-        <div style={{ color: '#64748B', fontSize: '9px' }}>{formatCurrency(m.spend || 0, currency)}</div>
-      </td>
-    )
-  }
-
-  function PctCell({ curr, prev, invert = false }: { curr: number | null; prev: number | null; invert?: boolean }) {
-    const f = fmtPct(pct(curr, prev), invert)
-    return <td style={{ ...TD, color: f.color, fontSize: '11px', fontWeight: 500 }}>{f.text}</td>
-  }
-
-  function SignalBadge({ signal }: { signal: ReturnType<typeof actionSignal> }) {
-    return (
-      <span style={{
-        display: 'inline-flex', alignItems: 'center', gap: '3px',
-        fontSize: '10px', fontWeight: 700, padding: '3px 9px', borderRadius: '6px',
-        color: signal.color, backgroundColor: signal.bg,
-        border: `1px solid ${signal.border}`,
-        whiteSpace: 'nowrap', letterSpacing: '0.01em',
-      }}>
-        {signal.label}
-      </span>
-    )
-  }
-
   function SectionHeader({ icon, title, sub }: { icon: string; title: string; sub: string }) {
     return (
       <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid #2D3244', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -461,8 +403,48 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
     )
   }
 
-  // ── grid columns based on range ─────────────────────────────────────────
-  const calCols = Math.min(calDays, calDays <= 7 ? calDays : calDays <= 14 ? 7 : calDays <= 30 ? 10 : 15)
+  // ── Build campaign tree for DecisionTree ────────────────────────────────
+  const last4Labels = last4Dates.map(d => formatDate(d))
+
+  const campTree: CampNode[] = campaigns.map((camp: any) => {
+    const cr = campRows.find((r: any) => r.camp.id === camp.id)
+    const asForCamp = adSets.filter((as: any) => as.campaign_id === camp.id)
+    const asNodes: AsNode[] = asForCamp.map((as: any) => {
+      const ar = asRows.find((r: any) => r.as.id === as.id)
+      const adsForAs = ads.filter((ad: any) => ad.ad_set_id === as.id)
+      const adNodes: AdNode[] = adsForAs.map((ad: any) => {
+        const dr = adRows.find((r: any) => r.ad.id === ad.id)
+        return {
+          id: ad.id, name: ad.name || ad.id, status: ad.status,
+          signal: dr?.signal || { label: '— Sin datos', color: '#64748B', bg: '#64748B10', border: '#64748B20', priority: 99 },
+          alerts: dr?.alerts || [],
+          days4: (dr?.days4 || [null, null, null, null]).map((m: any) => m ? { purchases: m.purchases || 0, spend: m.spend || 0, roas: m.roas, cpa: m.cpa } : null),
+          d7: dr?.d7 ? { spend: dr.d7.spend, purchases: dr.d7.purchases, roas: dr.d7.roas, cpa: dr.d7.cpa } : null,
+          prev7: dr?.prev7 ? { spend: dr.prev7.spend, purchases: dr.prev7.purchases, roas: dr.prev7.roas, cpa: dr.prev7.cpa } : null,
+        }
+      }).sort((a: any, b: any) => (b.d7?.spend || 0) - (a.d7?.spend || 0))
+      return {
+        id: as.id, name: as.name || as.id, status: as.status,
+        signal: ar?.signal || { label: '— Sin datos', color: '#64748B', bg: '#64748B10', border: '#64748B20', priority: 99 },
+        days4: (ar?.days4 || [null, null, null, null]).map((m: any) => m ? { purchases: m.purchases || 0, spend: m.spend || 0, roas: m.roas, cpa: m.cpa } : null),
+        d7: ar?.d7 ? { spend: ar.d7.spend, purchases: ar.d7.purchases, roas: ar.d7.roas, cpa: ar.d7.cpa } : null,
+        prev7: ar?.prev7 ? { spend: ar.prev7.spend, purchases: ar.prev7.purchases, roas: ar.prev7.roas, cpa: ar.prev7.cpa } : null,
+        ads: adNodes,
+      }
+    }).sort((a: any, b: any) => (b.d7?.spend || 0) - (a.d7?.spend || 0))
+    return {
+      id: camp.id, name: camp.name || camp.id, status: camp.status,
+      signal: cr?.signal || { label: '— Sin datos', color: '#64748B', bg: '#64748B10', border: '#64748B20', priority: 99 },
+      days4: (cr?.days4 || [null, null, null, null]).map((m: any) => m ? { purchases: m.purchases || 0, spend: m.spend || 0, roas: m.roas, cpa: m.cpa } : null),
+      d7: cr?.d7 ? { spend: cr.d7.spend, purchases: cr.d7.purchases, roas: cr.d7.roas, cpa: cr.d7.cpa } : null,
+      prev7: cr?.prev7 ? { spend: cr.prev7.spend, purchases: cr.prev7.purchases, roas: cr.prev7.roas, cpa: cr.prev7.cpa } : null,
+      adSets: asNodes,
+    }
+  }).sort((a: any, b: any) => {
+    if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
+    if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
+    return (b.d7?.spend || 0) - (a.d7?.spend || 0)
+  })
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
@@ -492,89 +474,11 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
             ))}
           </div>
 
-          {/* ── BLOQUE 2: Calendario mensual completo ────────────────────── */}
+          {/* ── BLOQUE 2: Calendario mensual — 6 meses completos ─────────── */}
           <div style={CARD}>
-            <SectionHeader icon="📅" title={`Calendario — ${histLabel}`} sub="Ventas y CPA por día · 🟢 CPA≤$7 · 🟡 ≤$15 · 🔴 sin ventas con gasto" />
+            <SectionHeader icon="📅" title="Calendario — 6 meses" sub="Clic en día inicio → clic en día fin → analiza ese período abajo · 🟢 CPA≤$7 · 🟡 ≤$15 · 🔴 sin ventas con gasto" />
             <div style={{ padding: '16px 20px 16px' }}>
-              {/* Leyenda */}
-              <div style={{ display: 'flex', gap: '16px', marginBottom: '18px', fontSize: '11px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {[
-                  { label: `${goodDays.length} buenos`, color: '#22C55E', bg: qBg.good, border: qBorder.good },
-                  { label: `${okDays.length} regulares`, color: '#F59E0B', bg: qBg.ok, border: qBorder.ok },
-                  { label: `${badDays.length} malos`, color: '#EF4444', bg: qBg.bad, border: qBorder.bad },
-                ].map(s => (
-                  <span key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: s.bg, border: `1px solid ${s.border}`, display: 'inline-block' }} />
-                    <span style={{ color: s.color, fontWeight: 600 }}>{s.label}</span>
-                  </span>
-                ))}
-                <span style={{ color: '#64748B', fontSize: '10px', marginLeft: 'auto' }}>Número grande = ventas · debajo = CPA · gris = sin datos</span>
-              </div>
-
-              {/* Meses */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
-                {monthGroups.map(({ key, label, days }) => {
-                  // Posición inicial: lunes=0 ... domingo=6
-                  const firstDow = (new Date(days[0].date + 'T12:00:00Z').getUTCDay() + 6) % 7
-                  const cells: (typeof accountDays[0] | null)[] = Array(firstDow).fill(null).concat(days as any)
-                  while (cells.length % 7 !== 0) cells.push(null)
-                  const weeks: (typeof accountDays[0] | null)[][] = []
-                  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
-
-                  return (
-                    <div key={key}>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px', textTransform: 'capitalize', letterSpacing: '0.02em' }}>
-                        {label}
-                      </div>
-                      <table style={{ borderCollapse: 'separate', borderSpacing: '3px', width: '100%' }}>
-                        <thead>
-                          <tr>
-                            {['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map(d => (
-                              <th key={d} style={{ fontSize: '9px', color: '#64748B', fontWeight: 600, textAlign: 'center', padding: '2px 0', width: '14.28%' }}>{d}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {weeks.map((week, wi) => (
-                            <tr key={wi}>
-                              {week.map((day, di) => {
-                                if (!day) return <td key={di} style={{ padding: '0' }} />
-                                const dayNum = new Date(day.date + 'T12:00:00Z').getUTCDate()
-                                const isSunday = di === 6
-                                return (
-                                  <td
-                                    key={di}
-                                    title={`${day.date} · Gasto: ${formatCurrency(day.spend, currency)} · Ventas: ${day.purchases} · CPA: ${day.cpa ? formatCurrency(day.cpa, currency) : '—'} · ROAS: ${day.roas ? `${day.roas.toFixed(2)}x` : '—'}`}
-                                    style={{
-                                      backgroundColor: qBg[day.quality],
-                                      border: `1px solid ${qBorder[day.quality]}`,
-                                      borderRadius: '6px',
-                                      padding: '4px 2px 5px',
-                                      textAlign: 'center',
-                                      verticalAlign: 'top',
-                                      minWidth: '36px',
-                                    }}
-                                  >
-                                    <div style={{ fontSize: '8px', color: isSunday ? '#F59E0B60' : '#64748B60', lineHeight: 1, marginBottom: '2px' }}>
-                                      {dayNum}
-                                    </div>
-                                    <div style={{ fontSize: '18px', fontWeight: 800, color: qColor[day.quality], lineHeight: 1 }}>
-                                      {day.quality === 'empty' ? <span style={{ fontSize: '10px', color: '#2D3244' }}>·</span> : day.purchases}
-                                    </div>
-                                    <div style={{ fontSize: '8px', marginTop: '2px', color: day.cpa ? cpaColor(day.cpa) : '#2D3244', fontWeight: 600 }}>
-                                      {day.cpa ? formatCurrency(day.cpa, currency) : day.spend > 1 ? <span style={{ color: '#EF4444' }}>$∞</span> : ''}
-                                    </div>
-                                  </td>
-                                )
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
-                })}
-              </div>
+              <DecisionCalendar days={accountDays} currency={currency} />
             </div>
           </div>
 
@@ -777,232 +681,10 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
             </div>
           )}
 
-          {/* ── BLOQUE 4: ADS — tabla principal ──────────────────────────── */}
+          {/* ── BLOQUE 4: Árbol colapsable Campaña → Conjunto → Anuncio ──── */}
           <div style={CARD}>
-            <SectionHeader icon="🎨" title="Anuncios — Decisión por creativo" sub="Últimos 4 días → señal · Comparación 7d / 14d / 30d vs período anterior" />
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', minWidth: '1900px', width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...THL, minWidth: '190px', position: 'sticky', left: 0, backgroundColor: '#13151F' }}>Anuncio</th>
-                    <th style={{ ...THL, minWidth: '130px' }}>Ad Set</th>
-                    <th style={{ ...TH, width: '30px' }}>●</th>
-                    <th style={{ ...TH, minWidth: '95px' }}>{formatDate(last4Dates[0])}</th>
-                    <th style={{ ...TH, minWidth: '95px' }}>{formatDate(last4Dates[1])}</th>
-                    <th style={{ ...TH, minWidth: '95px' }}>{formatDate(last4Dates[2])}</th>
-                    <th style={{ ...TH, minWidth: '95px', color: '#6366F1' }}>{formatDate(last4Dates[3])} ★</th>
-                    <th style={{ ...THSEP, minWidth: '75px' }}>Gasto 7d</th>
-                    <th style={TH}>ROAS 7d</th>
-                    <th style={TH}>CPA 7d</th>
-                    <th style={TH}>Ventas</th>
-                    <th style={TH}>vs -7d</th>
-                    <th style={{ ...THSEP, minWidth: '75px' }}>Gasto 14d</th>
-                    <th style={TH}>ROAS 14d</th>
-                    <th style={TH}>CPA 14d</th>
-                    <th style={TH}>vs -14d</th>
-                    <th style={{ ...THSEP, minWidth: '75px' }}>Gasto 30d</th>
-                    <th style={TH}>ROAS 30d</th>
-                    <th style={TH}>CPA 30d</th>
-                    <th style={TH}>Ventas</th>
-                    <th style={THSEP}>Hook</th>
-                    <th style={TH}>CTR</th>
-                    <th style={TH}>Frec.</th>
-                    <th style={THSEP}>Señales</th>
-                    <th style={THSEP}>Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adRows.map(({ ad, days4, d7, d14, d30, prev7, prev14, signal, alerts, asObj }: any) => {
-                    const todayM = days4[3]
-                    const bRoas = metricBadge(d7?.roas, avg7dRoas, false)
-                    const bCpa  = metricBadge(d7?.cpa,  avg7dCpa,  true)
-                    const bCtr  = metricBadge(d7?.ctr,  avg7dCtr,  false)
-                    const bHook = metricBadge(d7?.hook_rate, avg7dHook, false)
-                    return (
-                      <tr key={ad.id} className="tr-hover" style={{ opacity: ad.status === 'ACTIVE' ? 1 : 0.45, borderLeft: `3px solid ${signal.color}30` }}>
-                        <td style={{ ...TDL, minWidth: '190px', position: 'sticky', left: 0, backgroundColor: '#1A1D27' }}>
-                          <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '185px', fontSize: '11px', fontWeight: 500 }}>{ad.name || ad.id}</span>
-                        </td>
-                        <td style={TDL}>
-                          <span style={{ color: '#6366F1', fontSize: '10px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '130px' }}>{asObj?.name || '—'}</span>
-                        </td>
-                        <td style={{ ...TD, textAlign: 'center', fontSize: '8px' }}>
-                          <span style={{ color: ad.status === 'ACTIVE' ? '#22C55E' : '#64748B' }}>●</span>
-                        </td>
-                        {days4.map((m: any, i: number) => <DayCell key={i} m={m} />)}
-                        {/* 7d */}
-                        <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d7 ? formatCurrency(d7.spend, currency) : <span style={{ color: '#64748B' }}>—</span>}</span></td>
-                        <td style={{ ...TD, color: roasColor(d7?.roas) }}>
-                          <span>{d7?.roas ? `${d7.roas.toFixed(2)}x` : '—'}</span>
-                          {bRoas && <span style={{ marginLeft: '4px', fontSize: '9px', color: bRoas.color, fontWeight: 700 }}>{bRoas.label}</span>}
-                        </td>
-                        <td style={{ ...TD, color: cpaColor(d7?.cpa), fontWeight: 500 }}>
-                          <span>{d7?.cpa ? formatCurrency(d7.cpa, currency) : '—'}</span>
-                          {bCpa && <span style={{ marginLeft: '4px', fontSize: '9px', color: bCpa.color, fontWeight: 700 }}>{bCpa.label}</span>}
-                        </td>
-                        <td style={{ ...TD, color: (d7?.purchases || 0) > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d7?.purchases || '—'}</td>
-                        <PctCell curr={d7?.roas} prev={prev7?.roas} />
-                        {/* 14d */}
-                        <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d14 ? formatCurrency(d14.spend, currency) : <span style={{ color: '#64748B' }}>—</span>}</span></td>
-                        <td style={{ ...TD, color: roasColor(d14?.roas) }}>{d14?.roas ? `${d14.roas.toFixed(2)}x` : '—'}</td>
-                        <td style={{ ...TD, color: cpaColor(d14?.cpa), fontWeight: 500 }}>{d14?.cpa ? formatCurrency(d14.cpa, currency) : '—'}</td>
-                        <PctCell curr={d14?.roas} prev={prev14?.roas} />
-                        {/* 30d */}
-                        <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d30 ? formatCurrency(d30.spend, currency) : <span style={{ color: '#64748B' }}>—</span>}</span></td>
-                        <td style={{ ...TD, color: roasColor(d30?.roas) }}>{d30?.roas ? `${d30.roas.toFixed(2)}x` : '—'}</td>
-                        <td style={{ ...TD, color: cpaColor(d30?.cpa), fontWeight: 500 }}>{d30?.cpa ? formatCurrency(d30.cpa, currency) : '—'}</td>
-                        <td style={{ ...TD, color: (d30?.purchases || 0) > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d30?.purchases || '—'}</td>
-                        {/* Hook + CTR con badge */}
-                        <td style={{ ...SEP, color: todayM?.hook_rate ? (todayM.hook_rate >= 30 ? '#22C55E' : todayM.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#64748B' }}>
-                          <span>{todayM?.hook_rate ? `${todayM.hook_rate.toFixed(1)}%` : d7?.hook_rate ? `${d7.hook_rate.toFixed(1)}%` : '—'}</span>
-                          {bHook && <span style={{ marginLeft: '3px', fontSize: '9px', color: bHook.color, fontWeight: 700 }}>{bHook.label}</span>}
-                        </td>
-                        <td style={{ ...TD, color: todayM?.ctr ? (todayM.ctr >= 2 ? '#22C55E' : todayM.ctr >= 0.6 ? '#F59E0B' : '#EF4444') : '#64748B' }}>
-                          <span>{todayM?.ctr ? `${todayM.ctr.toFixed(2)}%` : d7?.ctr ? `${d7.ctr.toFixed(2)}%` : '—'}</span>
-                          {bCtr && <span style={{ marginLeft: '3px', fontSize: '9px', color: bCtr.color, fontWeight: 700 }}>{bCtr.label}</span>}
-                        </td>
-                        <td style={{ ...TD, color: todayM?.frequency ? (todayM.frequency > 3.5 ? '#EF4444' : todayM.frequency > 2.5 ? '#F59E0B' : '#94A3B8') : '#64748B' }}>
-                          {todayM?.frequency ? todayM.frequency.toFixed(1) : '—'}
-                        </td>
-                        {/* Signals */}
-                        <td style={{ ...SEP, maxWidth: '160px' }}>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
-                            {alerts.length === 0
-                              ? <span style={{ color: '#64748B', fontSize: '10px' }}>—</span>
-                              : alerts.map((s: string, i: number) => (
-                                <span key={i} style={{ fontSize: '9px', padding: '2px 6px', backgroundColor: '#2D3244', color: '#94A3B8', borderRadius: '4px', whiteSpace: 'nowrap' }}>{s}</span>
-                              ))
-                            }
-                          </div>
-                        </td>
-                        {/* Action */}
-                        <td style={SEP}>
-                          <SignalBadge signal={signal} />
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* ── BLOQUE 5: Ad Sets ─────────────────────────────────────────── */}
-          <div style={CARD}>
-            <SectionHeader icon="🎯" title="Conjuntos de anuncios" sub="Tendencia 4 días + comparación por período" />
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', minWidth: '1400px', width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...THL, minWidth: '180px', position: 'sticky', left: 0, backgroundColor: '#13151F' }}>Conjunto</th>
-                    <th style={THL}>Campaña</th>
-                    <th style={{ ...TH, width: '30px' }}>●</th>
-                    <th style={{ ...TH, minWidth: '95px' }}>{formatDate(last4Dates[0])}</th>
-                    <th style={{ ...TH, minWidth: '95px' }}>{formatDate(last4Dates[1])}</th>
-                    <th style={{ ...TH, minWidth: '95px' }}>{formatDate(last4Dates[2])}</th>
-                    <th style={{ ...TH, minWidth: '95px', color: '#6366F1' }}>{formatDate(last4Dates[3])} ★</th>
-                    <th style={THSEP}>Gasto 7d</th>
-                    <th style={TH}>ROAS 7d</th>
-                    <th style={TH}>CPA 7d</th>
-                    <th style={TH}>vs -7d</th>
-                    <th style={THSEP}>Gasto 14d</th>
-                    <th style={TH}>ROAS 14d</th>
-                    <th style={TH}>vs -14d</th>
-                    <th style={THSEP}>Gasto 30d</th>
-                    <th style={TH}>ROAS 30d</th>
-                    <th style={TH}>CPA 30d</th>
-                    <th style={TH}>Ventas 30d</th>
-                    <th style={THSEP}>Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {asRows.map(({ as, days4, d7, d14, d30, prev7, prev14, signal, campObj }: any) => (
-                    <tr key={as.id} className="tr-hover" style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.45, borderLeft: `3px solid ${signal.color}30` }}>
-                      <td style={{ ...TDL, minWidth: '180px', position: 'sticky', left: 0, backgroundColor: '#1A1D27' }}>
-                        <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '175px', fontSize: '11px', fontWeight: 500 }}>{as.name}</span>
-                      </td>
-                      <td style={TDL}>
-                        <span style={{ color: '#94A3B8', fontSize: '10px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '130px' }}>{campObj?.name || '—'}</span>
-                      </td>
-                      <td style={{ ...TD, textAlign: 'center', fontSize: '8px' }}>
-                        <span style={{ color: as.status === 'ACTIVE' ? '#22C55E' : '#64748B' }}>●</span>
-                      </td>
-                      {days4.map((m: any, i: number) => <DayCell key={i} m={m} />)}
-                      <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d7 ? formatCurrency(d7.spend, currency) : '—'}</span></td>
-                      <td style={{ ...TD, color: roasColor(d7?.roas) }}>{d7?.roas ? `${d7.roas.toFixed(2)}x` : '—'}</td>
-                      <td style={{ ...TD, color: cpaColor(d7?.cpa) }}>{d7?.cpa ? formatCurrency(d7.cpa, currency) : '—'}</td>
-                      <PctCell curr={d7?.roas} prev={prev7?.roas} />
-                      <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d14 ? formatCurrency(d14.spend, currency) : '—'}</span></td>
-                      <td style={{ ...TD, color: roasColor(d14?.roas) }}>{d14?.roas ? `${d14.roas.toFixed(2)}x` : '—'}</td>
-                      <PctCell curr={d14?.roas} prev={prev14?.roas} />
-                      <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d30 ? formatCurrency(d30.spend, currency) : '—'}</span></td>
-                      <td style={{ ...TD, color: roasColor(d30?.roas) }}>{d30?.roas ? `${d30.roas.toFixed(2)}x` : '—'}</td>
-                      <td style={{ ...TD, color: cpaColor(d30?.cpa) }}>{d30?.cpa ? formatCurrency(d30.cpa, currency) : '—'}</td>
-                      <td style={{ ...TD, color: (d30?.purchases || 0) > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d30?.purchases || '—'}</td>
-                      <td style={SEP}><SignalBadge signal={signal} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* ── BLOQUE 6: Campañas ────────────────────────────────────────── */}
-          <div style={CARD}>
-            <SectionHeader icon="📣" title="Campañas" sub="Vista general — los detalles están en los anuncios y conjuntos" />
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', minWidth: '1200px', width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...THL, minWidth: '180px', position: 'sticky', left: 0, backgroundColor: '#13151F' }}>Campaña</th>
-                    <th style={{ ...TH, width: '30px' }}>●</th>
-                    <th style={{ ...TH, minWidth: '95px' }}>{formatDate(last4Dates[0])}</th>
-                    <th style={{ ...TH, minWidth: '95px' }}>{formatDate(last4Dates[1])}</th>
-                    <th style={{ ...TH, minWidth: '95px' }}>{formatDate(last4Dates[2])}</th>
-                    <th style={{ ...TH, minWidth: '95px', color: '#6366F1' }}>{formatDate(last4Dates[3])} ★</th>
-                    <th style={THSEP}>Gasto 7d</th>
-                    <th style={TH}>ROAS 7d</th>
-                    <th style={TH}>CPA 7d</th>
-                    <th style={TH}>Ventas 7d</th>
-                    <th style={TH}>vs -7d</th>
-                    <th style={THSEP}>Gasto 14d</th>
-                    <th style={TH}>ROAS 14d</th>
-                    <th style={TH}>vs -14d</th>
-                    <th style={THSEP}>Gasto 30d</th>
-                    <th style={TH}>ROAS 30d</th>
-                    <th style={TH}>CPA 30d</th>
-                    <th style={TH}>Ventas 30d</th>
-                    <th style={THSEP}>Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {campRows.map(({ camp, days4, d7, d14, d30, prev7, prev14, signal }: any) => (
-                    <tr key={camp.id} className="tr-hover" style={{ opacity: camp.status === 'ACTIVE' ? 1 : 0.45, borderLeft: `3px solid ${signal.color}30` }}>
-                      <td style={{ ...TDL, minWidth: '180px', position: 'sticky', left: 0, backgroundColor: '#1A1D27' }}>
-                        <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '175px', fontSize: '11px', fontWeight: 500 }}>{camp.name}</span>
-                      </td>
-                      <td style={{ ...TD, textAlign: 'center', fontSize: '8px' }}>
-                        <span style={{ color: camp.status === 'ACTIVE' ? '#22C55E' : '#64748B' }}>●</span>
-                      </td>
-                      {days4.map((m: any, i: number) => <DayCell key={i} m={m} />)}
-                      <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d7 ? formatCurrency(d7.spend, currency) : '—'}</span></td>
-                      <td style={{ ...TD, color: roasColor(d7?.roas) }}>{d7?.roas ? `${d7.roas.toFixed(2)}x` : '—'}</td>
-                      <td style={{ ...TD, color: cpaColor(d7?.cpa) }}>{d7?.cpa ? formatCurrency(d7.cpa, currency) : '—'}</td>
-                      <td style={{ ...TD, color: (d7?.purchases || 0) > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d7?.purchases || '—'}</td>
-                      <PctCell curr={d7?.roas} prev={prev7?.roas} />
-                      <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d14 ? formatCurrency(d14.spend, currency) : '—'}</span></td>
-                      <td style={{ ...TD, color: roasColor(d14?.roas) }}>{d14?.roas ? `${d14.roas.toFixed(2)}x` : '—'}</td>
-                      <PctCell curr={d14?.roas} prev={prev14?.roas} />
-                      <td style={SEP}><span style={{ color: '#F1F5F9' }}>{d30 ? formatCurrency(d30.spend, currency) : '—'}</span></td>
-                      <td style={{ ...TD, color: roasColor(d30?.roas) }}>{d30?.roas ? `${d30.roas.toFixed(2)}x` : '—'}</td>
-                      <td style={{ ...TD, color: cpaColor(d30?.cpa) }}>{d30?.cpa ? formatCurrency(d30.cpa, currency) : '—'}</td>
-                      <td style={{ ...TD, color: (d30?.purchases || 0) > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d30?.purchases || '—'}</td>
-                      <td style={SEP}><SignalBadge signal={signal} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <SectionHeader icon="🎯" title="Campaña → Conjunto → Anuncio" sub="Clic en campaña para ver conjuntos · clic en conjunto para ver anuncios · últimos 4 días + 7d" />
+            <DecisionTree campaigns={campTree} last4Labels={last4Labels} currency={currency} />
           </div>
 
           {/* ── BLOQUE 7: Leyenda ────────────────────────────────────────── */}
