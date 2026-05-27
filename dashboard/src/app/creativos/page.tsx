@@ -57,7 +57,7 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
   const prevStart = new Date(new Date(rangeStart + 'T12:00:00Z').getTime() - rangeDays * 86400000).toISOString().split('T')[0]
 
   const [adsRes, rangeM, prevM, accountRes] = await Promise.all([
-    supabaseAdmin.from('ads').select('*, ad_sets(name, campaign_id, campaigns(name))'),
+    supabaseAdmin.from('ads').select('*, ad_sets(name, status, campaign_id, campaigns(name, status))'),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').gte('date', rangeStart).lte('date', rangeEnd),
     supabaseAdmin.from('metrics').select('object_id,spend,purchases,purchase_value,impressions').eq('object_type', 'ad').gte('date', prevStart).lte('date', prevEnd),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
@@ -143,16 +143,22 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
 
   // ── Build rows ────────────────────────────────────────────────────────────
   const rows = (adsRes.data || []).map((ad: any) => {
+    const campActive = ad.ad_sets?.campaigns?.status === 'ACTIVE'
+    const asActive   = ad.ad_sets?.status === 'ACTIVE'
+    const adActive   = ad.status === 'ACTIVE'
+    // Si la campaña está apagada, todo está apagado.
+    // Si la campaña activa pero el conjunto apagado, el ad está apagado.
+    const effectiveActive = campActive && asActive && adActive
     const t = derive(rangeAgg.get(ad.id))
     const p = derivePrev(prevAgg.get(ad.id))
     const score = healthScore(t)
     const campName = ad.ad_sets?.campaigns?.name || ''
     const asName   = ad.ad_sets?.name || ''
-    return { ...ad, t, p, score, campName, asName }
-  }).filter((r: any) => r.t || r.status === 'ACTIVE')
+    return { ...ad, t, p, score, campName, asName, effectiveActive }
+  }).filter((r: any) => r.t || r.effectiveActive)
     .sort((a: any, b: any) => {
-      if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
-      if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
+      if (a.effectiveActive && !b.effectiveActive) return -1
+      if (b.effectiveActive && !a.effectiveActive) return 1
       return (b.t?.spend || 0) - (a.t?.spend || 0)
     })
 
@@ -185,7 +191,7 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
   }
 
   // ── Fatigue alerts ─────────────────────────────────────────────────────────
-  const fatigueAds = rows.filter((r: any) => r.t?.frequency && r.t.frequency >= 2.5 && r.status === 'ACTIVE')
+  const fatigueAds = rows.filter((r: any) => r.t?.frequency && r.t.frequency >= 2.5 && r.effectiveActive)
     .sort((a: any, b: any) => (b.t?.frequency || 0) - (a.t?.frequency || 0))
     .slice(0, 6)
 
@@ -266,101 +272,6 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
             {bestHook  && <ScoreCard icon="🎬" label="Mejor hook"   name={bestHook.name}  value={`${bestHook.t.hook_rate.toFixed(1)}%`}   valueColor={hkColor(bestHook.t.hook_rate)} />}
           </div>
 
-          {/* ── Tabla principal ───────────────────────────────────────────── */}
-          <div style={CARD}>
-            <SectionHeader icon="📊" title="Ranking de anuncios" sub="Todos los ads ordenados por gasto · semáforo automático · comparado vs período anterior" />
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '1300px' }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...THL, minWidth: '220px', position: 'sticky', left: 0, backgroundColor: '#13151F' }}>Anuncio</th>
-                    <th style={{ ...TH, width: '90px' }}>Estado</th>
-                    <th style={TH}>Gasto</th>
-                    <th style={TH}>ROAS</th>
-                    <th style={TH}>CPA</th>
-                    <th style={TH}>Ventas</th>
-                    <th style={TH}>CPM</th>
-                    <th style={TH}>CTR%</th>
-                    <th style={{ ...TH, borderLeft: '1px solid #2D3244' }}>Hook%</th>
-                    <th style={TH}>Hold%</th>
-                    <th style={TH}>ThruPlay</th>
-                    <th style={{ ...TH, borderLeft: '1px solid #2D3244' }}>Frec.</th>
-                    <th style={{ ...TH, borderLeft: '1px solid #2D3244' }}>vs ant.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Totales */}
-                  {totals && (
-                    <tr>
-                      <td style={{ ...TFL, position: 'sticky', left: 0 }}>Total / Promedio</td>
-                      <td style={TF}></td>
-                      <td style={TF}>{formatCurrency(totals.spend, currency)}</td>
-                      <td style={{ ...TF, color: roasColor(totals.roas) }}>{totals.roas ? `${totals.roas.toFixed(2)}x` : '—'}</td>
-                      <td style={{ ...TF, color: cpaColor(totals.cpa) }}>{totals.cpa ? formatCurrency(totals.cpa, currency) : '—'}</td>
-                      <td style={{ ...TF, color: totals.purchases > 0 ? G : M }}>{totals.purchases || '—'}</td>
-                      <td style={TF}>{totals.cpm ? formatCurrency(totals.cpm, currency) : '—'}</td>
-                      <td style={TF}>{totals.ctr ? `${totals.ctr.toFixed(2)}%` : '—'}</td>
-                      <td style={{ ...TF, borderLeft: '1px solid #2D3244', color: hkColor(totals.hook_rate) }}>{totals.hook_rate ? `${totals.hook_rate.toFixed(1)}%` : '—'}</td>
-                      <td style={{ ...TF, color: hlColor(totals.hold_rate) }}>{totals.hold_rate ? `${totals.hold_rate.toFixed(1)}%` : '—'}</td>
-                      <td style={{ ...TF, color: tpColor(totals.thruplay_rate) }}>{totals.thruplay_rate ? `${totals.thruplay_rate.toFixed(1)}%` : '—'}</td>
-                      <td style={{ ...TF, borderLeft: '1px solid #2D3244', color: freqColor(totals.frequency) }}>{totals.frequency ? totals.frequency.toFixed(1) : '—'}</td>
-                      <td style={{ ...TF, borderLeft: '1px solid #2D3244' }}>—</td>
-                    </tr>
-                  )}
-
-                  {rows.map((row: any) => {
-                    const t = row.t
-                    const p = row.p
-                    const roasPct = pctFmt(t?.roas, p?.roas)
-                    const cpaPct  = pctFmt(t?.cpa,  p?.cpa, true)
-                    const isActive = row.status === 'ACTIVE'
-                    return (
-                      <tr key={row.id} style={{ opacity: isActive ? 1 : 0.55, backgroundColor: 'transparent' }} className="tr-hover">
-                        <td style={{ ...TDL, position: 'sticky', left: 0, backgroundColor: '#1A1D27' }}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                            <span style={{ fontSize: '8px', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap', color: row.score.color, backgroundColor: row.score.bg, border: `1px solid ${row.score.border}`, marginTop: '1px', flexShrink: 0 }}>
-                              {row.score.label}
-                            </span>
-                            <div>
-                              <div style={{ color: TEXT, fontSize: '11px', fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{row.name}</div>
-                              <div style={{ color: M, fontSize: '9px', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{row.campName}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ ...TD, textAlign: 'center' as const }}>
-                          <span style={{ fontSize: '9px', color: isActive ? G : M, fontWeight: 600 }}>
-                            {isActive ? '● Activo' : '⏸ Pausado'}
-                          </span>
-                        </td>
-                        <td style={{ ...TD, color: TEXT, fontWeight: 600 }}>{t ? formatCurrency(t.spend, currency) : '—'}</td>
-                        <td style={{ ...TD, color: roasColor(t?.roas ?? null) }}>{t?.roas ? `${t.roas.toFixed(2)}x` : '—'}</td>
-                        <td style={{ ...TD, color: cpaColor(t?.cpa ?? null), fontWeight: 600 }}>{t?.cpa ? formatCurrency(t.cpa, currency) : t?.spend ? <span style={{ color: R }}>Sin ventas</span> : '—'}</td>
-                        <td style={{ ...TD, color: (t?.purchases || 0) > 0 ? G : M, fontWeight: 600 }}>{t?.purchases || '—'}</td>
-                        <td style={{ ...TD, color: M }}>{t?.cpm ? formatCurrency(t.cpm, currency) : '—'}</td>
-                        <td style={{ ...TD, color: M }}>{t?.ctr ? `${t.ctr.toFixed(2)}%` : '—'}</td>
-                        <td style={{ ...TD, borderLeft: '1px solid #2D3244', color: hkColor(t?.hook_rate ?? null) }}>{t?.hook_rate ? `${t.hook_rate.toFixed(1)}%` : '—'}</td>
-                        <td style={{ ...TD, color: hlColor(t?.hold_rate ?? null) }}>{t?.hold_rate ? `${t.hold_rate.toFixed(1)}%` : '—'}</td>
-                        <td style={{ ...TD, color: tpColor(t?.thruplay_rate ?? null) }}>{t?.thruplay_rate ? `${t.thruplay_rate.toFixed(1)}%` : '—'}</td>
-                        <td style={{ ...TD, borderLeft: '1px solid #2D3244', color: freqColor(t?.frequency ?? null), fontWeight: (t?.frequency || 0) > 3 ? 700 : 400 }}>
-                          {t?.frequency ? t.frequency.toFixed(1) : '—'}
-                          {(t?.frequency || 0) > 3.5 && <span style={{ color: R, fontSize: '8px', marginLeft: '2px' }}>▲</span>}
-                        </td>
-                        <td style={{ ...TD, borderLeft: '1px solid #2D3244' }}>
-                          {p ? (
-                            <div>
-                              <div style={{ color: roasPct.color, fontSize: '10px', fontWeight: 600 }}>{roasPct.text} ROAS</div>
-                              <div style={{ color: cpaPct.color, fontSize: '10px' }}>{cpaPct.text} CPA</div>
-                            </div>
-                          ) : <span style={{ color: M }}>—</span>}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           {/* ── Embudo de conversión ──────────────────────────────────────── */}
           {topFunnel.length > 0 && (
             <div style={CARD}>
@@ -412,7 +323,6 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
                         {steps.map((s, i) => (
                           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
                             {s.pctW === 0 ? (
-                              /* Video avg: sin barra, solo muestra el valor */
                               <div style={{ width: '100%', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1A1D2760', borderRadius: '3px', border: '1px dashed #2D3244' }}>
                                 <span style={{ fontSize: '14px', fontWeight: 800, color: s.color }}>{s.value || '—'}</span>
                               </div>
@@ -433,6 +343,102 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
               </div>
             </div>
           )}
+
+          {/* ── Tabla principal ───────────────────────────────────────────── */}
+          <div style={CARD}>
+            <SectionHeader icon="📊" title="Ranking de anuncios" sub="Todos los ads ordenados por gasto · semáforo automático · comparado vs período anterior" />
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '1300px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...THL, minWidth: '220px', position: 'sticky', left: 0, backgroundColor: '#13151F' }}>Anuncio</th>
+                    <th style={{ ...TH, width: '90px' }}>Estado</th>
+                    <th style={TH}>Gasto</th>
+                    <th style={TH}>ROAS</th>
+                    <th style={TH}>CPA</th>
+                    <th style={TH}>Ventas</th>
+                    <th style={TH}>CPM</th>
+                    <th style={TH}>CTR%</th>
+                    <th style={{ ...TH, borderLeft: '1px solid #2D3244' }}>Hook%</th>
+                    <th style={TH}>Hold%</th>
+                    <th style={TH}>ThruPlay</th>
+                    <th style={{ ...TH, borderLeft: '1px solid #2D3244' }}>Frec.</th>
+                    <th style={{ ...TH, borderLeft: '1px solid #2D3244' }}>vs ant.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Totales */}
+                  {totals && (
+                    <tr>
+                      <td style={{ ...TFL, position: 'sticky', left: 0 }}>Total / Promedio</td>
+                      <td style={TF}></td>
+                      <td style={TF}>{formatCurrency(totals.spend, currency)}</td>
+                      <td style={{ ...TF, color: roasColor(totals.roas) }}>{totals.roas ? `${totals.roas.toFixed(2)}x` : '—'}</td>
+                      <td style={{ ...TF, color: cpaColor(totals.cpa) }}>{totals.cpa ? formatCurrency(totals.cpa, currency) : '—'}</td>
+                      <td style={{ ...TF, color: totals.purchases > 0 ? G : M }}>{totals.purchases || '—'}</td>
+                      <td style={TF}>{totals.cpm ? formatCurrency(totals.cpm, currency) : '—'}</td>
+                      <td style={TF}>{totals.ctr ? `${totals.ctr.toFixed(2)}%` : '—'}</td>
+                      <td style={{ ...TF, borderLeft: '1px solid #2D3244', color: hkColor(totals.hook_rate) }}>{totals.hook_rate ? `${totals.hook_rate.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...TF, color: hlColor(totals.hold_rate) }}>{totals.hold_rate ? `${totals.hold_rate.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...TF, color: tpColor(totals.thruplay_rate) }}>{totals.thruplay_rate ? `${totals.thruplay_rate.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...TF, borderLeft: '1px solid #2D3244', color: freqColor(totals.frequency) }}>{totals.frequency ? totals.frequency.toFixed(1) : '—'}</td>
+                      <td style={{ ...TF, borderLeft: '1px solid #2D3244' }}>—</td>
+                    </tr>
+                  )}
+
+                  {rows.map((row: any) => {
+                    const t = row.t
+                    const p = row.p
+                    const roasPct = pctFmt(t?.roas, p?.roas)
+                    const cpaPct  = pctFmt(t?.cpa,  p?.cpa, true)
+                    const isActive = row.effectiveActive
+                    return (
+                      <tr key={row.id} style={{ opacity: isActive ? 1 : 0.55, backgroundColor: 'transparent' }} className="tr-hover">
+                        <td style={{ ...TDL, position: 'sticky', left: 0, backgroundColor: '#1A1D27' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            <span style={{ fontSize: '8px', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, whiteSpace: 'nowrap', color: row.score.color, backgroundColor: row.score.bg, border: `1px solid ${row.score.border}`, marginTop: '1px', flexShrink: 0 }}>
+                              {row.score.label}
+                            </span>
+                            <div>
+                              <div style={{ color: TEXT, fontSize: '11px', fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{row.name}</div>
+                              <div style={{ color: M, fontSize: '9px', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{row.campName}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ ...TD, textAlign: 'center' as const }}>
+                          <span style={{ fontSize: '9px', color: isActive ? G : M, fontWeight: 600 }}>
+                            {isActive ? '● Activo' : '⏸ Pausado'}
+                          </span>
+                        </td>
+                        <td style={{ ...TD, color: TEXT, fontWeight: 600 }}>{t ? formatCurrency(t.spend, currency) : '—'}</td>
+                        <td style={{ ...TD, color: roasColor(t?.roas ?? null) }}>{t?.roas ? `${t.roas.toFixed(2)}x` : '—'}</td>
+                        <td style={{ ...TD, color: cpaColor(t?.cpa ?? null), fontWeight: 600 }}>{t?.cpa ? formatCurrency(t.cpa, currency) : t?.spend ? <span style={{ color: R }}>Sin ventas</span> : '—'}</td>
+                        <td style={{ ...TD, color: (t?.purchases || 0) > 0 ? G : M, fontWeight: 600 }}>{t?.purchases || '—'}</td>
+                        <td style={{ ...TD, color: M }}>{t?.cpm ? formatCurrency(t.cpm, currency) : '—'}</td>
+                        <td style={{ ...TD, color: M }}>{t?.ctr ? `${t.ctr.toFixed(2)}%` : '—'}</td>
+                        <td style={{ ...TD, borderLeft: '1px solid #2D3244', color: hkColor(t?.hook_rate ?? null) }}>{t?.hook_rate ? `${t.hook_rate.toFixed(1)}%` : '—'}</td>
+                        <td style={{ ...TD, color: hlColor(t?.hold_rate ?? null) }}>{t?.hold_rate ? `${t.hold_rate.toFixed(1)}%` : '—'}</td>
+                        <td style={{ ...TD, color: tpColor(t?.thruplay_rate ?? null) }}>{t?.thruplay_rate ? `${t.thruplay_rate.toFixed(1)}%` : '—'}</td>
+                        <td style={{ ...TD, borderLeft: '1px solid #2D3244', color: freqColor(t?.frequency ?? null), fontWeight: (t?.frequency || 0) > 3 ? 700 : 400 }}>
+                          {t?.frequency ? t.frequency.toFixed(1) : '—'}
+                          {(t?.frequency || 0) > 3.5 && <span style={{ color: R, fontSize: '8px', marginLeft: '2px' }}>▲</span>}
+                        </td>
+                        <td style={{ ...TD, borderLeft: '1px solid #2D3244' }}>
+                          {p ? (
+                            <div>
+                              <div style={{ color: roasPct.color, fontSize: '10px', fontWeight: 600 }}>{roasPct.text} ROAS</div>
+                              <div style={{ color: cpaPct.color, fontSize: '10px' }}>{cpaPct.text} CPA</div>
+                            </div>
+                          ) : <span style={{ color: M }}>—</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
 
           {/* ── Detector de fatiga ────────────────────────────────────────── */}
           {fatigueAds.length > 0 && (
