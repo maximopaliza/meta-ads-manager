@@ -263,11 +263,12 @@ export default async function DiagnosticoPage({
     const d = dPct(a, b)
     const dc = d !== null ? dColor(d, invert) : M
     const aColor = colorFn ? colorFn(a) : (a != null ? TEXT : M)
+    const bColor = colorFn ? colorFn(b) : (b != null ? TEXT : M)
     return (
       <tr>
         <td style={{ ...tdBase, textAlign: 'left' as const, color: M, fontSize: 10 }}>{label}</td>
         <td style={{ ...tdBase, color: aColor, fontWeight: 600 }}>{a != null ? fmtFn(a, currency) : '—'}</td>
-        <td style={{ ...tdBase, color: M }}>{b != null ? fmtFn(b, currency) : '—'}</td>
+        <td style={{ ...tdBase, color: bColor, fontWeight: 500 }}>{b != null ? fmtFn(b, currency) : '—'}</td>
         <td style={{ ...tdBase, color: dc, fontWeight: 600 }}>{d !== null ? fmtD(d) : '—'}</td>
       </tr>
     )
@@ -333,14 +334,17 @@ export default async function DiagnosticoPage({
             </div>
           </div>
 
-          {/* ── Cuenta — KPIs + Diagnóstico ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+          {/* ── Cuenta — KPIs + Diagnóstico (apilados verticalmente) ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
             {/* Métricas cuenta */}
             <div style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{ padding: '8px 14px', borderBottom: `1px solid ${BORDER}`, backgroundColor: '#151820' }}>
+              <div style={{ padding: '8px 14px', borderBottom: `1px solid ${BORDER}`, backgroundColor: '#151820', display: 'flex', alignItems: 'center', gap: 16 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: TEXT }}>📊 Cuenta — todas las campañas</span>
+                <span style={{ fontSize: 11, color: aIsBetter ? G : R, fontWeight: 600 }}>
+                  {aIsBetter ? '🔴' : '🟢'} {aIsBetter ? labelA : labelB} mejor día
+                </span>
               </div>
-              <div style={{ padding: 14 }}>
+              <div style={{ padding: 14, overflowX: 'auto' }}>
                 <MetricsTable a={accA} b={accB} />
               </div>
             </div>
@@ -350,7 +354,7 @@ export default async function DiagnosticoPage({
               <div style={{ padding: '8px 14px', borderBottom: `1px solid ${BORDER}`, backgroundColor: '#151820' }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: TEXT }}>🔍 ¿Qué causó la diferencia?</span>
               </div>
-              <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {findings.map((f, i) => (
                   <div key={i} style={{ padding: '10px 12px', backgroundColor: '#0F1117', borderRadius: 8, borderLeft: `3px solid ${f.color}` }}>
                     <span style={{ fontSize: 16, marginRight: 8 }}>{f.icon}</span>

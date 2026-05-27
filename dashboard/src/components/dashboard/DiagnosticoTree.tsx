@@ -60,11 +60,12 @@ function MetricsTable({ a, b, currency, labelA, labelB, aIsBetter }: {
     const d  = dPct(av, bv)
     const dc = d !== null ? dColor(d, invert) : M
     const ac = colorFn ? colorFn(av ?? null) : (av != null ? TEXT : M)
+    const bc = colorFn ? colorFn(bv ?? null) : (bv != null ? TEXT : M)
     return (
       <tr>
         <td style={{ ...TD, textAlign: 'left' as const, color: M, fontSize: 10 }}>{label}</td>
         <td style={{ ...TD, color: ac, fontWeight: 600 }}>{av != null ? fmt(av) : '—'}</td>
-        <td style={{ ...TD, color: M }}>{bv != null ? fmt(bv) : '—'}</td>
+        <td style={{ ...TD, color: bc, fontWeight: 500 }}>{bv != null ? fmt(bv) : '—'}</td>
         <td style={{ ...TD, color: dc, fontWeight: 600 }}>{fmtD(d)}</td>
       </tr>
     )
