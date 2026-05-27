@@ -16,14 +16,17 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
 
-  const [campaigns, yesterdayM, rangeM, accountRes] = await Promise.all([
+  const [campaigns, todayM, yesterdayM, rangeM, accountRes] = await Promise.all([
     supabaseAdmin.from('campaigns').select('*'),
-    supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').eq('date', yesterday),
+    supabaseAdmin.from('metrics').select('object_id,spend').eq('object_type', 'campaign').eq('date', today),
+    supabaseAdmin.from('metrics').select('object_id,roas').eq('object_type', 'campaign').eq('date', yesterday),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', rangeStart).lte('date', rangeEnd),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
   ])
 
   const currency = accountRes.data?.[0]?.currency || 'USD'
+  // todaySpend: para ordenar siempre por gasto de HOY, sin importar el período
+  const todaySpend = new Map((todayM.data || []).map((m: any) => [m.object_id, m.spend || 0]))
   const yesterdayMap = new Map((yesterdayM.data || []).map((m: any) => [m.object_id, m]))
 
   // Agregar TODOS los campos del período seleccionado
@@ -88,7 +91,8 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
   }).sort((a: any, b: any) => {
     if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
     if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
-    return b.t.spend - a.t.spend
+    // Orden por gasto de HOY (estable, no cambia con el período)
+    return (todaySpend.get(b.id) ?? 0) - (todaySpend.get(a.id) ?? 0)
   })
 
   const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#64748B', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
