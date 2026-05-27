@@ -416,7 +416,7 @@ async def drive_confirm_all(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             ads_spec = []
             for v, copy in zip(g["videos"], cfg["copies"]):
                 ads_spec.append({
-                    "ad_name": f"{g['angle']} — {v['file_name'][:30]}",
+                    "ad_name": v["file_name"],
                     "primary_text": copy.get("primary_text", ""),
                     "headline": copy.get("headline", ""),
                     "cta": copy.get("cta", "SHOP_NOW"),
