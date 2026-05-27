@@ -250,6 +250,20 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
     return { date: d, quality: dayQuality(a), spend: a.spend, purchases: a.purchases, cpa: a.cpa, roas: a.roas }
   })
 
+  // Build month calendar groups
+  const monthGroups: { key: string; label: string; days: typeof accountDays }[] = []
+  const seenMonths = new Set<string>()
+  for (const d of accountDays) {
+    const key = d.date.slice(0, 7)
+    if (!seenMonths.has(key)) {
+      seenMonths.add(key)
+      const dt = new Date(d.date + 'T12:00:00Z')
+      const label = dt.toLocaleDateString('es-AR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+      monthGroups.push({ key, label, days: [] })
+    }
+    monthGroups[monthGroups.length - 1].days.push(d)
+  }
+
   const goodDays = accountDays.filter(d => d.quality === 'good')
   const okDays   = accountDays.filter(d => d.quality === 'ok')
   const badDays  = accountDays.filter(d => d.quality === 'bad')
@@ -478,49 +492,88 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
             ))}
           </div>
 
-          {/* ── BLOQUE 2: Calendario heatmap ─────────────────────────────── */}
+          {/* ── BLOQUE 2: Calendario mensual completo ────────────────────── */}
           <div style={CARD}>
-            <SectionHeader icon="📅" title={`Calendario — ${histLabel}`} sub="Verde = CPA≤$7 · Amarillo = 1 venta o CPA≤$15 · Rojo = sin ventas · Hover para detalles" />
-            <div style={{ padding: '16px 20px 12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${calCols}, 1fr)`, gap: '5px' }}>
-                {accountDays.map(d => {
-                  const label = new Date(d.date + 'T12:00:00Z').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })
+            <SectionHeader icon="📅" title={`Calendario — ${histLabel}`} sub="Ventas y CPA por día · 🟢 CPA≤$7 · 🟡 ≤$15 · 🔴 sin ventas con gasto" />
+            <div style={{ padding: '16px 20px 16px' }}>
+              {/* Leyenda */}
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '18px', fontSize: '11px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {[
+                  { label: `${goodDays.length} buenos`, color: '#22C55E', bg: qBg.good, border: qBorder.good },
+                  { label: `${okDays.length} regulares`, color: '#F59E0B', bg: qBg.ok, border: qBorder.ok },
+                  { label: `${badDays.length} malos`, color: '#EF4444', bg: qBg.bad, border: qBorder.bad },
+                ].map(s => (
+                  <span key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: s.bg, border: `1px solid ${s.border}`, display: 'inline-block' }} />
+                    <span style={{ color: s.color, fontWeight: 600 }}>{s.label}</span>
+                  </span>
+                ))}
+                <span style={{ color: '#64748B', fontSize: '10px', marginLeft: 'auto' }}>Número grande = ventas · debajo = CPA · gris = sin datos</span>
+              </div>
+
+              {/* Meses */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+                {monthGroups.map(({ key, label, days }) => {
+                  // Posición inicial: lunes=0 ... domingo=6
+                  const firstDow = (new Date(days[0].date + 'T12:00:00Z').getUTCDay() + 6) % 7
+                  const cells: (typeof accountDays[0] | null)[] = Array(firstDow).fill(null).concat(days as any)
+                  while (cells.length % 7 !== 0) cells.push(null)
+                  const weeks: (typeof accountDays[0] | null)[][] = []
+                  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
+
                   return (
-                    <div
-                      key={d.date}
-                      className="day-cell"
-                      title={`${d.date}  |  Gasto: ${formatCurrency(d.spend, currency)}  |  Ventas: ${d.purchases}  |  CPA: ${d.cpa ? formatCurrency(d.cpa, currency) : '—'}  |  ROAS: ${d.roas ? `${d.roas.toFixed(2)}x` : '—'}`}
-                      style={{
-                        backgroundColor: qBg[d.quality],
-                        border: `1px solid ${qBorder[d.quality]}`,
-                        borderRadius: '7px',
-                        padding: '7px 6px',
-                        textAlign: 'center',
-                      }}
-                    >
-                      <div style={{ fontSize: '9px', color: '#64748B', marginBottom: '3px', fontWeight: 500 }}>{label}</div>
-                      <div style={{ fontSize: '15px', fontWeight: 800, color: qColor[d.quality], lineHeight: 1 }}>{d.purchases}</div>
-                      <div style={{ fontSize: '9px', color: qColor[d.quality], marginTop: '2px', opacity: 0.8 }}>
-                        {d.roas ? `${d.roas.toFixed(1)}x` : d.spend > 0 ? '0x' : '·'}
+                    <div key={key}>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', marginBottom: '8px', textTransform: 'capitalize', letterSpacing: '0.02em' }}>
+                        {label}
                       </div>
+                      <table style={{ borderCollapse: 'separate', borderSpacing: '3px', width: '100%' }}>
+                        <thead>
+                          <tr>
+                            {['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map(d => (
+                              <th key={d} style={{ fontSize: '9px', color: '#64748B', fontWeight: 600, textAlign: 'center', padding: '2px 0', width: '14.28%' }}>{d}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {weeks.map((week, wi) => (
+                            <tr key={wi}>
+                              {week.map((day, di) => {
+                                if (!day) return <td key={di} style={{ padding: '0' }} />
+                                const dayNum = new Date(day.date + 'T12:00:00Z').getUTCDate()
+                                const isSunday = di === 6
+                                return (
+                                  <td
+                                    key={di}
+                                    title={`${day.date} · Gasto: ${formatCurrency(day.spend, currency)} · Ventas: ${day.purchases} · CPA: ${day.cpa ? formatCurrency(day.cpa, currency) : '—'} · ROAS: ${day.roas ? `${day.roas.toFixed(2)}x` : '—'}`}
+                                    style={{
+                                      backgroundColor: qBg[day.quality],
+                                      border: `1px solid ${qBorder[day.quality]}`,
+                                      borderRadius: '6px',
+                                      padding: '4px 2px 5px',
+                                      textAlign: 'center',
+                                      verticalAlign: 'top',
+                                      minWidth: '36px',
+                                    }}
+                                  >
+                                    <div style={{ fontSize: '8px', color: isSunday ? '#F59E0B60' : '#64748B60', lineHeight: 1, marginBottom: '2px' }}>
+                                      {dayNum}
+                                    </div>
+                                    <div style={{ fontSize: '18px', fontWeight: 800, color: qColor[day.quality], lineHeight: 1 }}>
+                                      {day.quality === 'empty' ? <span style={{ fontSize: '10px', color: '#2D3244' }}>·</span> : day.purchases}
+                                    </div>
+                                    <div style={{ fontSize: '8px', marginTop: '2px', color: day.cpa ? cpaColor(day.cpa) : '#2D3244', fontWeight: 600 }}>
+                                      {day.cpa ? formatCurrency(day.cpa, currency) : day.spend > 1 ? <span style={{ color: '#EF4444' }}>$∞</span> : ''}
+                                    </div>
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )
                 })}
-              </div>
-              <div style={{ display: 'flex', gap: '20px', marginTop: '14px', fontSize: '11px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: qBg.good, border: `1px solid ${qBorder.good}`, display: 'inline-block' }} />
-                  <span style={{ color: '#22C55E', fontWeight: 600 }}>{goodDays.length} buenos</span>
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: qBg.ok, border: `1px solid ${qBorder.ok}`, display: 'inline-block' }} />
-                  <span style={{ color: '#F59E0B', fontWeight: 600 }}>{okDays.length} regulares</span>
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: qBg.bad, border: `1px solid ${qBorder.bad}`, display: 'inline-block' }} />
-                  <span style={{ color: '#EF4444', fontWeight: 600 }}>{badDays.length} malos</span>
-                </span>
-                <span style={{ color: '#64748B', marginLeft: 'auto', fontSize: '10px' }}>Hover para ver detalle</span>
               </div>
             </div>
           </div>
