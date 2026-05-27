@@ -22,12 +22,16 @@ export default function RangeSelector() {
   const currentTo = params.get('to')
   const isCustom = !!(currentFrom && currentTo)
 
-  const [showCustom, setShowCustom] = useState(isCustom)
+  const isSingleDay = !!(currentFrom && currentTo && currentFrom === currentTo)
+  const [showCustom, setShowCustom] = useState(isCustom && !isSingleDay)
+  const [showDay, setShowDay] = useState(isSingleDay)
   const [from, setFrom] = useState(currentFrom || '')
   const [to, setTo] = useState(currentTo || '')
+  const [singleDay, setSingleDay] = useState(isSingleDay ? currentFrom! : '')
 
   const selectPreset = (days: number) => {
     setShowCustom(false)
+    setShowDay(false)
     const p = new URLSearchParams()
     p.set('days', String(days))
     router.push(`${pathname}?${p.toString()}`)
@@ -38,6 +42,14 @@ export default function RangeSelector() {
     const p = new URLSearchParams()
     p.set('from', from)
     p.set('to', to)
+    router.push(`${pathname}?${p.toString()}`)
+  }
+
+  const applySingleDay = () => {
+    if (!singleDay) return
+    const p = new URLSearchParams()
+    p.set('from', singleDay)
+    p.set('to', singleDay)
     router.push(`${pathname}?${p.toString()}`)
   }
 
@@ -78,9 +90,9 @@ export default function RangeSelector() {
           </button>
         ))}
 
-        {/* Custom toggle */}
+        {/* Single day toggle */}
         <button
-          onClick={() => setShowCustom(v => !v)}
+          onClick={() => { setShowDay(v => !v); setShowCustom(false) }}
           style={{
             padding: '5px 14px',
             borderRadius: '6px',
@@ -88,17 +100,64 @@ export default function RangeSelector() {
             cursor: 'pointer',
             fontSize: '12px',
             fontWeight: 600,
-            backgroundColor: isCustom || showCustom ? '#6366F1' : 'transparent',
-            color: isCustom || showCustom ? '#fff' : '#64748B',
+            backgroundColor: isSingleDay || (showDay && !showCustom) ? '#6366F1' : 'transparent',
+            color: isSingleDay || (showDay && !showCustom) ? '#fff' : '#64748B',
             transition: 'all 0.15s',
           }}
         >
-          Personalizado
+          Día
+        </button>
+
+        {/* Custom range toggle */}
+        <button
+          onClick={() => { setShowCustom(v => !v); setShowDay(false) }}
+          style={{
+            padding: '5px 14px',
+            borderRadius: '6px',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: 600,
+            backgroundColor: (isCustom && !isSingleDay) || (showCustom && !showDay) ? '#6366F1' : 'transparent',
+            color: (isCustom && !isSingleDay) || (showCustom && !showDay) ? '#fff' : '#64748B',
+            transition: 'all 0.15s',
+          }}
+        >
+          Rango
         </button>
       </div>
 
-      {/* Custom date inputs */}
-      {showCustom && (
+      {/* Single day input */}
+      {showDay && !showCustom && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '8px', padding: '6px 10px' }}>
+          <span style={{ fontSize: '11px', color: '#64748B' }}>Día</span>
+          <input
+            type="date"
+            value={singleDay}
+            onChange={e => setSingleDay(e.target.value)}
+            style={inputStyle}
+          />
+          <button
+            onClick={applySingleDay}
+            disabled={!singleDay}
+            style={{
+              padding: '5px 12px',
+              borderRadius: '6px',
+              border: 'none',
+              cursor: singleDay ? 'pointer' : 'not-allowed',
+              fontSize: '12px',
+              fontWeight: 600,
+              backgroundColor: singleDay ? '#6366F1' : '#2D3244',
+              color: singleDay ? '#fff' : '#64748B',
+            }}
+          >
+            Ir
+          </button>
+        </div>
+      )}
+
+      {/* Custom date range inputs */}
+      {showCustom && !showDay && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '8px', padding: '6px 10px' }}>
           <span style={{ fontSize: '11px', color: '#64748B' }}>Desde</span>
           <input

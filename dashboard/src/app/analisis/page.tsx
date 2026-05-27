@@ -2,11 +2,12 @@ import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
-import Link from 'next/link'
 import { formatCurrency, formatNumber, formatDate } from '@/lib/utils'
 import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 import RangeSelector from '@/components/dashboard/RangeSelector'
 import TrendCharts from '@/components/dashboard/TrendCharts'
+import CollapsibleCampaignTree from '@/components/dashboard/CollapsibleCampaignTree'
+import type { TreeCampaign, TreeAdSet, TreeAd } from '@/components/dashboard/CollapsibleCampaignTree'
 
 // ─── Color helpers ───────────────────────────────────────────────────────────
 const C_GREEN  = '#22C55E'
@@ -88,9 +89,10 @@ function derive(d: any) {
     roas:    d.spend > 0       ? d.purchase_value / d.spend : null,
     ctr:     d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null,
     cpm:     d.impressions > 0 ? d.spend / d.impressions * 1000 : null,
-    cpc:     lc > 0            ? d.spend / lc : null,
-    trafEf:  lc > 0 && d.landing_page_views > 0 ? d.landing_page_views / lc * 100 : null,
-    convWeb: d.landing_page_views > 0 && d.purchases > 0 ? d.purchases / d.landing_page_views * 100 : null,
+    cpc:          lc > 0                ? d.spend / lc : null,
+    trafEf:       lc > 0 && d.landing_page_views > 0 ? d.landing_page_views / lc * 100 : null,
+    convWeb:      d.landing_page_views > 0 && d.purchases > 0 ? d.purchases / d.landing_page_views * 100 : null,
+    cost_per_atc: d.add_to_cart > 0    ? d.spend / d.add_to_cart : null,
   }
 }
 
@@ -118,7 +120,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const week2Start = new Date(todayMs - 13 * 86400000).toISOString().split('T')[0]
   const week2End   = new Date(todayMs - 7  * 86400000).toISOString().split('T')[0]
 
-  const [mToday, mWeek1, mWeek2, mRange, campaignsRes, accountRes, dayAnalysisRes, alertsRes, adSetsRes, mRangeAdSet] = await Promise.all([
+  const [mToday, mWeek1, mWeek2, mRange, campaignsRes, accountRes, dayAnalysisRes, alertsRes, adSetsRes, mRangeAdSet, mRangeAd, adsMetaRes] = await Promise.all([
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').eq('date', today),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', week1Start).lte('date', today),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'campaign').gte('date', week2Start).lte('date', week2End),
@@ -128,7 +130,9 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     supabaseAdmin.from('alerts').select('*').eq('type', 'day_analysis').order('created_at', { ascending: false }).limit(3),
     supabaseAdmin.from('alerts').select('*').neq('type', 'day_analysis').order('created_at', { ascending: false }).limit(10),
     supabaseAdmin.from('ad_sets').select('id,name,status,campaign_id'),
-    supabaseAdmin.from('metrics').select('object_id,spend,purchases,purchase_value,impressions,hook_rate,date').eq('object_type', 'ad_set').gte('date', rangeStart).lte('date', rangeEnd),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad_set').gte('date', rangeStart).lte('date', rangeEnd),
+    supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').gte('date', rangeStart).lte('date', rangeEnd),
+    supabaseAdmin.from('ads').select('id,name,status,ad_set_id'),
   ])
 
   const currency = accountRes.data?.[0]?.currency || 'USD'
@@ -145,7 +149,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       spend: 0, purchases: 0, purchase_value: 0, impressions: 0,
       link_clicks: 0, unique_link_clicks: 0, reach: 0,
       landing_page_views: 0, add_to_cart: 0, checkout_initiated: 0,
-      hook_rate_w: 0, frequency_w: 0,
+      hook_rate_w: 0, frequency_w: 0, video_avg_w: 0,
     }
     dayMapAcc.set(m.date, {
       spend:              e.spend              + (m.spend              || 0),
@@ -158,8 +162,9 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       landing_page_views: e.landing_page_views + (m.landing_page_views || 0),
       add_to_cart:        e.add_to_cart        + (m.add_to_cart        || 0),
       checkout_initiated: e.checkout_initiated + (m.checkout_initiated || 0),
-      hook_rate_w:        e.hook_rate_w        + ((m.hook_rate   || 0) * (m.impressions || 0)),
-      frequency_w:        e.frequency_w        + ((m.frequency   || 0) * (m.impressions || 0)),
+      hook_rate_w:        e.hook_rate_w        + ((m.hook_rate              || 0) * (m.impressions || 0)),
+      frequency_w:        e.frequency_w        + ((m.frequency              || 0) * (m.impressions || 0)),
+      video_avg_w:        e.video_avg_w        + ((m.video_avg_time_watched || 0) * (m.impressions || 0)),
     })
   }
 
@@ -169,11 +174,12 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       ...d,
       hook_rate: d.impressions > 0 ? d.hook_rate_w / d.impressions : null,
       frequency: d.impressions > 0 ? d.frequency_w / d.impressions : null,
+      video_avg_time_watched: d.impressions > 0 ? d.video_avg_w / d.impressions : null,
     }))
     .sort((a, b) => b.date.localeCompare(a.date)) // newest first (for TrendCharts)
 
-  // last 4 days ascending = oldest→newest (for prev-day comparison)
-  const last4Asc = dailyRows.slice(0, 4).reverse()
+  // last 5 days ascending = oldest→newest (for prev-day comparison)
+  const last5Asc = dailyRows.slice(0, 5).reverse()
 
   // ── Per-campaign per-day data ─────────────────────────────────────────────
   const campDayMap = new Map<string, Map<string, any>>()
@@ -184,7 +190,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       spend: 0, purchases: 0, purchase_value: 0, impressions: 0,
       link_clicks: 0, unique_link_clicks: 0, reach: 0,
       landing_page_views: 0, add_to_cart: 0, checkout_initiated: 0,
-      hook_rate_w: 0, frequency_w: 0,
+      hook_rate_w: 0, frequency_w: 0, video_avg_w: 0,
     }
     dm.set(m.date, {
       spend:              e.spend              + (m.spend              || 0),
@@ -197,8 +203,9 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       landing_page_views: e.landing_page_views + (m.landing_page_views || 0),
       add_to_cart:        e.add_to_cart        + (m.add_to_cart        || 0),
       checkout_initiated: e.checkout_initiated + (m.checkout_initiated || 0),
-      hook_rate_w:        e.hook_rate_w        + ((m.hook_rate   || 0) * (m.impressions || 0)),
-      frequency_w:        e.frequency_w        + ((m.frequency   || 0) * (m.impressions || 0)),
+      hook_rate_w:        e.hook_rate_w        + ((m.hook_rate              || 0) * (m.impressions || 0)),
+      frequency_w:        e.frequency_w        + ((m.frequency              || 0) * (m.impressions || 0)),
+      video_avg_w:        e.video_avg_w        + ((m.video_avg_time_watched || 0) * (m.impressions || 0)),
     })
   }
 
@@ -211,18 +218,15 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           ...d,
           hook_rate: d.impressions > 0 ? d.hook_rate_w / d.impressions : null,
           frequency: d.impressions > 0 ? d.frequency_w / d.impressions : null,
+          video_avg_time_watched: d.impressions > 0 ? d.video_avg_w / d.impressions : null,
         }))
         .sort((a, b) => a.date.localeCompare(b.date))
-        .slice(-4)
+        .slice(-5)
       const totalSpend = campDays.reduce((s, d) => s + d.spend, 0)
       return { id, name: meta?.name || id, status: meta?.status || 'UNKNOWN', days: campDays, totalSpend }
     })
     .filter(c => c.totalSpend > 0)
     .sort((a, b) => b.totalSpend - a.totalSpend)
-
-  // Active vs paused split
-  const activeCampCards   = campaignCards.filter(c => c.status === 'ACTIVE')
-  const pausedCampCards   = campaignCards.filter(c => c.status !== 'ACTIVE')
 
   // ── Ad set summaries per campaign ─────────────────────────────────────────
   const adSetMeta = new Map((adSetsRes.data || []).map((s: any) => [s.id, s]))
@@ -266,6 +270,98 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   for (const [, sets] of adSetsByCamp.entries()) {
     sets.sort((a, b) => b.spend - a.spend)
   }
+
+  // ── Per-ad-set per-day data (for collapsible tree) ────────────────────────
+  const adSetDayMapFull = new Map<string, Map<string, any>>()
+  for (const m of mRangeAdSet.data || []) {
+    if (!adSetDayMapFull.has(m.object_id)) adSetDayMapFull.set(m.object_id, new Map())
+    const dm = adSetDayMapFull.get(m.object_id)!
+    const e = dm.get(m.date) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, landing_page_views: 0, add_to_cart: 0, checkout_initiated: 0, hook_rate_w: 0, frequency_w: 0, video_avg_w: 0 }
+    dm.set(m.date, {
+      spend:              e.spend              + (m.spend              || 0),
+      purchases:          e.purchases          + (m.purchases          || 0),
+      purchase_value:     e.purchase_value     + (m.purchase_value     || 0),
+      impressions:        e.impressions        + (m.impressions        || 0),
+      link_clicks:        e.link_clicks        + (m.link_clicks        || 0),
+      unique_link_clicks: e.unique_link_clicks + (m.unique_link_clicks || 0),
+      reach:              e.reach              + (m.reach              || 0),
+      landing_page_views: e.landing_page_views + (m.landing_page_views || 0),
+      add_to_cart:        e.add_to_cart        + (m.add_to_cart        || 0),
+      checkout_initiated: e.checkout_initiated + (m.checkout_initiated || 0),
+      hook_rate_w:        e.hook_rate_w        + ((m.hook_rate              || 0) * (m.impressions || 0)),
+      frequency_w:        e.frequency_w        + ((m.frequency              || 0) * (m.impressions || 0)),
+      video_avg_w:        e.video_avg_w        + ((m.video_avg_time_watched || 0) * (m.impressions || 0)),
+    })
+  }
+
+  // ── Per-ad per-day data ───────────────────────────────────────────────────
+  const adDayMapFull = new Map<string, Map<string, any>>()
+  for (const m of mRangeAd.data || []) {
+    if (!adDayMapFull.has(m.object_id)) adDayMapFull.set(m.object_id, new Map())
+    const dm = adDayMapFull.get(m.object_id)!
+    const e = dm.get(m.date) || { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, landing_page_views: 0, add_to_cart: 0, checkout_initiated: 0, hook_rate_w: 0, frequency_w: 0, video_avg_w: 0 }
+    dm.set(m.date, {
+      spend:              e.spend              + (m.spend              || 0),
+      purchases:          e.purchases          + (m.purchases          || 0),
+      purchase_value:     e.purchase_value     + (m.purchase_value     || 0),
+      impressions:        e.impressions        + (m.impressions        || 0),
+      link_clicks:        e.link_clicks        + (m.link_clicks        || 0),
+      unique_link_clicks: e.unique_link_clicks + (m.unique_link_clicks || 0),
+      reach:              e.reach              + (m.reach              || 0),
+      landing_page_views: e.landing_page_views + (m.landing_page_views || 0),
+      add_to_cart:        e.add_to_cart        + (m.add_to_cart        || 0),
+      checkout_initiated: e.checkout_initiated + (m.checkout_initiated || 0),
+      hook_rate_w:        e.hook_rate_w        + ((m.hook_rate              || 0) * (m.impressions || 0)),
+      frequency_w:        e.frequency_w        + ((m.frequency              || 0) * (m.impressions || 0)),
+      video_avg_w:        e.video_avg_w        + ((m.video_avg_time_watched || 0) * (m.impressions || 0)),
+    })
+  }
+
+  // ── Ads by ad set ─────────────────────────────────────────────────────────
+  const adsByAdSetMap = new Map<string, any[]>()
+  for (const ad of adsMetaRes.data || []) {
+    if (!adsByAdSetMap.has(ad.ad_set_id)) adsByAdSetMap.set(ad.ad_set_id, [])
+    adsByAdSetMap.get(ad.ad_set_id)!.push(ad)
+  }
+
+  // ── Helper to build sorted 5-day array from a day map ────────────────────
+  function buildDays(dm: Map<string, any> | undefined): any[] {
+    if (!dm) return []
+    return Array.from(dm.entries())
+      .map(([date, d]) => derive({
+        date, ...d,
+        hook_rate: d.impressions > 0 ? d.hook_rate_w / d.impressions : null,
+        frequency: d.impressions > 0 ? d.frequency_w / d.impressions : null,
+        video_avg_time_watched: d.impressions > 0 ? d.video_avg_w / d.impressions : null,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-5)
+  }
+
+  // ── Build tree for CollapsibleCampaignTree ────────────────────────────────
+  const treeCampaigns: TreeCampaign[] = campaignCards.map(camp => ({
+    id: camp.id,
+    name: camp.name,
+    status: camp.status,
+    days: camp.days as any,
+    adSets: (adSetsByCamp.get(camp.id) || []).map((as: any): TreeAdSet => {
+      const asDays = buildDays(adSetDayMapFull.get(as.id))
+      const ads: TreeAd[] = (adsByAdSetMap.get(as.id) || [])
+        .map((ad: any): TreeAd => ({
+          id: ad.id,
+          name: ad.name,
+          status: ad.status,
+          days: buildDays(adDayMapFull.get(ad.id)) as any,
+        }))
+        .filter((ad: TreeAd) => ad.days.some((d: any) => d.spend > 0))
+        .sort((a: TreeAd, b: TreeAd) => {
+          const sa = a.days.reduce((s: number, d: any) => s + d.spend, 0)
+          const sb = b.days.reduce((s: number, d: any) => s + d.spend, 0)
+          return sb - sa
+        })
+      return { id: as.id, name: as.name, status: as.status, days: asDays as any, ads }
+    }).filter((as: TreeAdSet) => as.days.length > 0 && as.days.some((d: any) => d.spend > 0)),
+  }))
 
   // ── Semaphore ─────────────────────────────────────────────────────────────
   const tp = todayData.purchases
@@ -332,8 +428,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   const recentAlerts = alertsRes.data || []
 
   // ─── Render helpers ───────────────────────────────────────────────────────
-  // Render a 4-day analysis table row
-  function renderDayRow(d: any, prev: any | undefined, isToday: boolean, isFirst: boolean, showDelta: boolean, days4: any[]) {
+  // Render a 5-day analysis table row
+  function renderDayRow(d: any, prev: any | undefined, isToday: boolean, isFirst: boolean, showDelta: boolean, days5: any[]) {
     const bg = isToday ? '#6366F108' : 'transparent'
     const dateLabel = formatDate(d.date)
 
@@ -352,13 +448,16 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     const dConvW  = isFirst ? null : vsDay(d.convWeb, prev?.convWeb)
     const dHook   = isFirst ? null : vsDay(d.hook_rate, prev?.hook_rate)
     const dFreq   = isFirst ? null : vsDay(d.frequency, prev?.frequency, true) // inverted
+    const dVideoA = isFirst ? null : vsDay(d.video_avg_time_watched, prev?.video_avg_time_watched)
     const dAtc    = isFirst ? null : vsDay(d.add_to_cart, prev?.add_to_cart)
+    const dCostAtc = isFirst ? null : vsDay(d.cost_per_atc, prev?.cost_per_atc, true) // inverted
     const dPagos  = isFirst ? null : vsDay(d.checkout_initiated, prev?.checkout_initiated)
+    const dCpc    = isFirst ? null : vsDay(d.cpc, prev?.cpc, true) // inverted
 
     // Totals for delta column (day1 → this day)
-    const td4V = totalDelta(days4, 'purchases')
-    const td4R = totalDelta(days4, 'roas')
-    const td4C = totalDelta(days4, 'cpa', true)
+    const td4V = totalDelta(days5, 'purchases')
+    const td4R = totalDelta(days5, 'roas')
+    const td4C = totalDelta(days5, 'cpa', true)
 
     const cellStyle = (base: any, vs: { color: string; bg: string } | null, overrideColor?: string): any => ({
       ...base,
@@ -382,6 +481,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         <td style={{ ...tdG, color: C_TEXT }}>{d.spend > 0 ? formatCurrency(d.spend, currency) : '—'}</td>
         <td style={{ ...td, color: dImpr?.color || '#94A3B8', backgroundColor: dImpr?.bg }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
         <td style={cellStyle(td, dCpm, dCpm ? undefined : cpmColor(d.cpm))}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
+        <td style={cellStyle(td, dCpc, dCpc ? undefined : cpcColor(d.cpc))}>{d.cpc ? formatCurrency(d.cpc, currency) : '—'}</td>
         {/* 🌐 Tráfico */}
         <td style={cellStyle({ ...tdG }, dCtr, dCtr ? undefined : ctrColor(d.ctr))}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
         <td style={{ ...td, color: dClics?.color || '#94A3B8', backgroundColor: dClics?.bg }}>{d.unique_link_clicks > 0 ? formatNumber(d.unique_link_clicks) : '—'}</td>
@@ -391,8 +491,10 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         {/* 🎬 Video */}
         <td style={cellStyle({ ...tdG }, dHook, dHook ? undefined : hookColor(d.hook_rate))}>{d.hook_rate ? `${d.hook_rate.toFixed(1)}%` : '—'}</td>
         <td style={{ ...td, color: dFreq?.color || freqColor(d.frequency), backgroundColor: dFreq?.bg }}>{d.frequency ? d.frequency.toFixed(1) : '—'}</td>
+        <td style={{ ...td, color: dVideoA?.color || '#94A3B8', backgroundColor: dVideoA?.bg }}>{d.video_avg_time_watched ? `${d.video_avg_time_watched.toFixed(0)}s` : '—'}</td>
         {/* 🔁 Embudo */}
         <td style={{ ...tdG, color: dAtc?.color || C_TEXT, backgroundColor: dAtc?.bg }}>{d.add_to_cart || '—'}</td>
+        <td style={{ ...td, color: dCostAtc?.color || C_TEXT, backgroundColor: dCostAtc?.bg }}>{d.cost_per_atc ? formatCurrency(d.cost_per_atc, currency) : '—'}</td>
         <td style={{ ...td, color: dPagos?.color || C_TEXT, backgroundColor: dPagos?.bg }}>{d.checkout_initiated || '—'}</td>
         {/* Δ */}
         {showDelta && (
@@ -422,11 +524,11 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         <tr>
           <th style={{ ...th, textAlign: 'left' as const, position: 'sticky' as const, left: 0, zIndex: 3, ...fnt, backgroundColor: '#0e1015' }}></th>
           <th colSpan={4} style={{ ...thGrp('#22c55e80'), ...fnt }}>💰 Conversiones</th>
-          <th colSpan={3} style={{ ...thGrp('#ef444480'), ...fnt }}>💸 Costos</th>
+          <th colSpan={4} style={{ ...thGrp('#ef444480'), ...fnt }}>💸 Costos</th>
           <th colSpan={5} style={{ ...thGrp('#38bdf880'), ...fnt }}>🌐 Tráfico</th>
-          <th colSpan={2} style={{ ...thGrp('#a78bfa80'), ...fnt }}>🎬 Video</th>
-          <th colSpan={2} style={{ ...thGrp('#f59e0b80'), ...fnt }}>🔁 Embudo</th>
-          <th style={{ ...thGrp(C_MUTED), ...fnt }}>Δ 1→4</th>
+          <th colSpan={3} style={{ ...thGrp('#a78bfa80'), ...fnt }}>🎬 Video</th>
+          <th colSpan={3} style={{ ...thGrp('#f59e0b80'), ...fnt }}>🔁 Embudo</th>
+          <th style={{ ...thGrp(C_MUTED), ...fnt }}>Δ 1→5</th>
         </tr>
         {/* Metric names row */}
         <tr>
@@ -447,7 +549,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           <th style={{ ...th, ...fnt }}>Freq.</th>
           <th style={{ ...thG, ...fnt }}>ATC</th>
           <th style={{ ...th, ...fnt }}>Pagos</th>
-          <th style={{ ...thG, textAlign: 'left' as const, ...fnt }}>Δ día 1→4</th>
+          <th style={{ ...thG, textAlign: 'left' as const, ...fnt }}>Δ día 1→5</th>
         </tr>
       </thead>
     )
@@ -522,15 +624,15 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
               {/* ══════════════════════════════════════════
                   3. ANÁLISIS 4 DÍAS — CUENTA
               ══════════════════════════════════════════ */}
-              {last4Asc.length > 0 && (
+              {last5Asc.length > 0 && (
                 <div style={{ marginBottom: '20px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden', borderTop: '2px solid #6366F1' }}>
                   <div style={{ padding: '10px 16px', borderBottom: '1px solid #2D3244', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: C_TEXT }}>Análisis 4 días — Cuenta</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: C_TEXT }}>Análisis 5 días — Cuenta</span>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                       <span style={{ fontSize: '10px', color: C_MUTED }}>
                         <span style={{ color: C_GREEN }}>●</span> mejor vs día ant.
                         <span style={{ color: C_RED, marginLeft: '8px' }}>●</span> peor vs día ant.
-                        <span style={{ color: C_MUTED, marginLeft: '8px' }}>Δ = cambio día 1→4</span>
+                        <span style={{ color: C_MUTED, marginLeft: '8px' }}>Δ = cambio día 1→5</span>
                       </span>
                     </div>
                   </div>
@@ -538,13 +640,13 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                     <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '1500px' }}>
                       <TableHead />
                       <tbody>
-                        {last4Asc.map((d, i) => renderDayRow(
+                        {last5Asc.map((d, i) => renderDayRow(
                           d,
-                          i > 0 ? last4Asc[i - 1] : undefined,
+                          i > 0 ? last5Asc[i - 1] : undefined,
                           d.date === today,
                           i === 0,
-                          i === last4Asc.length - 1, // show delta only on last row
-                          last4Asc,
+                          i === last5Asc.length - 1, // show delta only on last row
+                          last5Asc,
                         ))}
                       </tbody>
                     </table>
@@ -553,124 +655,15 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
               )}
 
               {/* ══════════════════════════════════════════
-                  4. POR CAMPAÑA — cards 4 días
+                  4. POR CAMPAÑA — árbol desplegable
               ══════════════════════════════════════════ */}
-              {campaignCards.length > 0 && (
-                <div style={{ marginBottom: '20px' }}>
-
-                  {/* Helper para renderizar una campaign card */}
-                  {(() => {
-                    function CampCard({ camp }: { camp: typeof campaignCards[0] }) {
-                      const totalV   = camp.days.reduce((s: number, d: any) => s + (d.purchases || 0), 0)
-                      const totalS   = camp.days.reduce((s: number, d: any) => s + (d.spend || 0), 0)
-                      const lastRoas = camp.days[camp.days.length - 1]?.roas
-                      const statusColor = camp.status === 'ACTIVE' ? C_GREEN : camp.status === 'PAUSED' ? C_YELLOW : C_MUTED
-                      const adSets = adSetsByCamp.get(camp.id) || []
-
-                      return (
-                        <div style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden', opacity: camp.status === 'ACTIVE' ? 1 : 0.7 }}>
-                          {/* Camp header */}
-                          <div style={{ padding: '9px 14px', borderBottom: '1px solid #2D3244', backgroundColor: '#151820', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: statusColor, flexShrink: 0, display: 'inline-block' }} />
-                            <Link href={`/campaigns/${camp.id}`} style={{ fontSize: '12px', fontWeight: 600, color: C_TEXT, textDecoration: 'none', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                              {camp.name || camp.id}
-                            </Link>
-                            <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
-                              <span style={{ fontSize: '10px', color: totalV > 0 ? C_GREEN : C_MUTED }}>{totalV > 0 ? `${totalV} ventas` : '0 ventas'}</span>
-                              <span style={{ fontSize: '10px', color: '#94A3B8' }}>{formatCurrency(totalS, currency)} gasto</span>
-                              {lastRoas && <span style={{ fontSize: '10px', color: roasColor(lastRoas) }}>ROAS {lastRoas.toFixed(2)}x hoy</span>}
-                            </div>
-                          </div>
-                          {/* 4-day table */}
-                          <div style={{ overflowX: 'auto' }}>
-                            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '1500px' }}>
-                              <TableHead compact />
-                              <tbody>
-                                {camp.days.map((d: any, i: number) => renderDayRow(
-                                  d,
-                                  i > 0 ? camp.days[i - 1] : undefined,
-                                  d.date === today, i === 0,
-                                  i === camp.days.length - 1,
-                                  camp.days,
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                          {/* Ad sets sub-section */}
-                          {adSets.length > 0 && (
-                            <div style={{ borderTop: '1px solid #2D3244', backgroundColor: '#13151e' }}>
-                              <div style={{ padding: '6px 14px 4px', fontSize: '9px', color: C_MUTED, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
-                                Conjuntos · {days}d
-                              </div>
-                              <div style={{ overflowX: 'auto' }}>
-                                <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '600px' }}>
-                                  <thead>
-                                    <tr>
-                                      <th style={{ padding: '4px 14px', textAlign: 'left' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235', textTransform: 'uppercase' as const }}>Conjunto</th>
-                                      <th style={{ padding: '4px 10px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>Estado</th>
-                                      <th style={{ padding: '4px 10px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>Gasto</th>
-                                      <th style={{ padding: '4px 10px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>Ventas</th>
-                                      <th style={{ padding: '4px 10px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>ROAS</th>
-                                      <th style={{ padding: '4px 10px 4px', textAlign: 'right' as const, fontSize: '9px', color: C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>Hook</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {adSets.map((as: any) => (
-                                      <tr key={as.id} style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.6 }}>
-                                        <td style={{ padding: '5px 14px', fontSize: '11px', color: '#94A3B8', borderBottom: '1px solid #1e2235' }}>
-                                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: as.status === 'ACTIVE' ? C_GREEN : C_YELLOW, flexShrink: 0, display: 'inline-block' }} />
-                                            {as.name}
-                                          </span>
-                                        </td>
-                                        <td style={{ padding: '5px 10px', fontSize: '10px', textAlign: 'right' as const, color: as.status === 'ACTIVE' ? C_GREEN : C_YELLOW, borderBottom: '1px solid #1e2235' }}>{as.status}</td>
-                                        <td style={{ padding: '5px 10px', fontSize: '11px', textAlign: 'right' as const, color: C_TEXT, borderBottom: '1px solid #1e2235' }}>{formatCurrency(as.spend, currency)}</td>
-                                        <td style={{ padding: '5px 10px', fontSize: '11px', textAlign: 'right' as const, color: as.purchases > 0 ? C_GREEN : C_MUTED, fontWeight: 600, borderBottom: '1px solid #1e2235' }}>{as.purchases || '—'}</td>
-                                        <td style={{ padding: '5px 10px', fontSize: '11px', textAlign: 'right' as const, color: roasColor(as.roas), borderBottom: '1px solid #1e2235' }}>{as.roas ? `${as.roas.toFixed(2)}x` : '—'}</td>
-                                        <td style={{ padding: '5px 10px', fontSize: '11px', textAlign: 'right' as const, color: as.hook_rate ? (as.hook_rate >= 30 ? C_GREEN : as.hook_rate >= 15 ? C_YELLOW : C_RED) : C_MUTED, borderBottom: '1px solid #1e2235' }}>{as.hook_rate ? `${as.hook_rate.toFixed(1)}%` : '—'}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    }
-
-                    return (
-                      <>
-                        {/* ACTIVAS */}
-                        {activeCampCards.length > 0 && (
-                          <>
-                            <div style={{ fontSize: '11px', color: C_GREEN, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              ● Campañas activas
-                              <span style={{ flex: 1, height: '1px', backgroundColor: '#22C55E20' }} />
-                              <span style={{ fontWeight: 400, fontSize: '10px', textTransform: 'none' as const, color: C_MUTED }}>últimas 4 fechas con datos · conjuntos = acumulado {days}d</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginBottom: pausedCampCards.length > 0 ? '20px' : '0' }}>
-                              {activeCampCards.map(camp => <CampCard key={camp.id} camp={camp} />)}
-                            </div>
-                          </>
-                        )}
-
-                        {/* PAUSADAS CON ACTIVIDAD */}
-                        {pausedCampCards.length > 0 && (
-                          <>
-                            <div style={{ fontSize: '11px', color: C_YELLOW, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              ● Campañas pausadas · con actividad en el período
-                              <span style={{ flex: 1, height: '1px', backgroundColor: '#F59E0B20' }} />
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px' }}>
-                              {pausedCampCards.map(camp => <CampCard key={camp.id} camp={camp} />)}
-                            </div>
-                          </>
-                        )}
-                      </>
-                    )
-                  })()}
-                </div>
+              {treeCampaigns.length > 0 && (
+                <CollapsibleCampaignTree
+                  campaigns={treeCampaigns}
+                  currency={currency}
+                  today={today}
+                  days={days}
+                />
               )}
 
               {/* ══════════════════════════════════════════
