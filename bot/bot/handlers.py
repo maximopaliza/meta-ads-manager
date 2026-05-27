@@ -51,7 +51,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     text = (
         f"📊 <b>Resumen del día — {date.today().strftime('%d/%m/%Y')}</b>\n\n"
-        f"💸 Gasto total: <b>${total_spend:,.0f} {currency}</b>\n"
+        f"💸 Gasto total: <b>${total_spend:,.2f} {currency}</b>\n"
         f"📈 ROAS promedio: <b>{avg_roas:.2f}x</b>\n"
         f"🛍️ Compras: <b>{total_purchases}</b>\n"
         f"📣 Campañas activas: <b>{active}</b>\n\n"
@@ -77,7 +77,7 @@ async def cmd_campanas(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         emoji = STATUS_EMOJI.get(c["status"], "⚪")
         m = metrics_map.get(c["id"])
         roas_str = f" · ROAS {m['roas']:.2f}x" if m and m.get("roas") else ""
-        spend_str = f" · ${m.get('spend', 0):,.0f}" if m else ""
+        spend_str = f" · ${m.get('spend', 0):,.2f}" if m else ""
         lines.append(f"{emoji} {c['name']}{spend_str}{roas_str}")
 
     await update.message.reply_text("\n".join(lines), parse_mode="HTML")
@@ -202,7 +202,7 @@ async def handle_nl_action(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             client.update_campaign_budget(campaign_id, cents)
             db_client().table("campaigns").update({"daily_budget": cents}).eq("id", campaign_id).execute()
             await query.message.reply_text(
-                f"✅ Presupuesto de <b>{campaign_name}</b> actualizado a <b>${pending['budget']:,.0f} {currency}</b>.",
+                f"✅ Presupuesto de <b>{campaign_name}</b> actualizado a <b>${pending['budget']:,.2f} {currency}</b>.",
                 parse_mode="HTML",
             )
     except Exception as e:
@@ -241,28 +241,28 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
     if any(w in kw for w in ["gast", "spent", "spend", "plata", "dinero", "cuanto"]):
         if "hoy" in kw or "dia" in kw or "día" in kw or "cuanto" in kw:
             lines = [f"💸 <b>Gasto de hoy</b>\n"]
-            lines.append(f"Total: <b>${total_spend:,.0f} {currency}</b>")
+            lines.append(f"Total: <b>${total_spend:,.2f} {currency}</b>")
             lines.append(f"ROAS: <b>{avg_roas:.2f}x</b>")
             lines.append(f"Ventas: <b>{total_purchases}</b>")
             if avg_cpa:
-                lines.append(f"CPA: <b>${avg_cpa:,.0f} {currency}</b>")
+                lines.append(f"CPA: <b>${avg_cpa:,.2f} {currency}</b>")
             if campaigns:
                 lines.append("\n<b>Por campaña:</b>")
                 camp_m = {m["object_id"]: m for m in today_camp}
                 for c in campaigns:
                     m = camp_m.get(c["id"])
                     if m and m.get("spend", 0) > 0:
-                        lines.append(f"  • {c['name'][:40]}: ${m.get('spend', 0):,.0f}")
+                        lines.append(f"  • {c['name'][:40]}: ${m.get('spend', 0):,.2f}")
             return "\n".join(lines)
 
     # Ventas / resultados
     if any(w in kw for w in ["venta", "compra", "result", "pedido", "purchase"]):
         lines = [f"🛍️ <b>Ventas de hoy</b>\n"]
         lines.append(f"Ventas totales: <b>{total_purchases}</b>")
-        lines.append(f"Valor total: <b>${total_pv:,.0f} {currency}</b>")
+        lines.append(f"Valor total: <b>${total_pv:,.2f} {currency}</b>")
         lines.append(f"ATC: {total_atc} | Checkout: {total_checkout}")
         if avg_cpa:
-            lines.append(f"CPA promedio: <b>${avg_cpa:,.0f} {currency}</b>")
+            lines.append(f"CPA promedio: <b>${avg_cpa:,.2f} {currency}</b>")
         lines.append(f"ROAS: <b>{avg_roas:.2f}x</b>")
         if today_ads:
             top = sorted(today_ads, key=lambda x: x.get("purchases", 0), reverse=True)[:5]
@@ -272,7 +272,7 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
                 for m in with_sales:
                     ad = ads_map.get(m["object_id"])
                     name = ad["name"][:40] if ad else m["object_id"]
-                    lines.append(f"  • {name}: {m.get('purchases', 0)} ventas · CPA ${m.get('spend',0)/m.get('purchases',1):,.0f}")
+                    lines.append(f"  • {name}: {m.get('purchases', 0)} ventas · CPA ${m.get('spend',0)/m.get('purchases',1):,.2f}")
         return "\n".join(lines)
 
     # ROAS
@@ -288,8 +288,8 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
     # CPA
     if "cpa" in kw or "costo por" in kw:
         if avg_cpa:
-            return f"🎯 <b>CPA de hoy: ${avg_cpa:,.0f} {currency}</b>\nVentas: {total_purchases} · Gasto: ${total_spend:,.0f}"
-        return f"🎯 Sin ventas hoy todavía. Gasto: ${total_spend:,.0f} {currency}"
+            return f"🎯 <b>CPA de hoy: ${avg_cpa:,.2f} {currency}</b>\nVentas: {total_purchases} · Gasto: ${total_spend:,.2f}"
+        return f"🎯 Sin ventas hoy todavía. Gasto: ${total_spend:,.2f} {currency}"
 
     # Mejor campaña / mejor ad
     if "mejor" in kw:
@@ -298,7 +298,7 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
                 best = max(today_ads, key=lambda x: x.get("roas") or 0)
                 ad = ads_map.get(best["object_id"])
                 name = ad["name"] if ad else best["object_id"]
-                return f"🏆 <b>Mejor ad hoy:</b> {name}\nROAS: {best.get('roas', 0):.2f}x · Ventas: {best.get('purchases', 0)} · Gasto: ${best.get('spend', 0):,.0f}"
+                return f"🏆 <b>Mejor ad hoy:</b> {name}\nROAS: {best.get('roas', 0):.2f}x · Ventas: {best.get('purchases', 0)} · Gasto: ${best.get('spend', 0):,.2f}"
         else:
             camp_m = {m["object_id"]: m for m in today_camp}
             with_roas = [(c, camp_m.get(c["id"])) for c in campaigns if camp_m.get(c["id"]) and camp_m.get(c["id"], {}).get("roas")]
@@ -312,7 +312,7 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
         with_spend = [(c, camp_m.get(c["id"])) for c in campaigns if camp_m.get(c["id"]) and camp_m.get(c["id"], {}).get("spend", 0) > 0]
         if with_spend:
             worst_c, worst_m = min(with_spend, key=lambda x: x[1].get("roas") or 99)
-            return f"⚠️ <b>Peor campaña hoy:</b> {worst_c['name']}\nROAS: {worst_m.get('roas', 0) or 0:.2f}x · Gasto: ${worst_m.get('spend', 0):,.0f} sin ventas"
+            return f"⚠️ <b>Peor campaña hoy:</b> {worst_c['name']}\nROAS: {worst_m.get('roas', 0) or 0:.2f}x · Gasto: ${worst_m.get('spend', 0):,.2f} sin ventas"
 
     # Hook rate
     if "hook" in kw:
@@ -333,7 +333,7 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
         for c in campaigns:
             emoji = STATUS_EMOJI.get(c["status"], "⚪")
             m = camp_m.get(c["id"])
-            spend_str = f" · ${m.get('spend', 0):,.0f}" if m and m.get("spend", 0) > 0 else ""
+            spend_str = f" · ${m.get('spend', 0):,.2f}" if m and m.get("spend", 0) > 0 else ""
             lines.append(f"{emoji} {c['name']}{spend_str}")
         return "\n".join(lines)
 
@@ -358,8 +358,8 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
                 return (f"🏆 <b>Mejor día (últimos 30d):</b> {best_d}\n\n"
                         f"Ventas: <b>{b['purchases']}</b>\n"
                         f"ROAS: <b>{roas:.2f}x</b>\n"
-                        f"CPA: <b>${cpa:,.0f} {currency}</b>\n"
-                        f"Gasto: ${b['spend']:,.0f} · Valor: ${b['purchase_value']:,.0f}")
+                        f"CPA: <b>${cpa:,.2f} {currency}</b>\n"
+                        f"Gasto: ${b['spend']:,.2f} · Valor: ${b['purchase_value']:,.2f}")
 
     if "peor" in kw and ("dia" in kw or "día" in kw):
         metrics_30d = queries.get_all_metrics_range("campaign", 30)
@@ -380,7 +380,7 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
                 return (f"📉 <b>Peor día (últimos 30d):</b> {worst_d}\n\n"
                         f"Ventas: {w['purchases']}\n"
                         f"ROAS: {roas:.2f}x\n"
-                        f"Gasto: ${w['spend']:,.0f} sin retorno")
+                        f"Gasto: ${w['spend']:,.2f} sin retorno")
 
     # Ayer
     if "ayer" in kw:
@@ -395,11 +395,11 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
             roas = pv / spend if spend > 0 else 0
             cpa = spend / purchases if purchases > 0 else None
             lines = [f"📅 <b>Ayer ({yesterday})</b>\n",
-                     f"Gasto: <b>${spend:,.0f} {currency}</b>",
+                     f"Gasto: <b>${spend:,.2f} {currency}</b>",
                      f"Ventas: <b>{purchases}</b>",
                      f"ROAS: <b>{roas:.2f}x</b>"]
             if cpa:
-                lines.append(f"CPA: <b>${cpa:,.0f} {currency}</b>")
+                lines.append(f"CPA: <b>${cpa:,.2f} {currency}</b>")
             return "\n".join(lines)
         return f"Sin datos de ayer ({yesterday})."
 
@@ -413,11 +413,11 @@ def _quick_answer(text_lower: str, today_camp: list, today_as: list, today_ads: 
             roas = pv / spend if spend > 0 else 0
             cpa = spend / purchases if purchases > 0 else None
             lines = [f"📊 <b>Últimos 7 días</b>\n",
-                     f"Gasto total: <b>${spend:,.0f} {currency}</b>",
+                     f"Gasto total: <b>${spend:,.2f} {currency}</b>",
                      f"Ventas: <b>{purchases}</b>",
                      f"ROAS promedio: <b>{roas:.2f}x</b>"]
             if cpa:
-                lines.append(f"CPA promedio: <b>${cpa:,.0f} {currency}</b>")
+                lines.append(f"CPA promedio: <b>${cpa:,.2f} {currency}</b>")
             return "\n".join(lines)
 
     return None  # No pudo responder directamente → usar Gemini
@@ -507,7 +507,7 @@ async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE)
             confirm_text = (
                 f"¿Confirmás ajustar el presupuesto?\n\n"
                 f"💰 {matched['name']}\n"
-                f"Actual: ${old:,.0f} {currency} → Nuevo: <b>${new_budget:,.0f} {currency}</b> ({pct_str})"
+                f"Actual: ${old:,.2f} {currency} → Nuevo: <b>${new_budget:,.2f} {currency}</b> ({pct_str})"
             )
             intent["budget"] = new_budget
         else:
@@ -519,7 +519,7 @@ async def _handle_text_inner(update: Update, context: ContextTypes.DEFAULT_TYPE)
             confirm_text = (
                 f"¿Confirmás cambiar el presupuesto?\n\n"
                 f"💰 {matched['name']}\n"
-                f"Actual: ${old:,.0f} {currency} → Nuevo: <b>${budget:,.0f} {currency}</b>"
+                f"Actual: ${old:,.2f} {currency} → Nuevo: <b>${budget:,.2f} {currency}</b>"
             )
             intent["budget"] = budget
 
