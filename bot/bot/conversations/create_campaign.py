@@ -175,11 +175,26 @@ async def _run_analysis(progress_msg, context: ContextTypes.DEFAULT_TYPE) -> int
 
         try:
             from ai.video_analyzer import analyze_video
-            result = await loop.run_in_executor(None, analyze_video, file_id, name, "")
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, analyze_video, file_id, name, ""),
+                timeout=180,
+            )
             result["drive_file_id"] = file_id
             result["file_name"] = name
             analyses.append(result)
             logger.info(f"Analyzed {name}: angle={result.get('angle')}")
+        except asyncio.TimeoutError:
+            logger.warning(f"Analysis timed out for {name}")
+            analyses.append({
+                "drive_file_id": file_id,
+                "file_name": name,
+                "angle": "sin_datos",
+                "analysis": "Tiempo de análisis agotado.",
+                "primary_text": "",
+                "headline": "",
+                "audience_summary": "",
+                "targeting": {"geo_locations": {"countries": ["AR"]}, "age_min": 35, "age_max": 65},
+            })
         except Exception as e:
             logger.error(f"Analysis failed for {name}: {e}")
             analyses.append({
