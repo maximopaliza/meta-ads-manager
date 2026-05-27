@@ -25,7 +25,8 @@ export function resolveDateRange(
 
   const days = Math.min(730, Math.max(1, Number(sp?.days || defaultDays)))
   const rangeStart = new Date(latestMs - (days - 1) * 86400000).toISOString().split('T')[0]
-  return { rangeStart, rangeEnd: latest, days, label: `Últimos ${days} días` }
+  const label = days === 1 ? 'Hoy' : `Últimos ${days}d`
+  return { rangeStart, rangeEnd: latest, days, label }
 }
 
 export async function getLatestDate(): Promise<string> {

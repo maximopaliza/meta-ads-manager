@@ -223,7 +223,7 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
 
 export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
   const sp = await searchParams
-  const days = Math.min(90, Math.max(1, Number(sp?.days || 7)))
+  const days = Math.min(90, Math.max(1, Number(sp?.days || 1)))
   const customFrom = sp?.from || null
   const customTo = sp?.to || null
   const { today, currency, activeCampaigns, dailyData, campaignsWithMetrics, alerts, td, yd, t, y, pct } = await getOverviewData(days, customFrom, customTo)

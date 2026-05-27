@@ -11,7 +11,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
   await headers()
   const sp = await searchParams
   const today = await getLatestDate()
-  const { rangeStart, rangeEnd, days } = resolveDateRange(sp, today, 30)
+  const { rangeStart, rangeEnd, days } = resolveDateRange(sp, today, 1)
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
 

@@ -22,7 +22,10 @@ export default function RangeSelector() {
   const currentTo = params.get('to')
   const isCustom = !!(currentFrom && currentTo)
 
+  const hasNoParams = !currentDays && !currentFrom && !currentTo
   const isSingleDay = !!(currentFrom && currentTo && currentFrom === currentTo)
+  // "Día" está activo cuando: no hay params (default = hoy) o hay from=to
+  const isDay = isSingleDay || hasNoParams
   const [showCustom, setShowCustom] = useState(isCustom && !isSingleDay)
   const [showDay, setShowDay] = useState(isSingleDay)
   const [from, setFrom] = useState(currentFrom || '')
@@ -53,7 +56,16 @@ export default function RangeSelector() {
     router.push(`${pathname}?${p.toString()}`)
   }
 
-  const activePreset = isCustom ? null : Number(currentDays || 7)
+  // activePreset solo se activa cuando hay ?days=N explícito
+  const activePreset = (!isCustom && currentDays) ? Number(currentDays) : null
+
+  // Label del período actual
+  const periodLabel = (() => {
+    if (hasNoParams) return 'Hoy'
+    if (isSingleDay) return currentFrom!.slice(5).replace('-', '/')
+    if (isCustom) return `${currentFrom!.slice(5).replace('-', '/')} → ${currentTo!.slice(5).replace('-', '/')}`
+    return `Últimos ${currentDays}d`
+  })()
 
   const inputStyle = {
     backgroundColor: '#0F1117',
@@ -68,6 +80,16 @@ export default function RangeSelector() {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+
+      {/* Label período activo */}
+      <div style={{
+        fontSize: '11px', fontWeight: 600, color: '#6366F1',
+        backgroundColor: '#6366F115', border: '1px solid #6366F130',
+        borderRadius: '6px', padding: '4px 10px', whiteSpace: 'nowrap' as const,
+      }}>
+        📅 {periodLabel}
+      </div>
+
       {/* Presets */}
       <div style={{ display: 'flex', gap: '4px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '8px', padding: '4px' }}>
         {PRESETS.map(o => (
@@ -81,8 +103,8 @@ export default function RangeSelector() {
               cursor: 'pointer',
               fontSize: '12px',
               fontWeight: 600,
-              backgroundColor: !isCustom && activePreset === o.value ? '#6366F1' : 'transparent',
-              color: !isCustom && activePreset === o.value ? '#fff' : '#64748B',
+              backgroundColor: activePreset === o.value ? '#6366F1' : 'transparent',
+              color: activePreset === o.value ? '#fff' : '#64748B',
               transition: 'all 0.15s',
             }}
           >
@@ -100,8 +122,8 @@ export default function RangeSelector() {
             cursor: 'pointer',
             fontSize: '12px',
             fontWeight: 600,
-            backgroundColor: isSingleDay || (showDay && !showCustom) ? '#6366F1' : 'transparent',
-            color: isSingleDay || (showDay && !showCustom) ? '#fff' : '#64748B',
+            backgroundColor: isDay || (showDay && !showCustom) ? '#6366F1' : 'transparent',
+            color: isDay || (showDay && !showCustom) ? '#fff' : '#64748B',
             transition: 'all 0.15s',
           }}
         >
