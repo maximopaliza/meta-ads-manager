@@ -215,7 +215,11 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
       },
       trend: (tm?.roas ?? 0) > (ym?.roas ?? 0) ? '▲' : (tm?.roas ?? 0) < (ym?.roas ?? 0) ? '▼' : '—',
     }
-  }).sort((a: any, b: any) => b.m.spend - a.m.spend)
+  }).sort((a: any, b: any) => {
+    if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
+    if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
+    return b.m.spend - a.m.spend
+  })
 
   const activeCampaigns = (campaigns.data || []).filter((c: any) => c.status === 'ACTIVE').length
 

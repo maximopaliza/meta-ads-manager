@@ -16,16 +16,14 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
 
-  const [adsRes, todayM, yesterdayM, rangeM, accountRes] = await Promise.all([
+  const [adsRes, yesterdayM, rangeM, accountRes] = await Promise.all([
     supabaseAdmin.from('ads').select('*, ad_sets(name, campaign_id, campaigns(name))'),
-    supabaseAdmin.from('metrics').select('object_id,spend').eq('object_type', 'ad').eq('date', today),
     supabaseAdmin.from('metrics').select('object_id,roas').eq('object_type', 'ad').eq('date', yesterday),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').gte('date', rangeStart).lte('date', rangeEnd),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
   ])
 
   const currency = accountRes.data?.[0]?.currency || 'USD'
-  const todaySpend = new Map((todayM.data || []).map((m: any) => [m.object_id, m.spend || 0]))
   const yesterdayMap = new Map((yesterdayM.data || []).map((m: any) => [m.object_id, m]))
 
   const ZERO = { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, landing_page_views: 0, add_to_cart: 0, checkout_initiated: 0, freq_w: 0, hook_w: 0, video_w: 0, hold_w: 0, thruplay_w: 0, ctr_pv_w: 0 }
@@ -95,7 +93,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
   }).sort((a: any, b: any) => {
     if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
     if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
-    return (todaySpend.get(b.id) ?? 0) - (todaySpend.get(a.id) ?? 0)
+    return b.t.spend - a.t.spend
   })
 
   const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#64748B', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }

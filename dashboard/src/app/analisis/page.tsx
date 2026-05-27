@@ -226,7 +226,11 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
       return { id, name: meta?.name || id, status: meta?.status || 'UNKNOWN', days: campDays, totalSpend }
     })
     .filter(c => c.totalSpend > 0)
-    .sort((a, b) => b.totalSpend - a.totalSpend)
+    .sort((a, b) => {
+      if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
+      if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
+      return b.totalSpend - a.totalSpend
+    })
 
   // ── Ad set summaries per campaign ─────────────────────────────────────────
   const adSetMeta = new Map((adSetsRes.data || []).map((s: any) => [s.id, s]))
@@ -266,9 +270,13 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     if (!adSetsByCamp.has(campId)) adSetsByCamp.set(campId, [])
     adSetsByCamp.get(campId)!.push(entry)
   }
-  // Sort ad sets within each campaign by spend desc
+  // Sort ad sets within each campaign: activos primero, luego por gasto desc
   for (const [, sets] of adSetsByCamp.entries()) {
-    sets.sort((a, b) => b.spend - a.spend)
+    sets.sort((a, b) => {
+      if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
+      if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
+      return b.spend - a.spend
+    })
   }
 
   // ── Per-ad-set per-day data (for collapsible tree) ────────────────────────
@@ -355,6 +363,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         }))
         .filter((ad: TreeAd) => ad.days.some((d: any) => d.spend > 0))
         .sort((a: TreeAd, b: TreeAd) => {
+          if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
+          if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
           const sa = a.days.reduce((s: number, d: any) => s + d.spend, 0)
           const sb = b.days.reduce((s: number, d: any) => s + d.spend, 0)
           return sb - sa
