@@ -135,22 +135,24 @@ def analyze_video(drive_file_id: str, file_name: str, destination_url: str = "",
     Devuelve el dict de análisis completo.
     """
     defaults = {
-        "angle":            "fatiga_pantallas",
-        "analysis":         "Video de Vision Complete.",
+        "angle":            "sin_datos",
+        "analysis":         "No se pudo analizar el video.",
         "objective":        "ventas",
         "primary_text":     "Tus ojos trabajan todo el dia. Es hora de cuidarlos. 3 cuotas sin interes + envio gratis.",
         "headline":         "Vision Complete — Ovitta",
         "cta":              "SHOP_NOW",
-        "audience_summary": "Personas con fatiga visual, 35-65 anos, Argentina",
+        "audience_summary": "Personas con problemas visuales, 35-65 anos, Argentina",
         "targeting":        {"geo_locations": {"countries": ["AR"]}, "age_min": 35, "age_max": 65},
     }
 
-    # Chequear cache
+    # Chequear cache — ignorar si el ángulo es el default (análisis fallido anterior)
     if not force:
         cached = get_cached_analysis(drive_file_id)
-        if cached:
-            logger.info(f"Cache hit for {drive_file_id}")
+        if cached and cached.get("angle") not in ("sin_datos", "fatiga_pantallas", "", None):
+            logger.info(f"Cache hit for {drive_file_id}: angle={cached.get('angle')}")
             return {**defaults, **cached}
+        elif cached and cached.get("angle") in ("sin_datos", "fatiga_pantallas"):
+            logger.info(f"Cache has default angle for {drive_file_id}, re-analyzing...")
 
     try:
         genai.configure(api_key=os.environ["GEMINI_API_KEY"])
