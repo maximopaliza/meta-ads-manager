@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import {
   LineChart, Line, BarChart, Bar,
@@ -35,8 +35,8 @@ interface Props {
   cpaBreakeven: number
 }
 
-const DARK_BG = '#1A1D27'
-const BORDER  = '#2D3244'
+const DARK_BG = '#0E1B30'
+const BORDER  = '#1A3050'
 const MUTED   = '#64748B'
 const TEXT    = '#F1F5F9'
 const GREEN   = '#22C55E'
@@ -97,7 +97,7 @@ function MiniCard({ title, color, children, trend }: {
 }
 
 const tooltipStyle = {
-  contentStyle: { backgroundColor: '#1A1D27', border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '11px' },
+  contentStyle: { backgroundColor: '#0E1B30', border: `1px solid ${BORDER}`, borderRadius: '8px', fontSize: '11px' },
   labelStyle:   { color: TEXT, marginBottom: '2px', fontWeight: 600 },
   itemStyle:    { color: MUTED },
 }

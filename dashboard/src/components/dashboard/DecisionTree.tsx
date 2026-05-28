@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState } from 'react'
 
 const CPA_TARGET = 7
@@ -13,11 +13,11 @@ function roasColor(v: number | null) {
   return v >= 3.5 ? '#22C55E' : v >= 1.5 ? '#F59E0B' : '#EF4444'
 }
 function dayQC(p: number, cpa: number | null, sp: number) {
-  if (sp < 1) return { bg: 'transparent', border: '#1a1d27', txt: '#2D3244' }
+  if (sp < 1) return { bg: 'transparent', border: '#1a1d27', txt: '#1A3050' }
   if (p >= 2 && cpa !== null && cpa <= CPA_TARGET) return { bg: '#22C55E1A', border: '#22C55E30', txt: '#22C55E' }
   if (p >= 1 || (cpa !== null && cpa <= CPA_BREAKEVEN)) return { bg: '#F59E0B1A', border: '#F59E0B30', txt: '#F59E0B' }
   if (sp > 0) return { bg: '#EF44441A', border: '#EF444430', txt: '#EF4444' }
-  return { bg: 'transparent', border: '#1a1d27', txt: '#2D3244' }
+  return { bg: 'transparent', border: '#1a1d27', txt: '#1A3050' }
 }
 function fc(val: number | null | undefined, currency: string) {
   if (!val) return '—'
@@ -54,7 +54,7 @@ export type CampNode = {
 function DayCell({ m, currency }: { m: DayM; currency: string }) {
   const q = m ? dayQC(m.purchases, m.cpa, m.spend) : null
   if (!m || m.spend < 1 || !q) {
-    return <td style={{ padding: '5px 4px', textAlign: 'center', fontSize: '11px', color: '#2D3244', borderRight: '1px solid #1a1d2740', minWidth: '50px' }}>·</td>
+    return <td style={{ padding: '5px 4px', textAlign: 'center', fontSize: '11px', color: '#1A3050', borderRight: '1px solid #1a1d2740', minWidth: '50px' }}>·</td>
   }
   return (
     <td style={{ padding: '3px 3px', textAlign: 'center', borderRight: '1px solid #1a1d2740', minWidth: '50px', backgroundColor: q.bg }}>
@@ -92,9 +92,9 @@ export default function DecisionTree({
 
   const TH: any = {
     padding: '6px 8px', textAlign: 'right' as const, color: '#64748B',
-    fontSize: '9px', fontWeight: 600, borderBottom: '1px solid #2D3244',
+    fontSize: '9px', fontWeight: 600, borderBottom: '1px solid #1A3050',
     whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em',
-    backgroundColor: '#13151F', borderRight: '1px solid #1a1d2740',
+    backgroundColor: '#0A1422', borderRight: '1px solid #1a1d2740',
   }
   const THL: any = { ...TH, textAlign: 'left' as const }
   const TD: any = {
@@ -132,10 +132,10 @@ export default function DecisionTree({
                 {/* ── Campaign ── */}
                 <tr
                   key={`c-${camp.id}`}
-                  style={{ opacity: camp.status === 'ACTIVE' ? 1 : 0.5, cursor: 'pointer', backgroundColor: '#1A1D27' }}
+                  style={{ opacity: camp.status === 'ACTIVE' ? 1 : 0.5, cursor: 'pointer', backgroundColor: '#0E1B30' }}
                   onClick={() => toggleC(camp.id)}
                 >
-                  <td style={{ ...TDL, position: 'sticky', left: 0, backgroundColor: '#1A1D27', fontWeight: 700, borderLeft: `3px solid ${camp.signal.color}40` }}>
+                  <td style={{ ...TDL, position: 'sticky', left: 0, backgroundColor: '#0E1B30', fontWeight: 700, borderLeft: `3px solid ${camp.signal.color}40` }}>
                     <span style={{ fontSize: '9px', color: '#64748B', marginRight: '6px' }}>{isOpenC ? '▼' : '▶'}</span>
                     <span style={{ color: '#F1F5F9' }}>{camp.name}</span>
                   </td>
@@ -159,14 +159,14 @@ export default function DecisionTree({
                     <>
                       <tr
                         key={`a-${as.id}`}
-                        style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.5, cursor: 'pointer', backgroundColor: '#13151F' }}
+                        style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.5, cursor: 'pointer', backgroundColor: '#0A1422' }}
                         onClick={e => { e.stopPropagation(); toggleA(as.id) }}
                       >
-                        <td style={{ ...TDL, paddingLeft: '28px', position: 'sticky', left: 0, backgroundColor: '#13151F', borderLeft: `3px solid ${as.signal.color}25` }}>
+                        <td style={{ ...TDL, paddingLeft: '28px', position: 'sticky', left: 0, backgroundColor: '#0A1422', borderLeft: `3px solid ${as.signal.color}25` }}>
                           <span style={{ fontSize: '8px', color: '#64748B', marginRight: '5px' }}>{isOpenA ? '▼' : '▶'}</span>
                           <span style={{ color: '#94A3B8' }}>{as.name}</span>
                         </td>
-                        <td style={{ ...TD, textAlign: 'center', fontSize: '8px', backgroundColor: '#13151F' }}>
+                        <td style={{ ...TD, textAlign: 'center', fontSize: '8px', backgroundColor: '#0A1422' }}>
                           <span style={{ color: as.status === 'ACTIVE' ? '#22C55E' : '#64748B' }}>●</span>
                         </td>
                         {as.days4.map((m, i) => <DayCell key={i} m={m} currency={currency} />)}
@@ -182,20 +182,20 @@ export default function DecisionTree({
                       {isOpenA && as.ads.map(ad => {
                         const adPct = pctFmt(ad.d7?.roas, ad.prev7?.roas)
                         return (
-                          <tr key={`ad-${ad.id}`} style={{ opacity: ad.status === 'ACTIVE' ? 1 : 0.5, backgroundColor: '#0F1117' }}>
-                            <td style={{ ...TDL, paddingLeft: '52px', position: 'sticky', left: 0, backgroundColor: '#0F1117', borderLeft: `3px solid ${ad.signal.color}15` }}>
+                          <tr key={`ad-${ad.id}`} style={{ opacity: ad.status === 'ACTIVE' ? 1 : 0.5, backgroundColor: '#060810' }}>
+                            <td style={{ ...TDL, paddingLeft: '52px', position: 'sticky', left: 0, backgroundColor: '#060810', borderLeft: `3px solid ${ad.signal.color}15` }}>
                               <div style={{ color: '#64748B', fontSize: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>
                                 {ad.name}
                               </div>
                               {ad.alerts.length > 0 && (
                                 <div style={{ display: 'flex', gap: '3px', marginTop: '2px', flexWrap: 'wrap' }}>
                                   {ad.alerts.map((a, i) => (
-                                    <span key={i} style={{ fontSize: '8px', padding: '1px 5px', backgroundColor: '#2D3244', color: '#94A3B8', borderRadius: '3px' }}>{a}</span>
+                                    <span key={i} style={{ fontSize: '8px', padding: '1px 5px', backgroundColor: '#1A3050', color: '#94A3B8', borderRadius: '3px' }}>{a}</span>
                                   ))}
                                 </div>
                               )}
                             </td>
-                            <td style={{ ...TD, textAlign: 'center', fontSize: '8px', backgroundColor: '#0F1117' }}>
+                            <td style={{ ...TD, textAlign: 'center', fontSize: '8px', backgroundColor: '#060810' }}>
                               <span style={{ color: ad.status === 'ACTIVE' ? '#22C55E' : '#64748B' }}>●</span>
                             </td>
                             {ad.days4.map((m, i) => <DayCell key={i} m={m} currency={currency} />)}

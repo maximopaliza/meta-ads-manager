@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -38,26 +38,51 @@ export default function Sidebar() {
     }}>
       {/* Logo */}
       <div style={{
-        padding: '20px 18px 16px',
-        borderBottom: '1px solid #182036',
+        padding: '18px 16px 16px',
+        borderBottom: '1px solid #1A3050',
+        background: 'linear-gradient(180deg, #0A1828 0%, #070A14 100%)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: '34px', height: '34px',
-            borderRadius: '8px',
-            background: 'linear-gradient(135deg, #1a1d2e 0%, #23273a 100%)',
-            border: '1px solid #6366F130',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '16px', flexShrink: 0,
-            boxShadow: '0 0 12px rgba(99,102,241,0.15)',
-          }}>
-            ◈
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: '13px', color: '#E8EDF5', letterSpacing: '0.06em' }}>J.A.R.V.I.S</div>
-            <div style={{ fontSize: '10px', color: '#6366F1', fontWeight: 700, letterSpacing: '0.12em' }}>MASIVO</div>
-            <div style={{ fontSize: '8px', color: '#2D3350', fontWeight: 500, letterSpacing: '0.08em', marginTop: '1px' }}>ARGENTINA</div>
-          </div>
+        {/* Sistema activo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px' }}>
+          <div className="live-dot" style={{ width: '5px', height: '5px', marginRight: 0 }} />
+          <span style={{ fontSize: '8px', color: '#22C55E', fontWeight: 700, letterSpacing: '0.18em' }}>
+            SISTEMA ACTIVO
+          </span>
+        </div>
+
+        {/* Nombre principal con gradiente */}
+        <div style={{
+          fontSize: '21px',
+          fontWeight: 900,
+          letterSpacing: '0.1em',
+          lineHeight: 1,
+          background: 'linear-gradient(90deg, #FFFFFF 0%, #A5B4FC 45%, #6366F1 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          marginBottom: '8px',
+        }}>
+          J.A.R.V.I.S
+        </div>
+
+        {/* Badges */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            fontSize: '9px',
+            padding: '3px 8px',
+            borderRadius: '5px',
+            background: 'linear-gradient(90deg, #6366F1 0%, #818CF8 100%)',
+            color: '#fff',
+            fontWeight: 800,
+            letterSpacing: '0.14em',
+            boxShadow: '0 0 10px #6366F140',
+          }}>MASIVO</span>
+          <span style={{
+            fontSize: '8px',
+            color: '#2A4060',
+            fontWeight: 600,
+            letterSpacing: '0.12em',
+          }}>· ARG</span>
         </div>
       </div>
 
@@ -80,7 +105,7 @@ export default function Sidebar() {
                 padding: '9px 10px',
                 borderRadius: '6px',
                 marginBottom: '2px',
-                backgroundColor: active ? '#111828' : 'transparent',
+                backgroundColor: active ? '#0E1B30' : 'transparent',
                 color: active ? '#E8EDF5' : '#5A6C88',
                 textDecoration: 'none',
                 fontSize: '13px',

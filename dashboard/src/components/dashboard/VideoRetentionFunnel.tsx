@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 // VideoRetentionFunnel — muestra el funnel de retención de un ad de video
 // Uso: <VideoRetentionFunnel metrics={m} label="Creativo A" />
@@ -34,8 +34,8 @@ const GREEN  = '#22C55E'
 const YELLOW = '#F59E0B'
 const RED    = '#EF4444'
 const MUTED  = '#64748B'
-const BORDER = '#2D3244'
-const SURFACE = '#1A1D27'
+const BORDER = '#1A3050'
+const SURFACE = '#0E1B30'
 
 function hookColor(v: number | null | undefined) {
   if (!v) return MUTED

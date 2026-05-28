@@ -1,4 +1,4 @@
-interface KPICardProps {
+﻿interface KPICardProps {
   label: string
   value: string
   delta?: number | null
@@ -15,8 +15,8 @@ export default function KPICard({ label, value, delta, icon, color = '#6366F1' }
   return (
     <div
       style={{
-        backgroundColor: '#1A1D27',
-        border: '1px solid #2D3244',
+        backgroundColor: '#0E1B30',
+        border: '1px solid #1A3050',
         borderRadius: '12px',
         padding: '24px',
         flex: 1,

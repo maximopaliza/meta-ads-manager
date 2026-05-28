@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
@@ -35,13 +35,13 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#0F1117',
+        backgroundColor: '#060810',
       }}
     >
       <div
         style={{
-          backgroundColor: '#1A1D27',
-          border: '1px solid #2D3244',
+          backgroundColor: '#0E1B30',
+          border: '1px solid #1A3050',
           borderRadius: '12px',
           padding: '48px',
           width: '100%',
@@ -68,8 +68,8 @@ export default function LoginPage() {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                backgroundColor: '#0F1117',
-                border: `1px solid ${error ? '#EF4444' : '#2D3244'}`,
+                backgroundColor: '#060810',
+                border: `1px solid ${error ? '#EF4444' : '#1A3050'}`,
                 borderRadius: '8px',
                 color: '#F1F5F9',
                 fontSize: '14px',

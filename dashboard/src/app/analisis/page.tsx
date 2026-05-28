@@ -1,4 +1,4 @@
-import { headers } from 'next/headers'
+﻿import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
@@ -481,10 +481,10 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   ]
 
   // ── Shared styles ─────────────────────────────────────────────────────────
-  const th: any  = { padding: '7px 8px', textAlign: 'right' as const, color: C_MUTED, fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
+  const th: any  = { padding: '7px 8px', textAlign: 'right' as const, color: C_MUTED, fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
   const td: any  = { padding: '7px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '1px solid #1a1d27' }
-  const thG: any = { ...th, borderLeft: '1px solid #2D3244' }
-  const tdG: any = { ...td, borderLeft: '1px solid #2D3244' }
+  const thG: any = { ...th, borderLeft: '1px solid #1A3050' }
+  const tdG: any = { ...td, borderLeft: '1px solid #1A3050' }
 
   // Group header style
   const thGrp = (color: string): any => ({
@@ -496,8 +496,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     textTransform: 'uppercase' as const,
     letterSpacing: '0.06em',
     backgroundColor: '#0e1015',
-    borderBottom: '1px solid #2D3244',
-    borderLeft: '1px solid #2D3244',
+    borderBottom: '1px solid #1A3050',
+    borderLeft: '1px solid #1A3050',
     whiteSpace: 'nowrap' as const,
   })
 
@@ -545,7 +545,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     return (
       <tr key={d.date} style={{ backgroundColor: bg }}>
         {/* Date */}
-        <td style={{ ...td, textAlign: 'left' as const, color: isToday ? '#6366F1' : C_MUTED, fontWeight: isToday ? 700 : 600, position: 'sticky' as const, left: 0, backgroundColor: isToday ? '#1e2035' : '#1A1D27', zIndex: 1, paddingLeft: '14px' }}>
+        <td style={{ ...td, textAlign: 'left' as const, color: isToday ? '#6366F1' : C_MUTED, fontWeight: isToday ? 700 : 600, position: 'sticky' as const, left: 0, backgroundColor: isToday ? '#1e2035' : '#0E1B30', zIndex: 1, paddingLeft: '14px' }}>
           {dateLabel}
           {isToday && <span style={{ fontSize: '8px', color: '#6366F1', marginLeft: '5px', padding: '1px 4px', backgroundColor: '#6366F125', borderRadius: '3px' }}>HOY</span>}
         </td>
@@ -633,7 +633,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#060810' }}>
       <Sidebar />
       <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
         <Header title="Análisis" subtitle={`Tendencias · ${today}`} />
@@ -653,7 +653,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap' as const, gap: '8px' }}>
             <div style={{ display: 'flex', gap: '4px' }}>
               {(['summary', 'table'] as const).map(v => (
-                <a key={v} href={`?view=${v}&days=${days}`} style={{ padding: '6px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, textDecoration: 'none', backgroundColor: view === v ? '#6366F1' : 'transparent', color: view === v ? '#fff' : C_MUTED, border: `1px solid ${view === v ? '#6366F1' : '#2D3244'}` }}>
+                <a key={v} href={`?view=${v}&days=${days}`} style={{ padding: '6px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, textDecoration: 'none', backgroundColor: view === v ? '#6366F1' : 'transparent', color: view === v ? '#fff' : C_MUTED, border: `1px solid ${view === v ? '#6366F1' : '#1A3050'}` }}>
                   {v === 'summary' ? 'Resumen' : 'Tabla completa'}
                 </a>
               ))}
@@ -695,7 +695,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                   2. TREND CHARTS (8 mini charts)
               ══════════════════════════════════════════ */}
               {dailyRows.length > 1 && (
-                <div style={{ marginBottom: '20px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', padding: '16px 16px 14px' }}>
+                <div style={{ marginBottom: '20px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', padding: '16px 16px 14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600, color: C_TEXT }}>📈 Tendencia — últimos {days} días</span>
                     <span style={{ fontSize: '10px', color: C_MUTED }}>Líneas de ref.: CPA objetivo · ROAS mínimo · Hook Rate ≥30%</span>
@@ -717,8 +717,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                   3. ANÁLISIS 4 DÍAS — CUENTA
               ══════════════════════════════════════════ */}
               {last5Asc.length > 0 && (
-                <div style={{ marginBottom: '20px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden', borderTop: '2px solid #6366F1' }}>
-                  <div style={{ padding: '10px 16px', borderBottom: '1px solid #2D3244', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ marginBottom: '20px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden', borderTop: '2px solid #6366F1' }}>
+                  <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A3050', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px', fontWeight: 700, color: C_TEXT }}>Análisis 5 días — Cuenta</span>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                       <span style={{ fontSize: '10px', color: C_MUTED }}>
@@ -761,8 +761,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
               {/* ══════════════════════════════════════════
                   5. SEMANA VS SEMANA
               ══════════════════════════════════════════ */}
-              <div style={{ marginBottom: '20px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ padding: '10px 16px', borderBottom: '1px solid #2D3244' }}>
+              <div style={{ marginBottom: '20px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A3050' }}>
                   <span style={{ fontSize: '13px', fontWeight: 500, color: C_TEXT }}>Esta semana vs semana pasada</span>
                   <span style={{ fontSize: '10px', color: C_MUTED, marginLeft: '8px' }}>últimos 7d vs 7d anteriores</span>
                 </div>
@@ -770,7 +770,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                   {wkItems.map(item => {
                     const a = wkArrow(item.p, item.inv)
                     return (
-                      <div key={item.label} style={{ backgroundColor: '#0F1117', borderRadius: '8px', padding: '12px', border: '1px solid #2D3244' }}>
+                      <div key={item.label} style={{ backgroundColor: '#060810', borderRadius: '8px', padding: '12px', border: '1px solid #1A3050' }}>
                         <div style={{ fontSize: '9px', color: C_MUTED, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginBottom: '5px' }}>{item.label}</div>
                         <div style={{ fontSize: '17px', fontWeight: 700, color: C_TEXT, marginBottom: '5px' }}>{item.fmt(item.w1)}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' as const }}>
@@ -786,8 +786,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
               {/* ══════════════════════════════════════════
                   6. EMBUDO
               ══════════════════════════════════════════ */}
-              <div style={{ marginBottom: '20px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden' }}>
-                <div style={{ padding: '10px 16px', borderBottom: '1px solid #2D3244' }}>
+              <div style={{ marginBottom: '20px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A3050' }}>
                   <span style={{ fontSize: '13px', fontWeight: 500, color: C_TEXT }}>Embudo de conversión — últimos 7d</span>
                 </div>
                 <div style={{ padding: '20px 16px', display: 'flex', alignItems: 'flex-end', gap: '4px', overflowX: 'auto' }}>
@@ -815,7 +815,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                 <div style={{ marginBottom: '20px' }}>
                   <div style={{ fontSize: '11px', color: '#6366F1', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: '10px' }}>Señales IA</div>
                   {dayAnalyses.map((a: any) => (
-                    <div key={a.id} style={{ backgroundColor: '#1A1D27', border: '1px solid #6366F130', borderRadius: '12px', padding: '18px 20px', marginBottom: '10px' }}>
+                    <div key={a.id} style={{ backgroundColor: '#0E1B30', border: '1px solid #6366F130', borderRadius: '12px', padding: '18px 20px', marginBottom: '10px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: C_TEXT }}>{a.title}</div>
                         <div style={{ fontSize: '10px', color: C_MUTED, whiteSpace: 'nowrap' as const, marginLeft: '12px' }}>{formatDate(a.created_at?.split('T')[0] || '')}</div>
@@ -830,13 +830,13 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                   8. ALERTAS RECIENTES
               ══════════════════════════════════════════ */}
               {recentAlerts.length > 0 && (
-                <div style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden' }}>
-                  <div style={{ padding: '10px 16px', borderBottom: '1px solid #2D3244' }}>
+                <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A3050' }}>
                     <span style={{ fontSize: '13px', fontWeight: 500, color: C_TEXT }}>Alertas recientes</span>
                   </div>
                   <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column' as const, gap: '8px' }}>
                     {recentAlerts.slice(0, 5).map((a: any) => (
-                      <div key={a.id} style={{ padding: '10px 12px', backgroundColor: '#0F1117', borderRadius: '8px', border: `1px solid ${a.severity === 'critical' ? '#EF444440' : a.severity === 'warning' ? '#F59E0B40' : '#6366F140'}` }}>
+                      <div key={a.id} style={{ padding: '10px 12px', backgroundColor: '#060810', borderRadius: '8px', border: `1px solid ${a.severity === 'critical' ? '#EF444440' : a.severity === 'warning' ? '#F59E0B40' : '#6366F140'}` }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                           <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', fontWeight: 600, backgroundColor: a.severity === 'critical' ? '#EF444420' : a.severity === 'warning' ? '#F59E0B20' : '#6366F120', color: a.severity === 'critical' ? C_RED : a.severity === 'warning' ? C_YELLOW : '#6366F1' }}>
                             {a.severity?.toUpperCase()}
@@ -854,8 +854,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
             /* ══════════════════════════════════════════
                TABLA COMPLETA (view=table)
             ══════════════════════════════════════════ */
-            <div style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '10px 16px', borderBottom: '1px solid #2D3244' }}>
+            <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A3050' }}>
                 <span style={{ fontSize: '13px', fontWeight: 500, color: C_TEXT }}>Tabla día por día — últimos {days}d</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
@@ -887,7 +887,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                       const isToday = d.date === today
                       return (
                         <tr key={d.date} style={{ backgroundColor: isToday ? '#6366F108' : 'transparent' }}>
-                          <td style={{ ...td, textAlign: 'left' as const, color: C_TEXT, fontWeight: isToday ? 700 : 400, position: 'sticky' as const, left: 0, backgroundColor: isToday ? '#1e2030' : '#1A1D27' }}>
+                          <td style={{ ...td, textAlign: 'left' as const, color: C_TEXT, fontWeight: isToday ? 700 : 400, position: 'sticky' as const, left: 0, backgroundColor: isToday ? '#1e2030' : '#0E1B30' }}>
                             {formatDate(d.date)}{isToday && <span style={{ fontSize: '9px', color: '#6366F1', marginLeft: '6px' }}>HOY</span>}
                           </td>
                           <td style={{ ...td, color: d.purchases > 0 ? C_GREEN : C_MUTED, fontWeight: 600 }}>{d.purchases || '—'}</td>

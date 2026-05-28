@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import {
   ComposedChart, Bar, Line,
@@ -13,8 +13,8 @@ interface SpendChartProps {
   currency?: string
 }
 
-const DARK_BG = '#111828'
-const BORDER  = '#1E2A42'
+const DARK_BG = '#0E1B30'
+const BORDER  = '#1A3050'
 const MUTED   = '#5E6E8A'
 const TEXT    = '#E8EDF5'
 

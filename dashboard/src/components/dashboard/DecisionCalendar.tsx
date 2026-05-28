@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -28,8 +28,8 @@ type DayData = {
 }
 
 const qColor  = { good: '#22C55E', ok: '#F59E0B', bad: '#EF4444', empty: '#374151' }
-const qBg     = { good: '#22C55E1A', ok: '#F59E0B1A', bad: '#EF44441A', empty: '#1A1D27' }
-const qBorder = { good: '#22C55E40', ok: '#F59E0B40', bad: '#EF444440', empty: '#2D3244' }
+const qBg     = { good: '#22C55E1A', ok: '#F59E0B1A', bad: '#EF44441A', empty: '#0E1B30' }
+const qBorder = { good: '#22C55E40', ok: '#F59E0B40', bad: '#EF444440', empty: '#1A3050' }
 
 // mode='display': solo visual, sin clicks
 // mode='twodays': click selecciona día A y día B via ?a=&b= en URL
@@ -85,9 +85,9 @@ export default function DecisionCalendar({
             onClick={() => setSlot('a')}
             style={{
               padding: '5px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
-              backgroundColor: slot === 'a' ? '#EF444420' : '#1A1D27',
+              backgroundColor: slot === 'a' ? '#EF444420' : '#0E1B30',
               color: slot === 'a' ? '#EF4444' : '#64748B',
-              border: `1px solid ${slot === 'a' ? '#EF444450' : '#2D3244'}`,
+              border: `1px solid ${slot === 'a' ? '#EF444450' : '#1A3050'}`,
               cursor: 'pointer',
             }}
           >
@@ -97,9 +97,9 @@ export default function DecisionCalendar({
             onClick={() => setSlot('b')}
             style={{
               padding: '5px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
-              backgroundColor: slot === 'b' ? '#22C55E20' : '#1A1D27',
+              backgroundColor: slot === 'b' ? '#22C55E20' : '#0E1B30',
               color: slot === 'b' ? '#22C55E' : '#64748B',
-              border: `1px solid ${slot === 'b' ? '#22C55E50' : '#2D3244'}`,
+              border: `1px solid ${slot === 'b' ? '#22C55E50' : '#1A3050'}`,
               cursor: 'pointer',
             }}
           >
@@ -187,7 +187,7 @@ export default function DecisionCalendar({
                               {day.quality === 'empty' ? '·' : day.purchases}
                             </div>
                             {/* CPA */}
-                            <div style={{ fontSize: '7px', marginTop: '2px', fontWeight: 600, color: day.cpa ? cpaColor(day.cpa) : '#2D3244', lineHeight: 1 }}>
+                            <div style={{ fontSize: '7px', marginTop: '2px', fontWeight: 600, color: day.cpa ? cpaColor(day.cpa) : '#1A3050', lineHeight: 1 }}>
                               {day.cpa ? fmtCurrency(day.cpa, currency) : day.spend > 0 ? <span style={{ color: '#EF444460' }}>$∞</span> : ''}
                             </div>
                           </td>

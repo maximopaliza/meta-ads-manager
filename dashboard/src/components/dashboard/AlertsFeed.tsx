@@ -1,4 +1,4 @@
-import { Alert } from '@/types/meta'
+﻿import { Alert } from '@/types/meta'
 import { severityColor, severityIcon } from '@/lib/utils'
 
 interface AlertsFeedProps {
@@ -10,8 +10,8 @@ export default function AlertsFeed({ alerts }: AlertsFeedProps) {
     return (
       <div
         style={{
-          backgroundColor: '#1A1D27',
-          border: '1px solid #2D3244',
+          backgroundColor: '#0E1B30',
+          border: '1px solid #1A3050',
           borderRadius: '12px',
           padding: '24px',
         }}
@@ -27,8 +27,8 @@ export default function AlertsFeed({ alerts }: AlertsFeedProps) {
   return (
     <div
       style={{
-        backgroundColor: '#1A1D27',
-        border: '1px solid #2D3244',
+        backgroundColor: '#0E1B30',
+        border: '1px solid #1A3050',
         borderRadius: '12px',
         padding: '24px',
       }}

@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '@/lib/supabase'
+﻿import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import { severityIcon } from '@/lib/utils'
@@ -22,14 +22,14 @@ export default async function AlertsPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#060810' }}>
       <Sidebar />
       <div style={{ marginLeft: '220px', flex: 1 }}>
         <Header title="Alertas" subtitle={`${(alerts || []).length} alertas registradas`} />
         <main style={{ padding: '32px', maxWidth: '1400px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {(alerts || []).length === 0 ? (
-              <div style={{ backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#64748B' }}>
+              <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#64748B' }}>
                 Sin alertas todavía. El sistema empezará a generar alertas luego del primer sync.
               </div>
             ) : (
@@ -39,8 +39,8 @@ export default async function AlertsPage() {
                   style={{
                     padding: '16px 20px',
                     borderRadius: '12px',
-                    border: `1px solid ${severityBorder[alert.severity] || '#2D3244'}`,
-                    backgroundColor: severityBg[alert.severity] || '#1A1D2710',
+                    border: `1px solid ${severityBorder[alert.severity] || '#1A3050'}`,
+                    backgroundColor: severityBg[alert.severity] || '#0E1B3010',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>

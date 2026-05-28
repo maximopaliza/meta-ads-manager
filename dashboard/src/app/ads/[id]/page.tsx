@@ -1,4 +1,4 @@
-import { headers } from 'next/headers'
+﻿import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
@@ -8,8 +8,8 @@ import { getLatestDate, cpaColor, roasColor, CPA_BREAKEVEN, CPA_TARGET } from '@
 import VideoRetentionFunnel from '@/components/dashboard/VideoRetentionFunnel'
 import { notFound } from 'next/navigation'
 
-const BORDER = '#2D3244'
-const SURFACE = '#1A1D27'
+const BORDER = '#1A3050'
+const SURFACE = '#0E1B30'
 const MUTED = '#64748B'
 
 function StatCard({ label, value, sub, color }: {
@@ -118,7 +118,7 @@ export default async function AdDetailPage({
   const thStyle: any = { ...tdStyle, color: MUTED, fontWeight: 600, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: '#151820' }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#060810' }}>
       <Sidebar />
       <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
         <Header

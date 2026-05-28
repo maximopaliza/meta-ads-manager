@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import TrendCharts from './TrendCharts'
@@ -59,7 +59,7 @@ interface Props {
   rangeDays: number
 }
 
-const BORDER  = '#2D3244'
+const BORDER  = '#1A3050'
 const MUTED   = '#64748B'
 const TEXT    = '#F1F5F9'
 const INDIGO  = '#6366F1'
@@ -115,7 +115,7 @@ export default function TrendSelector({
   })
 
   const selectStyle: React.CSSProperties = {
-    backgroundColor: '#0F1117',
+    backgroundColor: '#060810',
     border: `1px solid ${BORDER}`,
     borderRadius: '6px',
     color: TEXT,

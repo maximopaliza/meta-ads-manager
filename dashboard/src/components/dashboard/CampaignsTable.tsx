@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import { CampaignWithMetrics } from '@/types/meta'
 import { formatCurrency, formatROAS, statusEmoji } from '@/lib/utils'
 
@@ -19,27 +19,27 @@ export default function CampaignsTable({ campaigns, currency = 'ARS', compact = 
     color: '#64748B',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
-    borderBottom: '1px solid #2D3244',
+    borderBottom: '1px solid #1A3050',
   }
 
   const tdStyle = {
     padding: '12px',
     fontSize: '13px',
     color: '#F1F5F9',
-    borderBottom: '1px solid #2D3244',
+    borderBottom: '1px solid #1A3050',
   }
 
   return (
     <div
       style={{
-        backgroundColor: '#1A1D27',
-        border: '1px solid #2D3244',
+        backgroundColor: '#0E1B30',
+        border: '1px solid #1A3050',
         borderRadius: '12px',
         overflow: 'hidden',
       }}
     >
       {compact && (
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #2D3244', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #1A3050', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 500, color: '#F1F5F9' }}>📣 Top campañas</h3>
           <Link href="/campaigns" style={{ fontSize: '12px', color: '#6366F1', textDecoration: 'none' }}>Ver todas →</Link>
         </div>

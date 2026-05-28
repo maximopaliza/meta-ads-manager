@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 
@@ -32,7 +32,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
   return (
     <header style={{
       padding: '16px 28px',
-      borderBottom: '1px solid #2D3244',
+      borderBottom: '1px solid #1A3050',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',

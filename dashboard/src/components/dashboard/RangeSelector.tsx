@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useState } from 'react'
@@ -68,8 +68,8 @@ export default function RangeSelector() {
   })()
 
   const inputStyle = {
-    backgroundColor: '#0F1117',
-    border: '1px solid #2D3244',
+    backgroundColor: '#060810',
+    border: '1px solid #1A3050',
     borderRadius: '6px',
     color: '#F1F5F9',
     fontSize: '12px',
@@ -91,7 +91,7 @@ export default function RangeSelector() {
       </div>
 
       {/* Presets */}
-      <div style={{ display: 'flex', gap: '4px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '8px', padding: '4px' }}>
+      <div style={{ display: 'flex', gap: '4px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px', padding: '4px' }}>
         {PRESETS.map(o => (
           <button
             key={o.value}
@@ -151,7 +151,7 @@ export default function RangeSelector() {
 
       {/* Single day input */}
       {showDay && !showCustom && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '8px', padding: '6px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px', padding: '6px 10px' }}>
           <span style={{ fontSize: '11px', color: '#64748B' }}>Día</span>
           <input
             type="date"
@@ -169,7 +169,7 @@ export default function RangeSelector() {
               cursor: singleDay ? 'pointer' : 'not-allowed',
               fontSize: '12px',
               fontWeight: 600,
-              backgroundColor: singleDay ? '#6366F1' : '#2D3244',
+              backgroundColor: singleDay ? '#6366F1' : '#1A3050',
               color: singleDay ? '#fff' : '#64748B',
             }}
           >
@@ -180,7 +180,7 @@ export default function RangeSelector() {
 
       {/* Custom date range inputs */}
       {showCustom && !showDay && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '8px', padding: '6px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px', padding: '6px 10px' }}>
           <span style={{ fontSize: '11px', color: '#64748B' }}>Desde</span>
           <input
             type="date"
@@ -205,7 +205,7 @@ export default function RangeSelector() {
               cursor: from && to ? 'pointer' : 'not-allowed',
               fontSize: '12px',
               fontWeight: 600,
-              backgroundColor: from && to ? '#6366F1' : '#2D3244',
+              backgroundColor: from && to ? '#6366F1' : '#1A3050',
               color: from && to ? '#fff' : '#64748B',
             }}
           >

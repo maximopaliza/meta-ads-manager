@@ -1,4 +1,4 @@
-import { headers } from 'next/headers'
+﻿import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
@@ -150,19 +150,19 @@ function dayQuality(d: any): 'good' | 'ok' | 'bad' | 'empty' {
   return 'bad'
 }
 
-const qColor  = { good: '#22C55E', ok: '#F59E0B', bad: '#EF4444', empty: '#2D3244' }
-const qBg     = { good: '#22C55E22', ok: '#F59E0B22', bad: '#EF444422', empty: '#1A1D27' }
-const qBorder = { good: '#22C55E50', ok: '#F59E0B50', bad: '#EF444450', empty: '#2D3244' }
+const qColor  = { good: '#22C55E', ok: '#F59E0B', bad: '#EF4444', empty: '#1A3050' }
+const qBg     = { good: '#22C55E22', ok: '#F59E0B22', bad: '#EF444422', empty: '#0E1B30' }
+const qBorder = { good: '#22C55E50', ok: '#F59E0B50', bad: '#EF444450', empty: '#1A3050' }
 
 // ─── shared table styles ─────────────────────────────────────────────────────
-const TH: any  = { padding: '7px 8px', color: '#64748B', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #2D3244', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: '#13151F', textAlign: 'right' }
+const TH: any  = { padding: '7px 8px', color: '#64748B', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: '#0A1422', textAlign: 'right' }
 const THL: any = { ...TH, textAlign: 'left' }
-const TD: any  = { padding: '7px 8px', fontSize: '11px', borderBottom: '1px solid #1A1D2780', textAlign: 'right', verticalAlign: 'middle' }
+const TD: any  = { padding: '7px 8px', fontSize: '11px', borderBottom: '1px solid #0E1B3080', textAlign: 'right', verticalAlign: 'middle' }
 const TDL: any = { ...TD, textAlign: 'left' }
-const SEP: any = { ...TD, borderLeft: '1px solid #2D3244' }
-const THSEP: any = { ...TH, borderLeft: '1px solid #2D3244' }
+const SEP: any = { ...TD, borderLeft: '1px solid #1A3050' }
+const THSEP: any = { ...TH, borderLeft: '1px solid #1A3050' }
 
-const CARD = { backgroundColor: '#1A1D27', border: '1px solid #2D3244', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }
+const CARD = { backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }
 
 // ─── page ────────────────────────────────────────────────────────────────────
 export default async function DecisionesPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
@@ -391,7 +391,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
 
   function SectionHeader({ icon, title, sub }: { icon: string; title: string; sub: string }) {
     return (
-      <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid #2D3244', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid #1A3050', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #6366F130 0%, #6366F118 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', flexShrink: 0 }}>
           {icon}
         </div>
@@ -447,7 +447,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
   })
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#0F1117' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#060810' }}>
       <Sidebar />
       <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
         <Header title="Decisiones" subtitle="Tendencias · Señales · Acción inmediata" />
@@ -533,7 +533,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
               {/* Nivel 2: por campaña */}
               {campComparison.length > 0 && (
                 <div style={{ padding: '0 20px 0' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #2D3244' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #1A3050' }}>
                     Nivel 2 — Por campaña
                   </div>
                   <div style={{ overflowX: 'auto', marginBottom: '4px' }}>
@@ -581,7 +581,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
               {/* Nivel 3: por Ad Set */}
               {asComparison.length > 0 && (
                 <div style={{ padding: '0 20px 0' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #2D3244' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #1A3050' }}>
                     Nivel 3 — Por conjunto de anuncios
                   </div>
                   <div style={{ overflowX: 'auto', marginBottom: '4px' }}>
@@ -627,7 +627,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
               {/* Nivel 4: por Anuncio */}
               {adComparison.length > 0 && (
                 <div style={{ padding: '0 20px 16px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #2D3244' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #1A3050' }}>
                     Nivel 4 — Por anuncio (top {adComparison.length})
                   </div>
                   <div style={{ overflowX: 'auto' }}>
