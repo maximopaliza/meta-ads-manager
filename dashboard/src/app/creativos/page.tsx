@@ -142,12 +142,14 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
     revisar: rows.filter((r: any) => r.score.priority <= 2 && r.score.priority > 0).length,
   }
 
-  // ── Scoreboard ─────────────────────────────────────────────────────────────
+  // ── Totales del período ────────────────────────────────────────────────────
   const withData = rows.filter((r: any) => r.t)
-  const bestRoas  = [...withData].filter((r: any) => r.t.roas).sort((a: any, b: any) => b.t.roas - a.t.roas)[0]
-  const bestCpa   = [...withData].filter((r: any) => r.t.cpa).sort((a: any, b: any) => a.t.cpa - b.t.cpa)[0]
-  const bestSales = [...withData].sort((a: any, b: any) => b.t.purchases - a.t.purchases)[0]
-  const bestHook  = [...withData].filter((r: any) => r.t.hook_rate).sort((a: any, b: any) => b.t.hook_rate - a.t.hook_rate)[0]
+  const totalSpend     = withData.reduce((s: number, r: any) => s + (r.t.spend || 0), 0)
+  const totalPurchases = withData.reduce((s: number, r: any) => s + (r.t.purchases || 0), 0)
+  const totalValue     = withData.reduce((s: number, r: any) => s + (r.t.purchase_value || 0), 0)
+  const totalImpr      = withData.reduce((s: number, r: any) => s + (r.t.impressions || 0), 0)
+  const totalRoas      = totalSpend > 0 ? totalValue / totalSpend : null
+  const totalCpa       = totalPurchases > 0 ? totalSpend / totalPurchases : null
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#070911' }}>
@@ -161,7 +163,7 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '11px', color: M }}>Período:</span>
               <span style={{ fontSize: '12px', fontWeight: 700, color: TEXT }}>{label}</span>
-              <span style={{ fontSize: '10px', color: '#252B3D' }}>({rangeStart} → {rangeEnd})</span>
+              <span style={{ fontSize: '10px', color: '#4A6080' }}>({rangeStart} → {rangeEnd})</span>
             </div>
             <Suspense fallback={null}><RangeSelector /></Suspense>
           </div>
@@ -181,23 +183,20 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
             ))}
           </div>
 
-          {/* ── Scoreboard ── */}
-          {(bestRoas || bestCpa || bestSales || bestHook) && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '20px' }}>
-              {[
-                bestRoas  && { icon: '📈', label: 'Mejor ROAS',  name: bestRoas.name,  value: `${bestRoas.t.roas.toFixed(2)}x`,                  color: roasColor(bestRoas.t.roas) },
-                bestCpa   && { icon: '💰', label: 'Menor CPA',   name: bestCpa.name,   value: formatCurrency(bestCpa.t.cpa, currency),            color: cpaColor(bestCpa.t.cpa) },
-                bestSales && { icon: '🛒', label: 'Más ventas',  name: bestSales.name, value: `${bestSales.t.purchases} ventas`,                  color: G },
-                bestHook  && { icon: '🎬', label: 'Mejor Hook',  name: bestHook.name,  value: `${bestHook.t.hook_rate.toFixed(1)}%`,               color: hkColor(bestHook.t.hook_rate) },
-              ].filter(Boolean).map((s: any) => (
-                <div key={s.label} style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: '10px', padding: '14px 16px' }}>
-                  <div style={{ fontSize: '9px', color: M, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '5px' }}>{s.icon} {s.label}</div>
-                  <div style={{ fontSize: '22px', fontWeight: 800, color: s.color, lineHeight: 1.1, marginBottom: '4px' }}>{s.value}</div>
-                  <div style={{ fontSize: '10px', color: '#4A6080', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.name}</div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* ── Totales del período ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '20px' }}>
+            {[
+              { icon: '💸', label: 'Gasto total',   value: totalSpend > 0 ? formatCurrency(totalSpend, currency) : '—',                              color: TEXT },
+              { icon: '🛒', label: 'Total ventas',   value: totalPurchases > 0 ? `${totalPurchases} ventas` : '—',                                    color: totalPurchases > 0 ? G : M },
+              { icon: '📈', label: 'ROAS general',   value: totalRoas != null ? `${totalRoas.toFixed(2)}x` : '—',                                     color: roasColor(totalRoas) },
+              { icon: '💰', label: 'CPA general',    value: totalCpa  != null ? formatCurrency(totalCpa, currency) : '—',                             color: cpaColor(totalCpa) },
+            ].map((s: any) => (
+              <div key={s.label} style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: '10px', padding: '14px 16px' }}>
+                <div style={{ fontSize: '9px', color: M, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '5px' }}>{s.icon} {s.label}</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: s.color, lineHeight: 1.1 }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
 
           {/* ── Grilla de creativos ── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
@@ -226,7 +225,9 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
                       <img
                         src={row.thumbnail}
                         alt={row.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : (
                       /* Placeholder cuando no hay imagen */

@@ -129,12 +129,18 @@ class MetaClient:
         return result
 
     def get_ads(self, account_id: str) -> list[dict]:
-        fields = "id,name,status,adset_id,updated_time,creative{thumbnail_url,image_url}"
+        fields = "id,name,status,adset_id,updated_time,creative{thumbnail_url,image_url,effective_object_story_spec}"
         data = self._get_all_pages(f"{account_id}/ads", {"fields": fields, "limit": 500})
         result = []
         for a in data:
             creative = a.get("creative", {})
-            thumbnail = creative.get("thumbnail_url") or creative.get("image_url")
+            spec = creative.get("effective_object_story_spec", {})
+            # Prefer high-res sources: video frame > link image > image_url > thumbnail_url
+            video_img  = spec.get("video_data", {}).get("image_url") if spec.get("video_data") else None
+            link_img   = spec.get("link_data", {}).get("picture") if spec.get("link_data") else None
+            image_url  = creative.get("image_url")
+            thumb_url  = creative.get("thumbnail_url")
+            thumbnail  = video_img or link_img or image_url or thumb_url
             result.append({
                 "id": a["id"],
                 "ad_set_id": a.get("adset_id"),
