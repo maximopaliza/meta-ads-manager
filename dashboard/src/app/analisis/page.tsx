@@ -601,8 +601,8 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         <tr>
           <th style={{ ...th, textAlign: 'left' as const, position: 'sticky' as const, left: 0, zIndex: 3, ...fnt, backgroundColor: '#0e1015' }}></th>
           <th colSpan={4} style={{ ...thGrp('#22c55e80'), ...fnt }}>💰 Conversiones</th>
-          <th colSpan={4} style={{ ...thGrp('#ef444480'), ...fnt }}>💸 Costos</th>
-          <th colSpan={5} style={{ ...thGrp('#38bdf880'), ...fnt }}>🌐 Tráfico</th>
+          <th colSpan={5} style={{ ...thGrp('#ef444480'), ...fnt }}>💸 Costos</th>
+          <th colSpan={4} style={{ ...thGrp('#38bdf880'), ...fnt }}>🌐 Tráfico</th>
           <th colSpan={3} style={{ ...thGrp('#a78bfa80'), ...fnt }}>🎬 Video</th>
           <th colSpan={3} style={{ ...thGrp('#f59e0b80'), ...fnt }}>🔁 Embudo</th>
           <th style={{ ...thGrp(C_MUTED), ...fnt }}>Δ 1→5</th>
@@ -617,6 +617,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           <th style={{ ...thG, ...fnt }}>Gasto</th>
           <th style={{ ...th, ...fnt }}>Impr.</th>
           <th style={{ ...th, ...fnt }}>CPM</th>
+          <th style={{ ...th, ...fnt }}>CPC</th>
           <th style={{ ...thG, ...fnt }}>CTR único</th>
           <th style={{ ...th, ...fnt }}>Clics</th>
           <th style={{ ...th, ...fnt }}>Visit. LP</th>
@@ -624,7 +625,9 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
           <th style={{ ...th, ...fnt }}>Conv.web</th>
           <th style={{ ...thG, ...fnt }}>Hook Rate</th>
           <th style={{ ...th, ...fnt }}>Freq.</th>
+          <th style={{ ...th, ...fnt }}>Video avg</th>
           <th style={{ ...thG, ...fnt }}>ATC</th>
+          <th style={{ ...th, ...fnt }}>Costo ATC</th>
           <th style={{ ...th, ...fnt }}>Pagos</th>
           <th style={{ ...thG, textAlign: 'left' as const, ...fnt }}>Δ día 1→5</th>
         </tr>

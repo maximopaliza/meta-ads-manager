@@ -412,7 +412,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                           {cell(d.ctr ? `${d.ctr.toFixed(2)}%` : '—', ctrColor(d.ctr))}
                           {cell(d.unique_link_clicks > 0 ? d.unique_link_clicks : '—', '#A8BCD0')}
                           {cell(d.landing_page_views > 0 ? d.landing_page_views : '—', '#A8BCD0')}
-                          {cell(d.conv_web !== null && d.clicks > 0 ? `${(d.landing_page_views / d.clicks * 100).toFixed(2)}%` : '—', '#A8BCD0')}
+                          {cell((d.link_clicks || d.clicks) > 0 ? `${(d.landing_page_views / (d.link_clicks || d.clicks) * 100).toFixed(2)}%` : '—', '#A8BCD0')}
                           {cell(d.conv_web ? `${d.conv_web.toFixed(2)}%` : '—', '#A8BCD0')}
                           {cell(d.add_to_cart > 0 ? d.add_to_cart : '—')}
                           {cell(d.cost_atc ? formatCurrency(d.cost_atc, currency) : '—')}

@@ -75,9 +75,9 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
       video_3s_views:     e.video_3s_views     + (m.video_3s_views || 0),
       freq_w:     e.freq_w     + (m.frequency || 0) * imp,
       hook_w:     e.hook_w     + (m.hook_rate || 0) * imp,
-      hold_w:     e.hold_w     + (m.hold_rate || 0) * imp,
+      hold_w:     e.hold_w     + (m.hold_rate || 0) * (m.video_3s_views || 0),
       thruplay_w: e.thruplay_w + (m.thruplay_rate || 0) * imp,
-      ctr_pv_w:   e.ctr_pv_w  + (m.ctr_post_view || 0) * imp,
+      ctr_pv_w:   e.ctr_pv_w  + (m.ctr_post_view || 0) * (m.video_3s_views || 0),
     })
   }
 
@@ -107,9 +107,9 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
       atc_rate:      raw.landing_page_views > 0 && raw.add_to_cart > 0 ? raw.add_to_cart / raw.landing_page_views * 100 : null,
       frequency:     imp > 0 ? raw.freq_w / imp : null,
       hook_rate:     imp > 0 ? raw.hook_w / imp : null,
-      hold_rate:     imp > 0 ? raw.hold_w / imp : null,
+      hold_rate:     (raw.video_3s_views || 0) > 0 ? raw.hold_w / raw.video_3s_views : null,
       thruplay_rate: imp > 0 ? raw.thruplay_w / imp : null,
-      ctr_post_view: imp > 0 ? raw.ctr_pv_w / imp : null,
+      ctr_post_view: (raw.video_3s_views || 0) > 0 ? raw.ctr_pv_w / raw.video_3s_views : null,
     }
   }
 

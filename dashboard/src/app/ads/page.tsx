@@ -26,7 +26,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
   const currency = accountRes.data?.[0]?.currency || 'USD'
   const yesterdayMap = new Map((yesterdayM.data || []).map((m: any) => [m.object_id, m]))
 
-  const ZERO = { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, landing_page_views: 0, add_to_cart: 0, checkout_initiated: 0, freq_w: 0, hook_w: 0, video_w: 0, hold_w: 0, thruplay_w: 0, ctr_pv_w: 0 }
+  const ZERO = { spend: 0, purchases: 0, purchase_value: 0, impressions: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, landing_page_views: 0, add_to_cart: 0, checkout_initiated: 0, freq_w: 0, hook_w: 0, video_w: 0, hold_w: 0, thruplay_w: 0, ctr_pv_w: 0, v3s: 0 }
   const rangeAgg = new Map<string, any>()
   for (const m of rangeM.data || []) {
     const e = rangeAgg.get(m.object_id) || { ...ZERO }
@@ -45,9 +45,10 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
       freq_w: e.freq_w + (m.frequency || 0) * imp,
       hook_w: e.hook_w + (m.hook_rate || 0) * imp,
       video_w: e.video_w + (m.video_avg_time_watched || 0) * imp,
-      hold_w: e.hold_w + (m.hold_rate || 0) * imp,
+      hold_w: e.hold_w + (m.hold_rate || 0) * (m.video_3s_views || 0),
       thruplay_w: e.thruplay_w + (m.thruplay_rate || 0) * imp,
-      ctr_pv_w: e.ctr_pv_w + (m.ctr_post_view || 0) * imp,
+      ctr_pv_w: e.ctr_pv_w + (m.ctr_post_view || 0) * (m.video_3s_views || 0),
+      v3s: e.v3s + (m.video_3s_views || 0),
     })
   }
 
@@ -57,7 +58,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
     totalRaw.impressions += v.impressions; totalRaw.link_clicks += v.link_clicks; totalRaw.unique_link_clicks += v.unique_link_clicks
     totalRaw.reach += v.reach; totalRaw.landing_page_views += v.landing_page_views; totalRaw.add_to_cart += v.add_to_cart
     totalRaw.checkout_initiated += v.checkout_initiated; totalRaw.freq_w += v.freq_w; totalRaw.hook_w += v.hook_w; totalRaw.video_w += v.video_w
-    totalRaw.hold_w += v.hold_w; totalRaw.thruplay_w += v.thruplay_w; totalRaw.ctr_pv_w += v.ctr_pv_w
+    totalRaw.hold_w += v.hold_w; totalRaw.thruplay_w += v.thruplay_w; totalRaw.ctr_pv_w += v.ctr_pv_w; totalRaw.v3s += v.v3s
   }
 
   function deriveRaw(raw: any) {
@@ -84,9 +85,9 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
       frequency: imp > 0 ? raw.freq_w / imp : null,
       hook_rate: imp > 0 ? raw.hook_w / imp : null,
       video_avg: imp > 0 ? raw.video_w / imp : null,
-      hold_rate: imp > 0 ? raw.hold_w / imp : null,
+      hold_rate: (raw.v3s || 0) > 0 ? raw.hold_w / raw.v3s : null,
       thruplay_rate: imp > 0 ? raw.thruplay_w / imp : null,
-      ctr_post_view: imp > 0 ? raw.ctr_pv_w / imp : null,
+      ctr_post_view: (raw.v3s || 0) > 0 ? raw.ctr_pv_w / raw.v3s : null,
     }
   }
 
