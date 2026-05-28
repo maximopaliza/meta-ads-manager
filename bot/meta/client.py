@@ -84,6 +84,18 @@ class MetaClient:
         result = self._post(campaign_id, {"daily_budget": str(daily_budget_cents)})
         return result.get("success", False)
 
+    def update_ad_status(self, ad_id: str, status: str) -> bool:
+        result = self._post(ad_id, {"status": status})
+        return result.get("success", False)
+
+    def update_ad_set_status(self, ad_set_id: str, status: str) -> bool:
+        result = self._post(ad_set_id, {"status": status})
+        return result.get("success", False)
+
+    def update_ad_set_budget(self, ad_set_id: str, daily_budget_cents: int) -> bool:
+        result = self._post(ad_set_id, {"daily_budget": str(daily_budget_cents)})
+        return result.get("success", False)
+
     def get_accounts(self) -> list[dict]:
         data = self._get("me/adaccounts", {"fields": "id,name,currency,timezone_name"})
         result = []
