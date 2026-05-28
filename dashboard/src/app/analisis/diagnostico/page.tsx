@@ -42,42 +42,53 @@ function aggMetrics(rows: any[]) {
     reach:              acc.reach              + (m.reach              || 0),
     landing_page_views: acc.landing_page_views + (m.landing_page_views || 0),
     add_to_cart:        acc.add_to_cart        + (m.add_to_cart        || 0),
+    checkout_initiated: acc.checkout_initiated + (m.checkout_initiated || 0),
     video_3s_views:     acc.video_3s_views     + (m.video_3s_views     || 0),
     hook_rate_w:     acc.hook_rate_w     + ((m.hook_rate      || 0) * (m.impressions     || 0)),
     hold_rate_w:     acc.hold_rate_w     + ((m.hold_rate      || 0) * (m.video_3s_views  || 0)),
     thruplay_rate_w: acc.thruplay_rate_w + ((m.thruplay_rate  || 0) * (m.impressions     || 0)),
     ctr_pv_w:        acc.ctr_pv_w        + ((m.ctr_post_view  || 0) * (m.video_3s_views  || 0)),
+    freq_w:          acc.freq_w          + ((m.frequency             || 0) * (m.impressions || 0)),
+    video_avg_w:     acc.video_avg_w     + ((m.video_avg_time_watched || 0) * (m.impressions || 0)),
   }), {
     spend: 0, purchases: 0, purchase_value: 0, impressions: 0,
     link_clicks: 0, unique_link_clicks: 0, reach: 0, landing_page_views: 0,
-    add_to_cart: 0, video_3s_views: 0,
+    add_to_cart: 0, checkout_initiated: 0, video_3s_views: 0,
     hook_rate_w: 0, hold_rate_w: 0, thruplay_rate_w: 0, ctr_pv_w: 0,
+    freq_w: 0, video_avg_w: 0,
   })
   const imp = b.impressions || 1
   const v3s = b.video_3s_views || 1
   return {
     ...b,
-    roas:          b.spend > 0 ? b.purchase_value / b.spend : null,
-    cpa:           b.purchases > 0 ? b.spend / b.purchases : null,
-    ctr:           b.reach > 0 ? b.unique_link_clicks / b.reach * 100 : null,
-    cpm:           b.impressions > 0 ? b.spend / b.impressions * 1000 : null,
+    roas:          b.spend > 0         ? b.purchase_value / b.spend : null,
+    cpa:           b.purchases > 0     ? b.spend / b.purchases : null,
+    ctr:           b.reach > 0         ? b.unique_link_clicks / b.reach * 100 : null,
+    cpm:           b.impressions > 0   ? b.spend / b.impressions * 1000 : null,
+    cpc:           b.link_clicks > 0   ? b.spend / b.link_clicks : null,
+    cost_per_atc:  b.add_to_cart > 0   ? b.spend / b.add_to_cart : null,
     trafEf:        b.link_clicks > 0 && b.landing_page_views > 0 ? b.landing_page_views / b.link_clicks * 100 : null,
     convWeb:       b.landing_page_views > 0 && b.purchases > 0 ? b.purchases / b.landing_page_views * 100 : null,
-    hook_rate:     b.impressions   > 0 ? b.hook_rate_w     / imp : null,
-    hold_rate:     b.video_3s_views > 0 ? b.hold_rate_w    / v3s : null,
-    thruplay_rate: b.impressions   > 0 ? b.thruplay_rate_w / imp : null,
-    ctr_post_view: b.video_3s_views > 0 ? b.ctr_pv_w       / v3s : null,
+    hook_rate:     b.impressions    > 0 ? b.hook_rate_w     / imp : null,
+    hold_rate:     b.video_3s_views > 0 ? b.hold_rate_w     / v3s : null,
+    thruplay_rate: b.impressions    > 0 ? b.thruplay_rate_w / imp : null,
+    ctr_post_view: b.video_3s_views > 0 ? b.ctr_pv_w        / v3s : null,
+    frequency:     b.impressions    > 0 ? b.freq_w           / imp : null,
+    video_avg:     b.impressions    > 0 ? b.video_avg_w      / imp : null,
   }
 }
 
 function toMetricsDiag(m: any): MetricsDiag {
   if (!m) return null
   return {
-    spend: m.spend || 0, purchases: m.purchases || 0, impressions: m.impressions || 0,
+    spend: m.spend || 0, purchases: m.purchases || 0, purchase_value: m.purchase_value || 0,
+    impressions: m.impressions || 0, unique_link_clicks: m.unique_link_clicks || 0,
+    landing_page_views: m.landing_page_views || 0, add_to_cart: m.add_to_cart || 0,
+    checkout_initiated: m.checkout_initiated || 0,
     roas: m.roas, cpa: m.cpa, ctr: m.ctr, cpm: m.cpm,
+    cpc: m.cpc, cost_per_atc: m.cost_per_atc, frequency: m.frequency, video_avg: m.video_avg,
     hook_rate: m.hook_rate, hold_rate: m.hold_rate,
     thruplay_rate: m.thruplay_rate, ctr_post_view: m.ctr_post_view,
-    landing_page_views: m.landing_page_views || 0, add_to_cart: m.add_to_cart || 0,
     trafEf: m.trafEf, convWeb: m.convWeb,
   }
 }
@@ -118,11 +129,29 @@ function diagnose(a: any, b: any) {
 }
 
 // ── Day quality (para calendario) ──────────────────────────────────────────
+// Regla: el CPA SIEMPRE debe estar bajo el breakeven para ser positivo.
+// 3 ventas a CPA 30 (> breakeven) = día malo.
 function dayQuality(d: { spend: number; purchases: number; cpa: number | null }): 'good' | 'ok' | 'bad' | 'empty' {
   if (!d || (d.spend || 0) < 5) return 'empty'
-  if ((d.purchases || 0) >= 2 && d.cpa !== null && d.cpa <= CPA_TARGET) return 'good'
-  if ((d.purchases || 0) >= 1 || (d.cpa !== null && d.cpa <= CPA_BREAKEVEN)) return 'ok'
+  const sales = d.purchases || 0
+  const cpa   = d.cpa
+  // CPA bajo breakeven es obligatorio para cualquier clasificación positiva
+  const cpaOk = cpa !== null && cpa <= CPA_BREAKEVEN
+  if (sales >= 2 && cpa !== null && cpa <= CPA_TARGET) return 'good'
+  if (sales >= 1 && cpaOk) return 'ok'
   return 'bad'
+}
+
+// ── Day score (para comparar qué día es mejor) ─────────────────────────────
+function dayScore(d: any | null): number {
+  if (!d || (d.spend || 0) < 5) return 0
+  const cpaOk = d.cpa !== null && d.cpa <= CPA_BREAKEVEN
+  const sales = d.purchases || 0
+  if (!cpaOk) return sales > 0 ? 0.5 : 0.1   // CPA malo → siempre bajo
+  if (sales >= 2 && d.cpa <= CPA_TARGET) return 4
+  if (sales >= 2) return 3
+  if (sales >= 1) return 2
+  return 1
 }
 
 // ── Page ────────────────────────────────────────────────────────────────────
@@ -206,7 +235,7 @@ export default async function DiagnosticoPage({
   // ── Account-level aggregates + diagnosis ──────────────────────────────────
   const accA = aggMetrics(mA_camp.data || [])
   const accB = aggMetrics(mB_camp.data || [])
-  const aIsBetter = (accA?.roas || 0) >= (accB?.roas || 0)
+  const aIsBetter = dayScore(accA) >= dayScore(accB)
   const findings = diagnose(accA, accB)
 
   const labelA = formatDate(dayA)
@@ -257,23 +286,36 @@ export default async function DiagnosticoPage({
   const tdBase: any = { padding: '6px 8px', fontSize: 11, textAlign: 'right' as const, borderBottom: '1px solid #1a1d27', whiteSpace: 'nowrap' as const }
 
   function MetricRow({ label, a, b, fmtFn, invert = false, colorFn }: {
-    label: string; a: number | null; b: number | null
-    fmtFn: (v: number, cur: string) => string
+    label: string; a: number | null | undefined; b: number | null | undefined
+    fmtFn: (v: number) => string
     invert?: boolean; colorFn?: (v: number | null) => string
   }) {
-    const d = dPct(a, b)
+    const d = dPct(a ?? null, b ?? null)
     const dc = d !== null ? dColor(d, invert) : M
-    const aColor = colorFn ? colorFn(a) : (a != null ? TEXT : M)
-    const bColor = colorFn ? colorFn(b) : (b != null ? TEXT : M)
+    const aColor = colorFn ? colorFn(a ?? null) : (a != null ? TEXT : M)
+    const bColor = colorFn ? colorFn(b ?? null) : (b != null ? TEXT : M)
     return (
       <tr>
         <td style={{ ...tdBase, textAlign: 'left' as const, color: M, fontSize: 10 }}>{label}</td>
-        <td style={{ ...tdBase, color: aColor, fontWeight: 600 }}>{a != null ? fmtFn(a, currency) : '—'}</td>
-        <td style={{ ...tdBase, color: bColor, fontWeight: 500 }}>{b != null ? fmtFn(b, currency) : '—'}</td>
+        <td style={{ ...tdBase, color: aColor, fontWeight: 600 }}>{a != null ? fmtFn(a) : '—'}</td>
+        <td style={{ ...tdBase, color: bColor, fontWeight: 500 }}>{b != null ? fmtFn(b) : '—'}</td>
         <td style={{ ...tdBase, color: dc, fontWeight: 600 }}>{d !== null ? fmtD(d) : '—'}</td>
       </tr>
     )
   }
+
+  function GrpRow({ label }: { label: string }) {
+    return (
+      <tr>
+        <td colSpan={4} style={{ padding: '5px 8px 3px', fontSize: 9, fontWeight: 700, color: '#3A4060', textTransform: 'uppercase' as const, letterSpacing: '0.07em', backgroundColor: '#0e1015', borderBottom: `1px solid ${BORDER}` }}>
+          {label}
+        </td>
+      </tr>
+    )
+  }
+
+  const fc = (v: number) => formatCurrency(v, currency)
+  const fn = (v: number) => new Intl.NumberFormat('es-AR').format(v)
 
   function MetricsTable({ a, b }: { a: any; b: any }) {
     return (
@@ -287,20 +329,37 @@ export default async function DiagnosticoPage({
           </tr>
         </thead>
         <tbody>
-          <MetricRow label="Gasto"      a={a?.spend}           b={b?.spend}           fmtFn={(v, c) => formatCurrency(v, c)} />
-          <MetricRow label="Impr."      a={a?.impressions}     b={b?.impressions}     fmtFn={(v) => String(Math.round(v))} />
-          <MetricRow label="Ventas"     a={a?.purchases}       b={b?.purchases}       fmtFn={(v) => String(Math.round(v))} colorFn={(v) => v && v > 0 ? G : M} />
-          <MetricRow label="ROAS"       a={a?.roas}            b={b?.roas}            fmtFn={(v) => `${v.toFixed(2)}x`} colorFn={roasColor} />
-          <MetricRow label="CPA"        a={a?.cpa}             b={b?.cpa}             fmtFn={(v, c) => formatCurrency(v, c)} invert colorFn={cpaColor} />
-          <MetricRow label="CPM"        a={a?.cpm}             b={b?.cpm}             fmtFn={(v, c) => formatCurrency(v, c)} invert />
-          <MetricRow label="CTR único%" a={a?.ctr}             b={b?.ctr}             fmtFn={(v) => `${v.toFixed(2)}%`} />
-          <MetricRow label="Visit. LP"  a={a?.landing_page_views} b={b?.landing_page_views} fmtFn={(v) => String(Math.round(v))} />
-          <MetricRow label="ATC"        a={a?.add_to_cart}     b={b?.add_to_cart}     fmtFn={(v) => String(Math.round(v))} />
-          <MetricRow label="Hook Rate"  a={a?.hook_rate}       b={b?.hook_rate}       fmtFn={(v) => `${v.toFixed(1)}%`} colorFn={hkColor} />
-          <MetricRow label="Hold Rate"  a={a?.hold_rate}       b={b?.hold_rate}       fmtFn={(v) => `${v.toFixed(1)}%`} colorFn={hlColor} />
-          <MetricRow label="ThruPlay%"  a={a?.thruplay_rate}   b={b?.thruplay_rate}   fmtFn={(v) => `${v.toFixed(1)}%`} colorFn={tpColor} />
-          <MetricRow label="CTR post-v" a={a?.ctr_post_view}   b={b?.ctr_post_view}   fmtFn={(v) => `${v.toFixed(1)}%`} />
-          <MetricRow label="Conv. web%" a={a?.convWeb}         b={b?.convWeb}         fmtFn={(v) => `${v.toFixed(1)}%`} />
+          <GrpRow label="💰 Conversiones" />
+          <MetricRow label="Ventas"       a={a?.purchases}          b={b?.purchases}          fmtFn={fn}                          colorFn={(v) => v && v > 0 ? G : M} />
+          <MetricRow label="Valor conv."  a={a?.purchase_value}     b={b?.purchase_value}     fmtFn={fc} />
+          <MetricRow label="ROAS"         a={a?.roas}               b={b?.roas}               fmtFn={(v) => `${v.toFixed(2)}x`}  colorFn={roasColor} />
+          <MetricRow label="CPA"          a={a?.cpa}                b={b?.cpa}                fmtFn={fc}                          invert colorFn={cpaColor} />
+
+          <GrpRow label="💸 Costos" />
+          <MetricRow label="Gasto"        a={a?.spend}              b={b?.spend}              fmtFn={fc} />
+          <MetricRow label="Impr."        a={a?.impressions}        b={b?.impressions}        fmtFn={fn} />
+          <MetricRow label="CPM"          a={a?.cpm}                b={b?.cpm}                fmtFn={fc}                          invert />
+          <MetricRow label="CPC"          a={a?.cpc}                b={b?.cpc}                fmtFn={fc}                          invert />
+
+          <GrpRow label="🌐 Tráfico" />
+          <MetricRow label="CTR único%"   a={a?.ctr}                b={b?.ctr}                fmtFn={(v) => `${v.toFixed(2)}%`} />
+          <MetricRow label="Clics únicos" a={a?.unique_link_clicks} b={b?.unique_link_clicks} fmtFn={fn} />
+          <MetricRow label="Visit. LP"    a={a?.landing_page_views} b={b?.landing_page_views} fmtFn={fn} />
+          <MetricRow label="Tráf. ef.%"   a={a?.trafEf}             b={b?.trafEf}             fmtFn={(v) => `${v.toFixed(2)}%`} />
+          <MetricRow label="Conv. web%"   a={a?.convWeb}            b={b?.convWeb}            fmtFn={(v) => `${v.toFixed(2)}%`} />
+
+          <GrpRow label="🎬 Video" />
+          <MetricRow label="Hook Rate"    a={a?.hook_rate}          b={b?.hook_rate}          fmtFn={(v) => `${v.toFixed(2)}%`}  colorFn={hkColor} />
+          <MetricRow label="Hold Rate"    a={a?.hold_rate}          b={b?.hold_rate}          fmtFn={(v) => `${v.toFixed(2)}%`}  colorFn={hlColor} />
+          <MetricRow label="ThruPlay%"    a={a?.thruplay_rate}      b={b?.thruplay_rate}      fmtFn={(v) => `${v.toFixed(2)}%`}  colorFn={tpColor} />
+          <MetricRow label="CTR post-v"   a={a?.ctr_post_view}      b={b?.ctr_post_view}      fmtFn={(v) => `${v.toFixed(2)}%`} />
+          <MetricRow label="Video avg"    a={a?.video_avg}          b={b?.video_avg}          fmtFn={(v) => `${v.toFixed(2)}s`} />
+
+          <GrpRow label="🔁 Embudo" />
+          <MetricRow label="ATC"          a={a?.add_to_cart}        b={b?.add_to_cart}        fmtFn={fn} />
+          <MetricRow label="Costo ATC"    a={a?.cost_per_atc}       b={b?.cost_per_atc}       fmtFn={fc}                          invert />
+          <MetricRow label="Pagos inic."  a={a?.checkout_initiated} b={b?.checkout_initiated} fmtFn={fn} />
+          <MetricRow label="Frecuencia"   a={a?.frequency}          b={b?.frequency}          fmtFn={(v) => `${v.toFixed(2)}x`}  invert />
         </tbody>
       </table>
     )
