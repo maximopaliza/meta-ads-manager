@@ -7,6 +7,7 @@ import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_B
 import RangeSelector from '@/components/dashboard/RangeSelector'
 import { Suspense } from 'react'
 import TrendCharts from '@/components/dashboard/TrendCharts'
+import TrendSelector from '@/components/dashboard/TrendSelector'
 import CollapsibleCampaignTree from '@/components/dashboard/CollapsibleCampaignTree'
 import type { TreeCampaign, TreeAdSet, TreeAd } from '@/components/dashboard/CollapsibleCampaignTree'
 
@@ -375,6 +376,70 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
     }).filter((as: TreeAdSet) => as.days.length > 0 && as.days.some((d: any) => d.spend > 0)),
   }))
 
+  // ── Data arrays for TrendSelector ────────────────────────────────────────
+  const adsMeta = new Map((adsMetaRes.data || []).map((a: any) => [a.id, a]))
+
+  // Full daily rows per campaign
+  const campFullDays = Array.from(campDayMap.entries())
+    .map(([id, dm]) => {
+      const meta = campaignMeta.get(id) as any
+      const days = Array.from(dm.entries())
+        .map(([date, d]) => derive({
+          date, ...d,
+          hook_rate: d.impressions > 0 ? d.hook_rate_w / d.impressions : null,
+          frequency: d.impressions > 0 ? d.frequency_w / d.impressions : null,
+          video_avg_time_watched: d.impressions > 0 ? d.video_avg_w / d.impressions : null,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+      const totalSpend = days.reduce((s, d) => s + d.spend, 0)
+      return { id, name: meta?.name || id, status: meta?.status || 'UNKNOWN', days, totalSpend }
+    })
+    .filter(c => c.totalSpend > 0)
+    .sort((a, b) => {
+      if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
+      if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
+      return b.totalSpend - a.totalSpend
+    })
+    .map(({ id, name, status, days }) => ({ id, name, status, days }))
+
+  // Full daily rows per adset
+  const asFullDays = Array.from(adSetDayMapFull.entries())
+    .map(([id, dm]) => {
+      const meta = adSetMeta.get(id) as any
+      if (!meta) return null
+      const days = Array.from(dm.entries())
+        .map(([date, d]) => derive({
+          date, ...d,
+          hook_rate: d.impressions > 0 ? d.hook_rate_w / d.impressions : null,
+          frequency: d.impressions > 0 ? d.frequency_w / d.impressions : null,
+          video_avg_time_watched: d.impressions > 0 ? d.video_avg_w / d.impressions : null,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+      const totalSpend = days.reduce((s, d) => s + d.spend, 0)
+      if (totalSpend === 0) return null
+      return { id, name: meta.name || id, status: meta.status || 'UNKNOWN', campId: meta.campaign_id, days }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+
+  // Full daily rows per ad
+  const adFullDays = Array.from(adDayMapFull.entries())
+    .map(([id, dm]) => {
+      const meta = adsMeta.get(id) as any
+      if (!meta) return null
+      const days = Array.from(dm.entries())
+        .map(([date, d]) => derive({
+          date, ...d,
+          hook_rate: d.impressions > 0 ? d.hook_rate_w / d.impressions : null,
+          frequency: d.impressions > 0 ? d.frequency_w / d.impressions : null,
+          video_avg_time_watched: d.impressions > 0 ? d.video_avg_w / d.impressions : null,
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+      const totalSpend = days.reduce((s, d) => s + d.spend, 0)
+      if (totalSpend === 0) return null
+      return { id, name: meta.name || id, status: meta.status || 'UNKNOWN', asId: meta.ad_set_id, days }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+
   // ── Semaphore ─────────────────────────────────────────────────────────────
   const tp = todayData.purchases
   const tc = todayData.cpa
@@ -635,7 +700,16 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                     <span style={{ fontSize: '13px', fontWeight: 600, color: C_TEXT }}>📈 Tendencia — últimos {days} días</span>
                     <span style={{ fontSize: '10px', color: C_MUTED }}>Líneas de ref.: CPA objetivo · ROAS mínimo · Hook Rate ≥30%</span>
                   </div>
-                  <TrendCharts data={dailyRows} currency={currency} cpaTarget={CPA_TARGET} cpaBreakeven={CPA_BREAKEVEN} />
+                  <TrendSelector
+                    accountDays={dailyRows}
+                    campaigns={campFullDays}
+                    adSets={asFullDays}
+                    ads={adFullDays}
+                    currency={currency}
+                    cpaTarget={CPA_TARGET}
+                    cpaBreakeven={CPA_BREAKEVEN}
+                    rangeDays={days}
+                  />
                 </div>
               )}
 
