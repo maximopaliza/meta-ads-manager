@@ -11,12 +11,12 @@ function hlColor(v: number | null)   { return !v ? M : v >= 50 ? G : v >= 30 ? Y
 function tpColor(v: number | null)   { return !v ? M : v >= 15 ? G : v >= 8 ? Y : R }
 
 function fc(v: number | null | undefined, currency: string) {
-  if (!v) return '—'
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v)
+  if (v == null || v === 0) return '—'
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
 }
 function fn(v: number | null | undefined) {
   if (v == null) return '—'
-  return new Intl.NumberFormat('es-AR').format(Math.round(v))
+  return new Intl.NumberFormat('es-AR').format(v)
 }
 function dPct(a: number | null | undefined, b: number | null | undefined) {
   if (!b || a == null) return null
@@ -33,11 +33,12 @@ function dColor(v: number | null, invert = false) {
 
 // ── Types ───────────────────────────────────────────────────────────────────
 export type MetricsDiag = {
-  spend: number; purchases: number; impressions: number
+  spend: number; purchases: number; purchase_value: number; impressions: number
+  unique_link_clicks: number; landing_page_views: number; add_to_cart: number; checkout_initiated: number
   roas: number | null; cpa: number | null; ctr: number | null; cpm: number | null
+  cpc: number | null; cost_per_atc: number | null; frequency: number | null; video_avg: number | null
   hook_rate: number | null; hold_rate: number | null
   thruplay_rate: number | null; ctr_post_view: number | null
-  landing_page_views: number; add_to_cart: number
   trafEf: number | null; convWeb: number | null
 } | null
 
@@ -71,6 +72,16 @@ function MetricsTable({ a, b, currency, labelA, labelB, aIsBetter }: {
     )
   }
 
+  function Grp({ label }: { label: string }) {
+    return (
+      <tr>
+        <td colSpan={4} style={{ padding: '5px 8px 3px', fontSize: 9, fontWeight: 700, color: '#3A4060', textTransform: 'uppercase' as const, letterSpacing: '0.07em', backgroundColor: '#0e1015', borderBottom: '1px solid #1a1d27' }}>
+          {label}
+        </td>
+      </tr>
+    )
+  }
+
   return (
     <table style={{ borderCollapse: 'collapse', width: '100%' }}>
       <thead>
@@ -82,20 +93,37 @@ function MetricsTable({ a, b, currency, labelA, labelB, aIsBetter }: {
         </tr>
       </thead>
       <tbody>
-        <Row label="Gasto"      av={a?.spend}              bv={b?.spend}              fmt={v => fc(v, currency)} />
-        <Row label="Impr."      av={a?.impressions}        bv={b?.impressions}        fmt={v => fn(v)} />
-        <Row label="Ventas"     av={a?.purchases}          bv={b?.purchases}          fmt={v => String(Math.round(v))} colorFn={v => v && v > 0 ? G : M} />
-        <Row label="ROAS"       av={a?.roas}               bv={b?.roas}               fmt={v => `${v.toFixed(2)}x`} colorFn={roasColor} />
-        <Row label="CPA"        av={a?.cpa}                bv={b?.cpa}                fmt={v => fc(v, currency)} invert colorFn={cpaColor} />
-        <Row label="CPM"        av={a?.cpm}                bv={b?.cpm}                fmt={v => fc(v, currency)} invert />
-        <Row label="CTR único%" av={a?.ctr}                bv={b?.ctr}                fmt={v => `${v.toFixed(2)}%`} />
-        <Row label="Visit. LP"  av={a?.landing_page_views} bv={b?.landing_page_views} fmt={v => fn(v)} />
-        <Row label="ATC"        av={a?.add_to_cart}        bv={b?.add_to_cart}        fmt={v => String(Math.round(v))} />
-        <Row label="Hook Rate"  av={a?.hook_rate}          bv={b?.hook_rate}          fmt={v => `${v.toFixed(1)}%`} colorFn={hkColor} />
-        <Row label="Hold Rate"  av={a?.hold_rate}          bv={b?.hold_rate}          fmt={v => `${v.toFixed(1)}%`} colorFn={hlColor} />
-        <Row label="ThruPlay%"  av={a?.thruplay_rate}      bv={b?.thruplay_rate}      fmt={v => `${v.toFixed(1)}%`} colorFn={tpColor} />
-        <Row label="CTR post-v" av={a?.ctr_post_view}      bv={b?.ctr_post_view}      fmt={v => `${v.toFixed(1)}%`} />
-        <Row label="Conv. web%" av={a?.convWeb}            bv={b?.convWeb}            fmt={v => `${v.toFixed(1)}%`} />
+        <Grp label="💰 Conversiones" />
+        <Row label="Ventas"       av={a?.purchases}          bv={b?.purchases}          fmt={v => fn(v)}              colorFn={v => v && v > 0 ? G : M} />
+        <Row label="Valor conv."  av={a?.purchase_value}     bv={b?.purchase_value}     fmt={v => fc(v, currency)} />
+        <Row label="ROAS"         av={a?.roas}               bv={b?.roas}               fmt={v => `${v.toFixed(2)}x`} colorFn={roasColor} />
+        <Row label="CPA"          av={a?.cpa}                bv={b?.cpa}                fmt={v => fc(v, currency)}    invert colorFn={cpaColor} />
+
+        <Grp label="💸 Costos" />
+        <Row label="Gasto"        av={a?.spend}              bv={b?.spend}              fmt={v => fc(v, currency)} />
+        <Row label="Impr."        av={a?.impressions}        bv={b?.impressions}        fmt={v => fn(v)} />
+        <Row label="CPM"          av={a?.cpm}                bv={b?.cpm}                fmt={v => fc(v, currency)}    invert />
+        <Row label="CPC"          av={a?.cpc}                bv={b?.cpc}                fmt={v => fc(v, currency)}    invert />
+
+        <Grp label="🌐 Tráfico" />
+        <Row label="CTR único%"   av={a?.ctr}                bv={b?.ctr}                fmt={v => `${v.toFixed(2)}%`} />
+        <Row label="Clics únicos" av={a?.unique_link_clicks} bv={b?.unique_link_clicks} fmt={v => fn(v)} />
+        <Row label="Visit. LP"    av={a?.landing_page_views} bv={b?.landing_page_views} fmt={v => fn(v)} />
+        <Row label="Tráf. ef.%"   av={a?.trafEf}             bv={b?.trafEf}             fmt={v => `${v.toFixed(2)}%`} />
+        <Row label="Conv. web%"   av={a?.convWeb}            bv={b?.convWeb}            fmt={v => `${v.toFixed(2)}%`} />
+
+        <Grp label="🎬 Video" />
+        <Row label="Hook Rate"    av={a?.hook_rate}          bv={b?.hook_rate}          fmt={v => `${v.toFixed(2)}%`} colorFn={hkColor} />
+        <Row label="Hold Rate"    av={a?.hold_rate}          bv={b?.hold_rate}          fmt={v => `${v.toFixed(2)}%`} colorFn={hlColor} />
+        <Row label="ThruPlay%"    av={a?.thruplay_rate}      bv={b?.thruplay_rate}      fmt={v => `${v.toFixed(2)}%`} colorFn={tpColor} />
+        <Row label="CTR post-v"   av={a?.ctr_post_view}      bv={b?.ctr_post_view}      fmt={v => `${v.toFixed(2)}%`} />
+        <Row label="Video avg"    av={a?.video_avg}          bv={b?.video_avg}          fmt={v => `${v.toFixed(2)}s`} />
+
+        <Grp label="🔁 Embudo" />
+        <Row label="ATC"          av={a?.add_to_cart}        bv={b?.add_to_cart}        fmt={v => fn(v)} />
+        <Row label="Costo ATC"    av={a?.cost_per_atc}       bv={b?.cost_per_atc}       fmt={v => fc(v, currency)}    invert />
+        <Row label="Pagos inic."  av={a?.checkout_initiated} bv={b?.checkout_initiated} fmt={v => fn(v)} />
+        <Row label="Frecuencia"   av={a?.frequency}          bv={b?.frequency}          fmt={v => `${v.toFixed(2)}x`} invert />
       </tbody>
     </table>
   )
