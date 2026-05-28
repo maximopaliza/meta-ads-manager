@@ -10,7 +10,7 @@ import DiagnosticoTree from '@/components/dashboard/DiagnosticoTree'
 import type { CampDiag, AsDiag, AdDiag, MetricsDiag } from '@/components/dashboard/DiagnosticoTree'
 
 // ── Tokens ─────────────────────────────────────────────────────────────────
-const G = '#22C55E', Y = '#F59E0B', R = '#EF4444', M = '#64748B'
+const G = '#22C55E', Y = '#F59E0B', R = '#EF4444', M = '#7A90AA'
 const BORDER = '#1A3050', SURFACE = '#0E1B30', TEXT = '#F1F5F9'
 
 // ── Helpers ────────────────────────────────────────────────────────────────

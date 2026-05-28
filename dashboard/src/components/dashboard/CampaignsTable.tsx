@@ -16,7 +16,7 @@ export default function CampaignsTable({ campaigns, currency = 'ARS', compact = 
     padding: '10px 12px',
     fontSize: '11px',
     fontWeight: 500,
-    color: '#64748B',
+    color: '#7A90AA',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
     borderBottom: '1px solid #1A3050',
@@ -58,7 +58,7 @@ export default function CampaignsTable({ campaigns, currency = 'ARS', compact = 
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#64748B', padding: '32px' }}>
+                <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#7A90AA', padding: '32px' }}>
                   Sin datos. Ejecutá un sync primero.
                 </td>
               </tr>
@@ -76,7 +76,7 @@ export default function CampaignsTable({ campaigns, currency = 'ARS', compact = 
                     </Link>
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>{formatCurrency(c.todayMetrics.spend, currency)}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right', color: c.todayMetrics.roas && c.todayMetrics.roas >= 2 ? '#22C55E' : c.todayMetrics.roas ? '#EF4444' : '#64748B' }}>
+                  <td style={{ ...tdStyle, textAlign: 'right', color: c.todayMetrics.roas && c.todayMetrics.roas >= 2 ? '#22C55E' : c.todayMetrics.roas ? '#EF4444' : '#7A90AA' }}>
                     {c.todayMetrics.roas ? formatROAS(c.todayMetrics.roas) : '—'}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'right' }}>{c.todayMetrics.purchases}</td>

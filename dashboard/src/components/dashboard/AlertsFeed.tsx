@@ -19,7 +19,7 @@ export default function AlertsFeed({ alerts }: AlertsFeedProps) {
         <h3 style={{ fontSize: '16px', fontWeight: 500, color: '#F1F5F9', marginBottom: '16px' }}>
           🔔 Alertas recientes
         </h3>
-        <p style={{ color: '#64748B', fontSize: '14px' }}>Sin alertas recientes</p>
+        <p style={{ color: '#7A90AA', fontSize: '14px' }}>Sin alertas recientes</p>
       </div>
     )
   }
@@ -52,10 +52,10 @@ export default function AlertsFeed({ alerts }: AlertsFeedProps) {
               <span>{severityIcon(alert.severity)}</span>
               <span style={{ fontSize: '13px', fontWeight: 500, color: '#F1F5F9' }}>{alert.title}</span>
             </div>
-            <p style={{ fontSize: '12px', color: '#64748B', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '12px', color: '#7A90AA', lineHeight: 1.5 }}>
               {alert.message.length > 120 ? alert.message.slice(0, 120) + '...' : alert.message}
             </p>
-            <p style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+            <p style={{ fontSize: '11px', color: '#7A90AA', marginTop: '6px' }}>
               {new Date(alert.created_at).toLocaleString('es-AR')}
             </p>
           </div>

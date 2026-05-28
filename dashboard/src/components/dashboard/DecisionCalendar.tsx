@@ -6,7 +6,7 @@ const CPA_TARGET = 7
 const CPA_BREAKEVEN = 15
 
 function cpaColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   return v <= CPA_TARGET ? '#22C55E' : v <= CPA_BREAKEVEN ? '#F59E0B' : '#EF4444'
 }
 
@@ -86,7 +86,7 @@ export default function DecisionCalendar({
             style={{
               padding: '5px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
               backgroundColor: slot === 'a' ? '#EF444420' : '#0E1B30',
-              color: slot === 'a' ? '#EF4444' : '#64748B',
+              color: slot === 'a' ? '#EF4444' : '#7A90AA',
               border: `1px solid ${slot === 'a' ? '#EF444450' : '#1A3050'}`,
               cursor: 'pointer',
             }}
@@ -98,14 +98,14 @@ export default function DecisionCalendar({
             style={{
               padding: '5px 14px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
               backgroundColor: slot === 'b' ? '#22C55E20' : '#0E1B30',
-              color: slot === 'b' ? '#22C55E' : '#64748B',
+              color: slot === 'b' ? '#22C55E' : '#7A90AA',
               border: `1px solid ${slot === 'b' ? '#22C55E50' : '#1A3050'}`,
               cursor: 'pointer',
             }}
           >
             🟢 Día B {dayB ? `— ${dayB}` : '— elegir'}
           </button>
-          <span style={{ fontSize: '10px', color: '#64748B' }}>
+          <span style={{ fontSize: '10px', color: '#7A90AA' }}>
             Seleccionando: <strong style={{ color: slot === 'a' ? '#EF4444' : '#22C55E' }}>Día {slot.toUpperCase()}</strong> — clic en el calendario
           </span>
         </div>
@@ -117,7 +117,7 @@ export default function DecisionCalendar({
           { label: `${goodCount} buenos`,   color: '#22C55E', bg: qBg.good, border: qBorder.good },
           { label: `${okCount} regulares`,  color: '#F59E0B', bg: qBg.ok,   border: qBorder.ok   },
           { label: `${badCount} malos`,     color: '#EF4444', bg: qBg.bad,  border: qBorder.bad  },
-          { label: `${days.length - goodCount - okCount - badCount} sin datos`, color: '#64748B', bg: qBg.empty, border: qBorder.empty },
+          { label: `${days.length - goodCount - okCount - badCount} sin datos`, color: '#7A90AA', bg: qBg.empty, border: qBorder.empty },
         ].map(s => (
           <span key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
             <span style={{ width: '9px', height: '9px', borderRadius: '2px', backgroundColor: s.bg, border: `1px solid ${s.border}`, display: 'inline-block' }} />
@@ -140,14 +140,14 @@ export default function DecisionCalendar({
 
           return (
             <div key={key} style={{ flexShrink: 0, width: '252px', scrollSnapAlign: 'start' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', marginBottom: '6px', textTransform: 'capitalize', letterSpacing: '0.02em' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: '#A8BCD0', marginBottom: '6px', textTransform: 'capitalize', letterSpacing: '0.02em' }}>
                 {label}
               </div>
               <table style={{ borderCollapse: 'separate', borderSpacing: '2px', width: '100%', tableLayout: 'fixed' }}>
                 <thead>
                   <tr>
                     {['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'].map((d, i) => (
-                      <th key={d} style={{ fontSize: '9px', color: i === 6 ? '#6366F160' : '#64748B', fontWeight: 600, textAlign: 'center', padding: '2px 0' }}>{d}</th>
+                      <th key={d} style={{ fontSize: '9px', color: i === 6 ? '#6366F160' : '#7A90AA', fontWeight: 600, textAlign: 'center', padding: '2px 0' }}>{d}</th>
                     ))}
                   </tr>
                 </thead>
@@ -176,7 +176,7 @@ export default function DecisionCalendar({
                             }}
                           >
                             {/* Número de día — visible */}
-                            <div style={{ fontSize: '9px', color: isA ? '#EF444490' : isB ? '#22C55E90' : '#64748B', lineHeight: 1, marginBottom: '2px', fontWeight: 500 }}>{dayNum}</div>
+                            <div style={{ fontSize: '9px', color: isA ? '#EF444490' : isB ? '#22C55E90' : '#7A90AA', lineHeight: 1, marginBottom: '2px', fontWeight: 500 }}>{dayNum}</div>
                             {/* Ventas */}
                             <div style={{
                               fontSize: day.quality === 'empty' ? '11px' : '16px',

@@ -60,7 +60,7 @@ interface Props {
 }
 
 const BORDER  = '#1A3050'
-const MUTED   = '#64748B'
+const MUTED   = '#7A90AA'
 const TEXT    = '#F1F5F9'
 const INDIGO  = '#6366F1'
 
@@ -69,7 +69,7 @@ function shorten(s: string, max = 24) {
 }
 
 function StatusDot({ status }: { status: string }) {
-  const color = status === 'ACTIVE' ? '#22C55E' : '#64748B'
+  const color = status === 'ACTIVE' ? '#22C55E' : '#7A90AA'
   return <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', backgroundColor: color, marginRight: 5, flexShrink: 0 }} />
 }
 

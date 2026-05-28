@@ -116,7 +116,7 @@ export default async function CampaignDetailPage({
     conv_web: (tm.landing_page_views ?? 0) > 0 && (tm.purchases ?? 0) > 0 ? tm.purchases / tm.landing_page_views * 100 : null,
   } : null
 
-  const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#64748B', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
+  const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#7A90AA', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
   const td: any = { padding: '7px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '1px solid #1a1d27' }
   const sep: any = { ...td, borderLeft: '1px solid #1A3050' }
   const thSep: any = { ...th, borderLeft: '1px solid #1A3050' }
@@ -137,13 +137,13 @@ export default async function CampaignDetailPage({
           {/* KPIs hoy */}
           {todayKpis && (
             <div style={{ marginBottom: '24px' }}>
-              <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hoy — {today}</div>
+              <div style={{ fontSize: '11px', color: '#7A90AA', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hoy — {today}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
                 {[
-                  { label: 'Resultados', value: todayKpis.purchases > 0 ? String(todayKpis.purchases) : '—', color: todayKpis.purchases > 0 ? '#22C55E' : '#64748B' },
+                  { label: 'Resultados', value: todayKpis.purchases > 0 ? String(todayKpis.purchases) : '—', color: todayKpis.purchases > 0 ? '#22C55E' : '#7A90AA' },
                   { label: 'CPA', value: todayKpis.cpa ? formatCurrency(todayKpis.cpa, currency) : '—', color: cpaColor(todayKpis.cpa) },
                   { label: 'Importe gastado', value: todayKpis.spend > 0 ? formatCurrency(todayKpis.spend, currency) : '—', color: '#F1F5F9' },
-                  { label: 'Valor resultados', value: todayKpis.purchase_value > 0 ? formatCurrency(todayKpis.purchase_value, currency) : '—', color: '#94A3B8' },
+                  { label: 'Valor resultados', value: todayKpis.purchase_value > 0 ? formatCurrency(todayKpis.purchase_value, currency) : '—', color: '#A8BCD0' },
                   { label: 'ROAS', value: todayKpis.roas ? `${todayKpis.roas.toFixed(2)}x` : '—', color: roasColor(todayKpis.roas) },
                   { label: 'ATC', value: todayKpis.add_to_cart > 0 ? String(todayKpis.add_to_cart) : '—', color: '#F1F5F9' },
                   { label: 'Costo/ATC', value: todayKpis.cost_per_atc ? formatCurrency(todayKpis.cost_per_atc, currency) : '—', color: '#F1F5F9' },
@@ -151,13 +151,13 @@ export default async function CampaignDetailPage({
                   { label: 'CTR único', value: todayKpis.ctr ? `${todayKpis.ctr.toFixed(2)}%` : '—', color: ctrColor(todayKpis.ctr) },
                   { label: 'CPM', value: todayKpis.cpm ? formatCurrency(todayKpis.cpm, currency) : '—', color: '#F1F5F9' },
                   { label: 'Tráf. ef.', value: todayKpis.traf_ef ? `${todayKpis.traf_ef.toFixed(1)}%` : '—', color: '#F1F5F9' },
-                  { label: 'Conv. WEB', value: todayKpis.conv_web ? `${todayKpis.conv_web.toFixed(1)}%` : '—', color: todayKpis.conv_web ? '#22C55E' : '#64748B' },
-                  { label: 'Hook Rate', value: todayKpis.hook_rate ? `${todayKpis.hook_rate.toFixed(1)}%` : '—', color: todayKpis.hook_rate ? (todayKpis.hook_rate >= 30 ? '#22C55E' : todayKpis.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#64748B' },
+                  { label: 'Conv. WEB', value: todayKpis.conv_web ? `${todayKpis.conv_web.toFixed(1)}%` : '—', color: todayKpis.conv_web ? '#22C55E' : '#7A90AA' },
+                  { label: 'Hook Rate', value: todayKpis.hook_rate ? `${todayKpis.hook_rate.toFixed(1)}%` : '—', color: todayKpis.hook_rate ? (todayKpis.hook_rate >= 30 ? '#22C55E' : todayKpis.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#7A90AA' },
                   { label: 'Frecuencia', value: todayKpis.frequency ? todayKpis.frequency.toFixed(1) : '—', color: todayKpis.frequency && todayKpis.frequency > 3 ? '#F59E0B' : '#F1F5F9' },
-                  { label: 'Video avg', value: todayKpis.video_avg ? `${todayKpis.video_avg.toFixed(0)}s` : '—', color: '#64748B' },
+                  { label: 'Video avg', value: todayKpis.video_avg ? `${todayKpis.video_avg.toFixed(0)}s` : '—', color: '#7A90AA' },
                 ].map(kpi => (
                   <div key={kpi.label} style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '10px', padding: '12px 14px' }}>
-                    <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '4px', textTransform: 'uppercase' }}>{kpi.label}</div>
+                    <div style={{ fontSize: '10px', color: '#7A90AA', marginBottom: '4px', textTransform: 'uppercase' }}>{kpi.label}</div>
                     <div style={{ fontSize: '17px', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
                   </div>
                 ))}
@@ -207,25 +207,25 @@ export default async function CampaignDetailPage({
                       return (
                         <tr key={m.date}>
                           <td style={{ ...td, textAlign: 'left' as const, color: '#F1F5F9', fontWeight: 500 }}>{formatDate(m.date)}</td>
-                          <td style={{ ...td, color: '#94A3B8' }}>{m.impressions > 0 ? new Intl.NumberFormat('es-AR').format(m.impressions) : '—'}</td>
+                          <td style={{ ...td, color: '#A8BCD0' }}>{m.impressions > 0 ? new Intl.NumberFormat('es-AR').format(m.impressions) : '—'}</td>
                           <td style={{ ...td, color: '#F1F5F9' }}>{m.cpm ? formatCurrency(m.cpm, currency) : '—'}</td>
                           <td style={{ ...td, color: ctrColor(m.ctr) }}>{m.ctr ? `${m.ctr.toFixed(2)}%` : '—'}</td>
                           <td style={{ ...td, color: '#F1F5F9' }}>{m.cpc ? formatCurrency(m.cpc, currency) : '—'}</td>
-                          <td style={{ ...td, color: '#94A3B8' }}>{m.unique_link_clicks > 0 ? formatNumber(m.unique_link_clicks) : '—'}</td>
-                          <td style={{ ...td, color: '#94A3B8' }}>{m.landing_page_views > 0 ? formatNumber(m.landing_page_views) : '—'}</td>
+                          <td style={{ ...td, color: '#A8BCD0' }}>{m.unique_link_clicks > 0 ? formatNumber(m.unique_link_clicks) : '—'}</td>
+                          <td style={{ ...td, color: '#A8BCD0' }}>{m.landing_page_views > 0 ? formatNumber(m.landing_page_views) : '—'}</td>
                           <td style={{ ...td, color: '#F1F5F9' }}>{m.add_to_cart || '—'}</td>
                           <td style={{ ...td, color: '#F1F5F9' }}>{costAtc ? formatCurrency(costAtc, currency) : '—'}</td>
                           <td style={{ ...td, color: '#F1F5F9' }}>{m.checkout_initiated || '—'}</td>
-                          <td style={{ ...td, color: m.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{m.purchases || '—'}</td>
+                          <td style={{ ...td, color: m.purchases > 0 ? '#22C55E' : '#7A90AA', fontWeight: 600 }}>{m.purchases || '—'}</td>
                           <td style={{ ...td, color: cpaColor(mcpa), fontWeight: 600 }}>{mcpa ? formatCurrency(mcpa, currency) : '—'}</td>
                           <td style={{ ...td, color: '#F1F5F9' }}>{m.spend > 0 ? formatCurrency(m.spend, currency) : '—'}</td>
-                          <td style={{ ...td, color: '#94A3B8' }}>{m.purchase_value > 0 ? formatCurrency(m.purchase_value, currency) : '—'}</td>
+                          <td style={{ ...td, color: '#A8BCD0' }}>{m.purchase_value > 0 ? formatCurrency(m.purchase_value, currency) : '—'}</td>
                           <td style={{ ...td, color: roasColor(m.roas) }}>{m.roas ? `${m.roas.toFixed(2)}x` : '—'}</td>
                           <td style={{ ...td, color: '#F1F5F9' }}>{trafEf ? `${trafEf.toFixed(1)}%` : '—'}</td>
-                          <td style={{ ...td, color: convWeb ? '#22C55E' : '#64748B' }}>{convWeb ? `${convWeb.toFixed(1)}%` : '—'}</td>
-                          <td style={{ ...td, color: m.frequency && m.frequency > 3 ? '#F59E0B' : '#94A3B8' }}>{m.frequency ? m.frequency.toFixed(1) : '—'}</td>
-                          <td style={{ ...td, color: m.hook_rate ? (m.hook_rate >= 30 ? '#22C55E' : m.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#64748B' }}>{m.hook_rate ? `${m.hook_rate.toFixed(1)}%` : '—'}</td>
-                          <td style={{ ...td, color: '#64748B' }}>{m.video_avg_time_watched ? `${m.video_avg_time_watched.toFixed(0)}s` : '—'}</td>
+                          <td style={{ ...td, color: convWeb ? '#22C55E' : '#7A90AA' }}>{convWeb ? `${convWeb.toFixed(1)}%` : '—'}</td>
+                          <td style={{ ...td, color: m.frequency && m.frequency > 3 ? '#F59E0B' : '#A8BCD0' }}>{m.frequency ? m.frequency.toFixed(1) : '—'}</td>
+                          <td style={{ ...td, color: m.hook_rate ? (m.hook_rate >= 30 ? '#22C55E' : m.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#7A90AA' }}>{m.hook_rate ? `${m.hook_rate.toFixed(1)}%` : '—'}</td>
+                          <td style={{ ...td, color: '#7A90AA' }}>{m.video_avg_time_watched ? `${m.video_avg_time_watched.toFixed(0)}s` : '—'}</td>
                         </tr>
                       )
                     })}
@@ -243,7 +243,7 @@ export default async function CampaignDetailPage({
                 <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#22C55E20', color: '#22C55E', borderRadius: '4px' }}>CPA ≤${CPA_TARGET} 🟢</span>
                 <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#F59E0B20', color: '#F59E0B', borderRadius: '4px' }}>≤${CPA_BREAKEVEN} 🟡</span>
                 <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#EF444420', color: '#EF4444', borderRadius: '4px' }}>&gt;${CPA_BREAKEVEN} 🔴</span>
-                <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#64748B' }}>acumulado {days}d →</span>
+                <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#7A90AA' }}>acumulado {days}d →</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ borderCollapse: 'collapse', minWidth: '2400px', width: '100%' }}>
@@ -284,27 +284,27 @@ export default async function CampaignDetailPage({
                           <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{as.name}</span>
                         </td>
                         <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(as.status)}</td>
-                        <td style={{ ...td, color: '#94A3B8' }}>{as.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(as.t.impressions) : '—'}</td>
+                        <td style={{ ...td, color: '#A8BCD0' }}>{as.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(as.t.impressions) : '—'}</td>
                         <td style={{ ...td, color: '#F1F5F9' }}>{as.t.cpm ? formatCurrency(as.t.cpm, currency) : '—'}</td>
                         <td style={{ ...td, color: ctrColor(as.t.ctr) }}>{as.t.ctr ? `${as.t.ctr.toFixed(2)}%` : '—'}</td>
                         <td style={{ ...td, color: '#F1F5F9' }}>{as.t.cpc ? formatCurrency(as.t.cpc, currency) : '—'}</td>
-                        <td style={{ ...td, color: '#94A3B8' }}>{as.t.unique_link_clicks > 0 ? formatNumber(as.t.unique_link_clicks) : '—'}</td>
-                        <td style={{ ...td, color: '#94A3B8' }}>{as.t.landing_page_views > 0 ? formatNumber(as.t.landing_page_views) : '—'}</td>
+                        <td style={{ ...td, color: '#A8BCD0' }}>{as.t.unique_link_clicks > 0 ? formatNumber(as.t.unique_link_clicks) : '—'}</td>
+                        <td style={{ ...td, color: '#A8BCD0' }}>{as.t.landing_page_views > 0 ? formatNumber(as.t.landing_page_views) : '—'}</td>
                         <td style={{ ...td, color: '#F1F5F9' }}>{as.t.add_to_cart || '—'}</td>
                         <td style={{ ...td, color: '#F1F5F9' }}>{as.t.cost_per_atc ? formatCurrency(as.t.cost_per_atc, currency) : '—'}</td>
                         <td style={{ ...td, color: '#F1F5F9' }}>{as.t.checkout_initiated || '—'}</td>
-                        <td style={{ ...td, color: as.t.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{as.t.purchases || '—'}</td>
+                        <td style={{ ...td, color: as.t.purchases > 0 ? '#22C55E' : '#7A90AA', fontWeight: 600 }}>{as.t.purchases || '—'}</td>
                         <td style={{ ...td, color: cpaColor(as.t.cpa), fontWeight: 600 }}>{as.t.cpa ? formatCurrency(as.t.cpa, currency) : '—'}</td>
                         <td style={{ ...td, color: '#F1F5F9' }}>{as.t.spend > 0 ? formatCurrency(as.t.spend, currency) : '—'}</td>
-                        <td style={{ ...td, color: '#64748B' }}>{as.budget}</td>
-                        <td style={{ ...td, color: '#94A3B8' }}>{as.t.purchase_value > 0 ? formatCurrency(as.t.purchase_value, currency) : '—'}</td>
+                        <td style={{ ...td, color: '#7A90AA' }}>{as.budget}</td>
+                        <td style={{ ...td, color: '#A8BCD0' }}>{as.t.purchase_value > 0 ? formatCurrency(as.t.purchase_value, currency) : '—'}</td>
                         <td style={{ ...td, color: roasColor(as.t.roas) }}>{as.t.roas ? `${as.t.roas.toFixed(2)}x` : '—'}</td>
                         <td style={{ ...td, color: '#F1F5F9' }}>{as.t.traf_ef ? `${as.t.traf_ef.toFixed(1)}%` : '—'}</td>
-                        <td style={{ ...td, color: as.t.conv_web ? '#22C55E' : '#64748B' }}>{as.t.conv_web ? `${as.t.conv_web.toFixed(1)}%` : '—'}</td>
-                        <td style={{ ...td, color: as.t.frequency && as.t.frequency > 3 ? '#F59E0B' : '#94A3B8' }}>{as.t.frequency ? as.t.frequency.toFixed(1) : '—'}</td>
-                        <td style={{ ...td, color: as.t.hook_rate ? (as.t.hook_rate >= 30 ? '#22C55E' : as.t.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#64748B' }}>{as.t.hook_rate ? `${as.t.hook_rate.toFixed(1)}%` : '—'}</td>
-                        <td style={{ ...td, color: '#64748B' }}>{as.t.video_avg ? `${as.t.video_avg.toFixed(0)}s` : '—'}</td>
-                        <td style={{ ...sep, color: as.r?.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{as.r?.purchases || '—'}</td>
+                        <td style={{ ...td, color: as.t.conv_web ? '#22C55E' : '#7A90AA' }}>{as.t.conv_web ? `${as.t.conv_web.toFixed(1)}%` : '—'}</td>
+                        <td style={{ ...td, color: as.t.frequency && as.t.frequency > 3 ? '#F59E0B' : '#A8BCD0' }}>{as.t.frequency ? as.t.frequency.toFixed(1) : '—'}</td>
+                        <td style={{ ...td, color: as.t.hook_rate ? (as.t.hook_rate >= 30 ? '#22C55E' : as.t.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#7A90AA' }}>{as.t.hook_rate ? `${as.t.hook_rate.toFixed(1)}%` : '—'}</td>
+                        <td style={{ ...td, color: '#7A90AA' }}>{as.t.video_avg ? `${as.t.video_avg.toFixed(0)}s` : '—'}</td>
+                        <td style={{ ...sep, color: as.r?.purchases > 0 ? '#22C55E' : '#7A90AA', fontWeight: 600 }}>{as.r?.purchases || '—'}</td>
                         <td style={{ ...td, color: cpaColor(as.r?.cpa), fontWeight: 600 }}>{as.r?.cpa ? formatCurrency(as.r.cpa, currency) : '—'}</td>
                         <td style={{ ...td, color: roasColor(as.r?.roas) }}>{as.r?.roas ? `${as.r.roas.toFixed(2)}x` : '—'}</td>
                         <td style={{ ...td, color: '#F1F5F9' }}>{as.r?.spend > 0 ? formatCurrency(as.r.spend, currency) : '—'}</td>
@@ -327,7 +327,7 @@ export default async function CampaignDetailPage({
                   <div key={a.id} style={{ padding: '10px 14px', backgroundColor: '#060810', borderRadius: '8px', border: `1px solid ${a.severity === 'critical' ? '#EF444440' : a.severity === 'warning' ? '#F59E0B40' : '#6366F140'}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                       <div style={{ fontSize: '12px', color: '#F1F5F9', lineHeight: 1.5 }}>{a.message}</div>
-                      <div style={{ fontSize: '10px', color: '#64748B', whiteSpace: 'nowrap' as const }}>{formatDate(a.created_at?.split('T')[0] || '')}</div>
+                      <div style={{ fontSize: '10px', color: '#7A90AA', whiteSpace: 'nowrap' as const }}>{formatDate(a.created_at?.split('T')[0] || '')}</div>
                     </div>
                   </div>
                 ))}

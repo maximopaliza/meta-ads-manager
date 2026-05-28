@@ -101,7 +101,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
 
   const totals = deriveRaw(totalRaw) || ZEROS
 
-  const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#64748B', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
+  const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#7A90AA', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
   const td: any = { padding: '7px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '1px solid #1a1d27' }
   const tf: any = { padding: '8px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '2px solid #6366F1', fontWeight: 700, backgroundColor: '#060810', color: '#F1F5F9', whiteSpace: 'nowrap' as const }
   const sep: any = { ...td, borderLeft: '1px solid #1A3050' }
@@ -158,23 +158,23 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                       <span style={{ color: '#6366F1', fontWeight: 700, fontSize: '11px' }}>Total / Promedio</span>
                     </td>
                     <td style={tf}>—</td>
-                    <td style={{ ...tf, color: '#94A3B8' }}>{totals.impressions > 0 ? new Intl.NumberFormat('es-AR').format(totals.impressions) : '—'}</td>
+                    <td style={{ ...tf, color: '#A8BCD0' }}>{totals.impressions > 0 ? new Intl.NumberFormat('es-AR').format(totals.impressions) : '—'}</td>
                     <td style={{ ...tf, color: cpmColor(totals.cpm) }}>{totals.cpm ? formatCurrency(totals.cpm, currency) : '—'}</td>
                     <td style={{ ...tf, color: ctrColor(totals.ctr) }}>{totals.ctr ? `${totals.ctr.toFixed(2)}%` : '—'}</td>
                     <td style={{ ...tf, color: '#F1F5F9' }}>{totals.cpc ? formatCurrency(totals.cpc, currency) : '—'}</td>
-                    <td style={{ ...tf, color: '#94A3B8' }}>{totals.unique_link_clicks > 0 ? formatNumber(totals.unique_link_clicks) : '—'}</td>
-                    <td style={{ ...tf, color: '#94A3B8' }}>{totals.landing_page_views > 0 ? formatNumber(totals.landing_page_views) : '—'}</td>
+                    <td style={{ ...tf, color: '#A8BCD0' }}>{totals.unique_link_clicks > 0 ? formatNumber(totals.unique_link_clicks) : '—'}</td>
+                    <td style={{ ...tf, color: '#A8BCD0' }}>{totals.landing_page_views > 0 ? formatNumber(totals.landing_page_views) : '—'}</td>
                     <td style={tf}>{totals.add_to_cart || '—'}</td>
                     <td style={tf}>{totals.cost_per_atc ? formatCurrency(totals.cost_per_atc, currency) : '—'}</td>
                     <td style={tf}>{totals.checkout_initiated || '—'}</td>
-                    <td style={{ ...tf, color: totals.purchases > 0 ? '#22C55E' : '#64748B' }}>{totals.purchases || '—'}</td>
+                    <td style={{ ...tf, color: totals.purchases > 0 ? '#22C55E' : '#7A90AA' }}>{totals.purchases || '—'}</td>
                     <td style={{ ...tf, color: cpaColor(totals.cpa) }}>{totals.cpa ? formatCurrency(totals.cpa, currency) : '—'}</td>
                     <td style={{ ...tf, color: '#6366F1' }}>{totals.spend > 0 ? formatCurrency(totals.spend, currency) : '—'}</td>
                     <td style={tf}>—</td>
                     <td style={{ ...tf, color: '#6366F1' }}>{totals.purchase_value > 0 ? formatCurrency(totals.purchase_value, currency) : '—'}</td>
                     <td style={{ ...tf, color: roasColor(totals.roas) }}>{totals.roas ? `${totals.roas.toFixed(2)}x` : '—'}</td>
                     <td style={tf}>{totals.traf_ef ? `${totals.traf_ef.toFixed(1)}%` : '—'}</td>
-                    <td style={{ ...tf, color: totals.conv_web ? '#22C55E' : '#64748B' }}>{totals.conv_web ? `${totals.conv_web.toFixed(1)}%` : '—'}</td>
+                    <td style={{ ...tf, color: totals.conv_web ? '#22C55E' : '#7A90AA' }}>{totals.conv_web ? `${totals.conv_web.toFixed(1)}%` : '—'}</td>
                     <td style={tf}>{totals.frequency ? totals.frequency.toFixed(1) : '—'}</td>
                     <td style={tf}>{totals.hook_rate ? `${totals.hook_rate.toFixed(1)}%` : '—'}</td>
                     <td style={tf}>{totals.video_avg ? `${totals.video_avg.toFixed(0)}s` : '—'}</td>
@@ -188,27 +188,27 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                         </Link>
                       </td>
                       <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(c.status)}</td>
-                      <td style={{ ...td, color: '#94A3B8' }}>{c.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(c.t.impressions) : '—'}</td>
+                      <td style={{ ...td, color: '#A8BCD0' }}>{c.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(c.t.impressions) : '—'}</td>
                       <td style={{ ...td, color: cpmColor(c.t.cpm) }}>{c.t.cpm ? formatCurrency(c.t.cpm, currency) : '—'}</td>
                       <td style={{ ...td, color: ctrColor(c.t.ctr) }}>{c.t.ctr ? `${c.t.ctr.toFixed(2)}%` : '—'}</td>
                       <td style={{ ...td, color: cpcColor(c.t.cpc) }}>{c.t.cpc ? formatCurrency(c.t.cpc, currency) : '—'}</td>
-                      <td style={{ ...td, color: '#94A3B8' }}>{c.t.unique_link_clicks > 0 ? formatNumber(c.t.unique_link_clicks) : '—'}</td>
-                      <td style={{ ...td, color: '#94A3B8' }}>{c.t.landing_page_views > 0 ? formatNumber(c.t.landing_page_views) : '—'}</td>
+                      <td style={{ ...td, color: '#A8BCD0' }}>{c.t.unique_link_clicks > 0 ? formatNumber(c.t.unique_link_clicks) : '—'}</td>
+                      <td style={{ ...td, color: '#A8BCD0' }}>{c.t.landing_page_views > 0 ? formatNumber(c.t.landing_page_views) : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{c.t.add_to_cart || '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{c.t.cost_per_atc ? formatCurrency(c.t.cost_per_atc, currency) : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{c.t.checkout_initiated || '—'}</td>
-                      <td style={{ ...td, color: c.t.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{c.t.purchases || '—'}</td>
+                      <td style={{ ...td, color: c.t.purchases > 0 ? '#22C55E' : '#7A90AA', fontWeight: 600 }}>{c.t.purchases || '—'}</td>
                       <td style={{ ...td, color: cpaColor(c.t.cpa), fontWeight: 600 }}>{c.t.cpa ? formatCurrency(c.t.cpa, currency) : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{c.t.spend > 0 ? formatCurrency(c.t.spend, currency) : '—'}</td>
-                      <td style={{ ...td, color: '#64748B' }}>{c.budget}</td>
-                      <td style={{ ...td, color: '#94A3B8' }}>{c.t.purchase_value > 0 ? formatCurrency(c.t.purchase_value, currency) : '—'}</td>
+                      <td style={{ ...td, color: '#7A90AA' }}>{c.budget}</td>
+                      <td style={{ ...td, color: '#A8BCD0' }}>{c.t.purchase_value > 0 ? formatCurrency(c.t.purchase_value, currency) : '—'}</td>
                       <td style={{ ...td, color: roasColor(c.t.roas) }}>{c.t.roas ? `${c.t.roas.toFixed(2)}x` : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{c.t.traf_ef ? `${c.t.traf_ef.toFixed(1)}%` : '—'}</td>
-                      <td style={{ ...td, color: c.t.conv_web ? '#22C55E' : '#64748B' }}>{c.t.conv_web ? `${c.t.conv_web.toFixed(1)}%` : '—'}</td>
-                      <td style={{ ...td, color: c.t.frequency && c.t.frequency > 3 ? '#F59E0B' : '#94A3B8' }}>{c.t.frequency ? c.t.frequency.toFixed(1) : '—'}</td>
-                      <td style={{ ...td, color: c.t.hook_rate ? (c.t.hook_rate >= 30 ? '#22C55E' : c.t.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#64748B' }}>{c.t.hook_rate ? `${c.t.hook_rate.toFixed(1)}%` : '—'}</td>
-                      <td style={{ ...td, color: '#64748B' }}>{c.t.video_avg ? `${c.t.video_avg.toFixed(0)}s` : '—'}</td>
-                      <td style={{ ...td, color: c.trend === '▲' ? '#22C55E' : c.trend === '▼' ? '#EF4444' : '#64748B' }}>{c.trend}</td>
+                      <td style={{ ...td, color: c.t.conv_web ? '#22C55E' : '#7A90AA' }}>{c.t.conv_web ? `${c.t.conv_web.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...td, color: c.t.frequency && c.t.frequency > 3 ? '#F59E0B' : '#A8BCD0' }}>{c.t.frequency ? c.t.frequency.toFixed(1) : '—'}</td>
+                      <td style={{ ...td, color: c.t.hook_rate ? (c.t.hook_rate >= 30 ? '#22C55E' : c.t.hook_rate >= 15 ? '#F59E0B' : '#EF4444') : '#7A90AA' }}>{c.t.hook_rate ? `${c.t.hook_rate.toFixed(1)}%` : '—'}</td>
+                      <td style={{ ...td, color: '#7A90AA' }}>{c.t.video_avg ? `${c.t.video_avg.toFixed(0)}s` : '—'}</td>
+                      <td style={{ ...td, color: c.trend === '▲' ? '#22C55E' : c.trend === '▼' ? '#EF4444' : '#7A90AA' }}>{c.trend}</td>
                     </tr>
                   ))}
                 </tbody>

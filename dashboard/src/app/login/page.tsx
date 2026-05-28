@@ -51,12 +51,12 @@ export default function LoginPage() {
         <div style={{ marginBottom: '32px', textAlign: 'center' }}>
           <div style={{ fontSize: '32px', marginBottom: '8px' }}>📊</div>
           <h1 style={{ fontSize: '24px', fontWeight: 600, color: '#F1F5F9' }}>Meta Ads Manager</h1>
-          <p style={{ color: '#64748B', fontSize: '14px', marginTop: '4px' }}>Ingresá tu contraseña para continuar</p>
+          <p style={{ color: '#7A90AA', fontSize: '14px', marginTop: '4px' }}>Ingresá tu contraseña para continuar</p>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#64748B', marginBottom: '8px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: '#7A90AA', marginBottom: '8px' }}>
               CONTRASEÑA
             </label>
             <input

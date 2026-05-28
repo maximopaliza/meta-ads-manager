@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase'
+﻿import { supabaseAdmin } from './supabase'
 
 export const CPA_BREAKEVEN = 15
 export const CPA_TARGET = 7
@@ -60,21 +60,21 @@ export function sortByPerformance(rows: any[]) {
 }
 
 export function cpaColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v <= CPA_TARGET) return '#22C55E'
   if (v <= CPA_BREAKEVEN) return '#F59E0B'
   return '#EF4444'
 }
 
 export function roasColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v >= 3.5) return '#22C55E'
   if (v >= 1.5) return '#F59E0B'
   return '#EF4444'
 }
 
 export function ctrColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v >= 2.0) return '#22C55E'
   if (v >= 0.6) return '#F1F5F9'
   return '#EF4444'
@@ -82,7 +82,7 @@ export function ctrColor(v: number | null) {
 
 /** CPM — lower is better */
 export function cpmColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v <= 8)  return '#22C55E'
   if (v <= 20) return '#F59E0B'
   return '#EF4444'
@@ -90,7 +90,7 @@ export function cpmColor(v: number | null) {
 
 /** CPC — lower is better */
 export function cpcColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v <= 0.6)  return '#22C55E'
   if (v <= 1.8) return '#F59E0B'
   return '#EF4444'

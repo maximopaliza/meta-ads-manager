@@ -104,7 +104,7 @@ export default function RangeSelector() {
               fontSize: '12px',
               fontWeight: 600,
               backgroundColor: activePreset === o.value ? '#6366F1' : 'transparent',
-              color: activePreset === o.value ? '#fff' : '#64748B',
+              color: activePreset === o.value ? '#fff' : '#7A90AA',
               transition: 'all 0.15s',
             }}
           >
@@ -123,7 +123,7 @@ export default function RangeSelector() {
             fontSize: '12px',
             fontWeight: 600,
             backgroundColor: isDay || (showDay && !showCustom) ? '#6366F1' : 'transparent',
-            color: isDay || (showDay && !showCustom) ? '#fff' : '#64748B',
+            color: isDay || (showDay && !showCustom) ? '#fff' : '#7A90AA',
             transition: 'all 0.15s',
           }}
         >
@@ -141,7 +141,7 @@ export default function RangeSelector() {
             fontSize: '12px',
             fontWeight: 600,
             backgroundColor: (isCustom && !isSingleDay) || (showCustom && !showDay) ? '#6366F1' : 'transparent',
-            color: (isCustom && !isSingleDay) || (showCustom && !showDay) ? '#fff' : '#64748B',
+            color: (isCustom && !isSingleDay) || (showCustom && !showDay) ? '#fff' : '#7A90AA',
             transition: 'all 0.15s',
           }}
         >
@@ -152,7 +152,7 @@ export default function RangeSelector() {
       {/* Single day input */}
       {showDay && !showCustom && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px', padding: '6px 10px' }}>
-          <span style={{ fontSize: '11px', color: '#64748B' }}>Día</span>
+          <span style={{ fontSize: '11px', color: '#7A90AA' }}>Día</span>
           <input
             type="date"
             value={singleDay}
@@ -170,7 +170,7 @@ export default function RangeSelector() {
               fontSize: '12px',
               fontWeight: 600,
               backgroundColor: singleDay ? '#6366F1' : '#1A3050',
-              color: singleDay ? '#fff' : '#64748B',
+              color: singleDay ? '#fff' : '#7A90AA',
             }}
           >
             Ir
@@ -181,14 +181,14 @@ export default function RangeSelector() {
       {/* Custom date range inputs */}
       {showCustom && !showDay && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px', padding: '6px 10px' }}>
-          <span style={{ fontSize: '11px', color: '#64748B' }}>Desde</span>
+          <span style={{ fontSize: '11px', color: '#7A90AA' }}>Desde</span>
           <input
             type="date"
             value={from}
             onChange={e => setFrom(e.target.value)}
             style={inputStyle}
           />
-          <span style={{ fontSize: '11px', color: '#64748B' }}>hasta</span>
+          <span style={{ fontSize: '11px', color: '#7A90AA' }}>hasta</span>
           <input
             type="date"
             value={to}
@@ -206,7 +206,7 @@ export default function RangeSelector() {
               fontSize: '12px',
               fontWeight: 600,
               backgroundColor: from && to ? '#6366F1' : '#1A3050',
-              color: from && to ? '#fff' : '#64748B',
+              color: from && to ? '#fff' : '#7A90AA',
             }}
           >
             Aplicar

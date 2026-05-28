@@ -97,7 +97,7 @@ interface Props {
 const C_GREEN  = '#22C55E'
 const C_RED    = '#EF4444'
 const C_YELLOW = '#F59E0B'
-const C_MUTED  = '#64748B'
+const C_MUTED  = '#7A90AA'
 const C_TEXT   = '#F1F5F9'
 const BG_GREEN = '#22c55e0d'
 const BG_RED   = '#ef44440d'
@@ -112,7 +112,7 @@ function hookColor(v: number | null) {
 function freqColor(v: number | null) {
   if (!v) return C_MUTED
   if (v > 3) return C_YELLOW
-  return '#94A3B8'
+  return '#A8BCD0'
 }
 
 function vsDay(curr: number | null, prev: number | null | undefined, invert = false) {
@@ -241,12 +241,12 @@ function renderDayRow(
       <td style={cell(td, dRoas, dRoas ? undefined : roasColor(d.roas))}>{d.roas ? `${d.roas.toFixed(2)}x` : '—'}</td>
       <td style={cell(td, dCpa, dCpa ? undefined : cpaColor(d.cpa))}>{d.cpa ? formatCurrency(d.cpa, currency) : '—'}</td>
       <td style={{ ...tdG, color: C_TEXT }}>{d.spend > 0 ? formatCurrency(d.spend, currency) : '—'}</td>
-      <td style={{ ...td, color: dImpr?.color || '#94A3B8', backgroundColor: dImpr?.bg }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
+      <td style={{ ...td, color: dImpr?.color || '#A8BCD0', backgroundColor: dImpr?.bg }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
       <td style={cell(td, dCpm, dCpm ? undefined : cpmColor(d.cpm))}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
       <td style={{ ...td, color: dCpc?.color || C_TEXT, backgroundColor: dCpc?.bg }}>{d.cpc ? formatCurrency(d.cpc, currency) : '—'}</td>
       <td style={cell({ ...tdG }, dCtr, dCtr ? undefined : ctrColor(d.ctr))}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
-      <td style={{ ...td, color: dClics?.color || '#94A3B8', backgroundColor: dClics?.bg }}>{d.unique_link_clicks > 0 ? formatNumber(d.unique_link_clicks) : '—'}</td>
-      <td style={{ ...td, color: dLpv?.color || '#94A3B8', backgroundColor: dLpv?.bg }}>{d.landing_page_views > 0 ? formatNumber(d.landing_page_views) : '—'}</td>
+      <td style={{ ...td, color: dClics?.color || '#A8BCD0', backgroundColor: dClics?.bg }}>{d.unique_link_clicks > 0 ? formatNumber(d.unique_link_clicks) : '—'}</td>
+      <td style={{ ...td, color: dLpv?.color || '#A8BCD0', backgroundColor: dLpv?.bg }}>{d.landing_page_views > 0 ? formatNumber(d.landing_page_views) : '—'}</td>
       <td style={{ ...td, color: dTraf?.color || C_TEXT, backgroundColor: dTraf?.bg }}>{d.trafEf ? `${d.trafEf.toFixed(1)}%` : '—'}</td>
       <td style={{ ...td, color: dConvW?.color || C_TEXT, backgroundColor: dConvW?.bg }}>{d.convWeb ? `${d.convWeb.toFixed(1)}%` : '—'}</td>
       <td style={cell({ ...tdG }, dHook, dHook ? undefined : hookColor(d.hook_rate))}>{d.hook_rate ? `${d.hook_rate.toFixed(1)}%` : '—'}</td>
@@ -339,11 +339,11 @@ function AdCard({ ad, today, currency }: { ad: TreeAd; today: string; currency: 
     <div style={{ borderTop: '1px solid #1e2235', opacity: ad.status === 'ACTIVE' ? 1 : 0.65 }}>
       <div style={{ padding: '7px 14px 7px 28px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: (openTable || openChart) ? '#13151f' : 'transparent' }}>
         <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: statusColor, flexShrink: 0, display: 'inline-block' }} />
-        <span style={{ fontSize: '11px', color: '#94A3B8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-          <Link href={`/ads/${ad.id}`} style={{ color: '#94A3B8', textDecoration: 'none' }}>{ad.name}</Link>
+        <span style={{ fontSize: '11px', color: '#A8BCD0', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+          <Link href={`/ads/${ad.id}`} style={{ color: '#A8BCD0', textDecoration: 'none' }}>{ad.name}</Link>
         </span>
         <span style={{ fontSize: '10px', color: totalV > 0 ? C_GREEN : C_MUTED, flexShrink: 0 }}>{totalV > 0 ? `${totalV} ventas` : '0 ventas'}</span>
-        <span style={{ fontSize: '10px', color: '#64748B', flexShrink: 0 }}>{formatCurrency(totalSpend, currency)}</span>
+        <span style={{ fontSize: '10px', color: '#7A90AA', flexShrink: 0 }}>{formatCurrency(totalSpend, currency)}</span>
         {lastRoas && <span style={{ fontSize: '10px', color: roasColor(lastRoas), flexShrink: 0 }}>ROAS {lastRoas.toFixed(2)}x</span>}
         <ToggleBtn active={openTable} onClick={() => setOpenTable(v => !v)}>▶ tabla</ToggleBtn>
         <ToggleBtn active={openChart} onClick={() => setOpenChart(v => !v)}>📈 gráfico</ToggleBtn>
@@ -376,7 +376,7 @@ function AdSetCard({ adSet, today, currency }: { adSet: TreeAdSet; today: string
           {adSet.name}
         </span>
         <span style={{ fontSize: '10px', color: totalV > 0 ? C_GREEN : C_MUTED, flexShrink: 0 }}>{totalV > 0 ? `${totalV} ventas` : '0 ventas'}</span>
-        <span style={{ fontSize: '10px', color: '#94A3B8', flexShrink: 0 }}>{formatCurrency(totalSpend, currency)}</span>
+        <span style={{ fontSize: '10px', color: '#A8BCD0', flexShrink: 0 }}>{formatCurrency(totalSpend, currency)}</span>
         {lastRoas && <span style={{ fontSize: '10px', color: roasColor(lastRoas), flexShrink: 0 }}>ROAS {lastRoas.toFixed(2)}x</span>}
         <ToggleBtn active={openTable} onClick={() => setOpenTable(v => !v)}>▶ tabla</ToggleBtn>
         <ToggleBtn active={openChart} onClick={() => setOpenChart(v => !v)}>📈 gráfico</ToggleBtn>
@@ -430,7 +430,7 @@ function CampaignCard({ camp, today, currency, days }: { camp: TreeCampaign; tod
         </Link>
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignItems: 'center' }}>
           <span style={{ fontSize: '10px', color: totalV > 0 ? C_GREEN : C_MUTED }}>{totalV > 0 ? `${totalV} ventas` : '0 ventas'}</span>
-          <span style={{ fontSize: '10px', color: '#94A3B8' }}>{formatCurrency(totalSpend, currency)} gasto</span>
+          <span style={{ fontSize: '10px', color: '#A8BCD0' }}>{formatCurrency(totalSpend, currency)} gasto</span>
           {lastRoas && <span style={{ fontSize: '10px', color: roasColor(lastRoas) }}>ROAS {lastRoas.toFixed(2)}x hoy</span>}
           <ToggleBtn active={openChart} onClick={() => setOpenChart(v => !v)}>📈 gráfico</ToggleBtn>
           {camp.adSets.length > 0 && (

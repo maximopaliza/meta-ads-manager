@@ -1,17 +1,17 @@
-﻿'use client'
+'use client'
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
 const links = [
-  { href: '/', label: 'Overview',   icon: '◎', desc: 'Métricas del día' },
-  { href: '/campaigns', label: 'Campañas', icon: '⬡', desc: 'Vista de campañas' },
-  { href: '/ad-sets',   label: 'Ad Sets',  icon: '◈', desc: 'Conjuntos de ads' },
-  { href: '/ads',       label: 'Ads',      icon: '▣', desc: 'Creativos' },
-  { href: '/creativos', label: 'Creativos', icon: '🎬', desc: 'Análisis de creativos' },
-  { href: '/analisis',  label: 'Análisis', icon: '◉', desc: 'Performance & embudo' },
-  { href: '/analisis/diagnostico', label: 'Diagnóstico', icon: '🔍', desc: 'Días buenos vs malos' },
-  { href: '/alerts',    label: 'Alertas',  icon: '◌', desc: 'Notificaciones' },
+  { href: '/', label: 'Overview',   icon: '◎' },
+  { href: '/campaigns', label: 'Campañas', icon: '⬡' },
+  { href: '/ad-sets',   label: 'Ad Sets',  icon: '◈' },
+  { href: '/ads',       label: 'Ads',      icon: '▣' },
+  { href: '/creativos', label: 'Creativos', icon: '🎬' },
+  { href: '/analisis',  label: 'Análisis', icon: '◉' },
+  { href: '/analisis/diagnostico', label: 'Diagnóstico', icon: '🔍' },
+  { href: '/alerts',    label: 'Alertas',  icon: '◌' },
 ]
 
 export default function Sidebar() {
@@ -28,7 +28,7 @@ export default function Sidebar() {
       width: '220px',
       minHeight: '100vh',
       backgroundColor: '#070A14',
-      borderRight: '1px solid #182036',
+      borderRight: '1px solid #1C3255',
       display: 'flex',
       flexDirection: 'column',
       position: 'fixed',
@@ -38,57 +38,58 @@ export default function Sidebar() {
     }}>
       {/* Logo */}
       <div style={{
-        padding: '18px 16px 16px',
-        borderBottom: '1px solid #1A3050',
-        background: 'linear-gradient(180deg, #0A1828 0%, #070A14 100%)',
+        padding: '16px 16px 14px',
+        borderBottom: '1px solid #1C3255',
+        background: 'linear-gradient(180deg, #091628 0%, #070A14 100%)',
       }}>
-        {/* Sistema activo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '10px' }}>
+        {/* Indicador live */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '9px' }}>
           <div className="live-dot" style={{ width: '5px', height: '5px', marginRight: 0 }} />
-          <span style={{ fontSize: '8px', color: '#22C55E', fontWeight: 700, letterSpacing: '0.18em' }}>
+          <span style={{ fontSize: '8px', color: '#22C55E', fontWeight: 700, letterSpacing: '0.16em' }}>
             SISTEMA ACTIVO
           </span>
         </div>
 
-        {/* Nombre principal con gradiente */}
-        <div style={{
-          fontSize: '21px',
-          fontWeight: 900,
-          letterSpacing: '0.1em',
-          lineHeight: 1,
-          background: 'linear-gradient(90deg, #FFFFFF 0%, #A5B4FC 45%, #6366F1 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          marginBottom: '8px',
-        }}>
-          J.A.R.V.I.S
-        </div>
-
-        {/* Badges */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* JARVIS + MASIVO en la misma línea */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+          <span style={{
+            fontSize: '19px',
+            fontWeight: 900,
+            letterSpacing: '0.08em',
+            lineHeight: 1,
+            background: 'linear-gradient(90deg, #FFFFFF 0%, #B4C0F8 40%, #6366F1 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            flexShrink: 0,
+          }}>
+            J.A.R.V.I.S
+          </span>
           <span style={{
             fontSize: '9px',
-            padding: '3px 8px',
+            padding: '3px 7px',
             borderRadius: '5px',
-            background: 'linear-gradient(90deg, #6366F1 0%, #818CF8 100%)',
+            background: 'linear-gradient(90deg, #4F52D6 0%, #818CF8 100%)',
             color: '#fff',
             fontWeight: 800,
-            letterSpacing: '0.14em',
-            boxShadow: '0 0 10px #6366F140',
-          }}>MASIVO</span>
-          <span style={{
-            fontSize: '8px',
-            color: '#2A4060',
-            fontWeight: 600,
             letterSpacing: '0.12em',
-          }}>· ARG</span>
+            boxShadow: '0 0 10px #6366F145',
+            flexShrink: 0,
+          }}>MASIVO</span>
+        </div>
+
+        {/* Subtítulo */}
+        <div style={{ fontSize: '8px', color: '#3A5270', fontWeight: 600, letterSpacing: '0.14em' }}>
+          ARGENTINA · META ADS AI
         </div>
       </div>
 
       {/* Nav */}
-      <nav style={{ padding: '12px 10px', flex: 1 }}>
-        <div style={{ fontSize: '8px', color: '#1E2338', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 10px 8px', textTransform: 'uppercase' }}>
+      <nav style={{ padding: '10px 10px', flex: 1 }}>
+        <div style={{
+          fontSize: '9px', color: '#3A5272', fontWeight: 700,
+          letterSpacing: '0.12em', padding: '4px 10px 8px', textTransform: 'uppercase',
+        }}>
           NAVEGACIÓN
         </div>
         {links.map(link => {
@@ -104,9 +105,9 @@ export default function Sidebar() {
                 gap: '10px',
                 padding: '9px 10px',
                 borderRadius: '6px',
-                marginBottom: '2px',
-                backgroundColor: active ? '#0E1B30' : 'transparent',
-                color: active ? '#E8EDF5' : '#5A6C88',
+                marginBottom: '1px',
+                backgroundColor: active ? '#0D1E35' : 'transparent',
+                color: active ? '#E8EDF5' : '#7A90AA',
                 textDecoration: 'none',
                 fontSize: '13px',
                 fontWeight: active ? 600 : 400,
@@ -118,7 +119,7 @@ export default function Sidebar() {
             >
               <span style={{
                 fontSize: '13px',
-                color: active ? '#6366F1' : '#3E5070',
+                color: active ? '#6366F1' : '#4A6080',
                 width: '18px',
                 textAlign: 'center',
               }}>{link.icon}</span>
@@ -139,7 +140,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '12px 10px', borderTop: '1px solid #182036' }}>
+      <div style={{ padding: '10px 10px', borderTop: '1px solid #1C3255' }}>
         <button
           onClick={handleLogout}
           className="nav-link"
@@ -148,7 +149,7 @@ export default function Sidebar() {
             padding: '9px 10px',
             backgroundColor: 'transparent',
             border: 'none',
-            color: '#2D3350',
+            color: '#7A90AA',
             fontSize: '13px',
             cursor: 'pointer',
             textAlign: 'left',
@@ -159,7 +160,7 @@ export default function Sidebar() {
             borderLeft: '2px solid transparent',
           }}
         >
-          <span style={{ fontSize: '13px', color: '#252B40', width: '18px', textAlign: 'center' }}>→</span>
+          <span style={{ fontSize: '13px', color: '#4A6080', width: '18px', textAlign: 'center' }}>→</span>
           Salir
         </button>
       </div>

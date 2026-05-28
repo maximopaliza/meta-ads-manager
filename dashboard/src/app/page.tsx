@@ -15,35 +15,35 @@ const CPA_BREAKEVEN = 15
 const CPA_TARGET = 7
 
 function cpaColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v <= CPA_TARGET) return '#22C55E'
   if (v <= CPA_BREAKEVEN) return '#F59E0B'
   return '#EF4444'
 }
 
 function roasColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v >= 3.5) return '#22C55E'
   if (v >= 1.5) return '#F59E0B'
   return '#EF4444'
 }
 
 function ctrColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v >= 2.0) return '#22C55E'
   if (v >= 0.6) return '#F1F5F9'
   return '#EF4444'
 }
 
 function cpmColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v <= 8)  return '#22C55E'
   if (v <= 20) return '#F59E0B'
   return '#EF4444'
 }
 
 function cpcColor(v: number | null) {
-  if (!v) return '#64748B'
+  if (!v) return '#7A90AA'
   if (v <= 0.6)  return '#22C55E'
   if (v <= 1.8) return '#F59E0B'
   return '#EF4444'
@@ -67,14 +67,14 @@ function KPI({ label, value, delta, color, sub }: {
   delta?: { text: string; color: string } | null
   color?: string; sub?: string
 }) {
-  const accentColor = color && color !== '#F1F5F9' && color !== '#64748B' ? color : '#1A3050'
+  const accentColor = color && color !== '#F1F5F9' && color !== '#7A90AA' ? color : '#1A3050'
   return (
     <div
       className="kpi-card"
       style={{ '--kpi-color': accentColor } as React.CSSProperties}
     >
       <div style={{
-        fontSize: '10px', color: '#64748B', marginBottom: '8px',
+        fontSize: '10px', color: '#7A90AA', marginBottom: '8px',
         textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600,
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }}>{label}</div>
@@ -82,14 +82,14 @@ function KPI({ label, value, delta, color, sub }: {
         fontSize: '24px', fontWeight: 700, color: color || '#F1F5F9',
         lineHeight: 1.1, letterSpacing: '-0.02em',
       }}>{value}</div>
-      {sub && <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>{sub}</div>}
+      {sub && <div style={{ fontSize: '11px', color: '#7A90AA', marginTop: '4px' }}>{sub}</div>}
       {delta && (
         <div style={{
           fontSize: '11px', color: delta.color, marginTop: '6px',
           display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 500,
         }}>
           {delta.text}
-          <span style={{ color: '#64748B', fontSize: '10px', fontWeight: 400 }}>vs ayer</span>
+          <span style={{ color: '#7A90AA', fontSize: '10px', fontWeight: 400 }}>vs ayer</span>
         </div>
       )}
     </div>
@@ -264,7 +264,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const row2 = [
     { label: 'Add to Cart', value: formatNumber(td.add_to_cart), delta: deltaLabel(pct(td.add_to_cart, yd.add_to_cart || 0)), color: '#F1F5F9' },
     { label: 'Costo por ATC', value: t.cost_atc ? formatCurrency(t.cost_atc, currency) : '—', delta: deltaLabel(pct(t.cost_atc, y.cost_atc), true), color: '#F1F5F9' },
-    { label: 'Ventas (resultados)', value: String(td.purchases), color: td.purchases > 0 ? '#22C55E' : '#64748B', delta: deltaLabel(pct(td.purchases, yd.purchases || 0)) },
+    { label: 'Ventas (resultados)', value: String(td.purchases), color: td.purchases > 0 ? '#22C55E' : '#7A90AA', delta: deltaLabel(pct(td.purchases, yd.purchases || 0)) },
     { label: `CPA  ≤$${CPA_TARGET} ✓`, value: t.cpa ? formatCurrency(t.cpa, currency) : '—', color: cpaColor(t.cpa), delta: deltaLabel(pct(t.cpa, y.cpa), true) },
   ]
   const row3 = [
@@ -274,16 +274,16 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     { label: 'Frecuencia', value: t.frequency ? t.frequency.toFixed(2) : '—', color: t.frequency && t.frequency > 3.5 ? '#EF4444' : t.frequency && t.frequency > 2.5 ? '#F59E0B' : '#F1F5F9' },
   ]
   const row4 = [
-    { label: 'Hook Rate', value: t.hook_rate ? `${t.hook_rate.toFixed(1)}%` : '—', color: t.hook_rate ? (t.hook_rate >= 40 ? '#22C55E' : t.hook_rate >= 20 ? '#F59E0B' : '#EF4444') : '#64748B', sub: t.hook_rate ? (t.hook_rate >= 40 ? '▲ Excelente' : t.hook_rate >= 20 ? '~ Aceptable' : '▼ Mejorar') : undefined },
+    { label: 'Hook Rate', value: t.hook_rate ? `${t.hook_rate.toFixed(1)}%` : '—', color: t.hook_rate ? (t.hook_rate >= 40 ? '#22C55E' : t.hook_rate >= 20 ? '#F59E0B' : '#EF4444') : '#7A90AA', sub: t.hook_rate ? (t.hook_rate >= 40 ? '▲ Excelente' : t.hook_rate >= 20 ? '~ Aceptable' : '▼ Mejorar') : undefined },
     { label: 'Video promedio', value: t.video_avg ? `${t.video_avg.toFixed(1)}s` : '—', color: '#F1F5F9' },
-    { label: 'Campañas activas', value: String(activeCampaigns), color: activeCampaigns > 0 ? '#6366F1' : '#64748B' },
+    { label: 'Campañas activas', value: String(activeCampaigns), color: activeCampaigns > 0 ? '#6366F1' : '#7A90AA' },
   ]
 
   const grid4 = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '10px' }
   const grid3 = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }
 
   const thStyle: any = {
-    padding: '8px 10px', textAlign: 'right' as const, color: '#64748B',
+    padding: '8px 10px', textAlign: 'right' as const, color: '#7A90AA',
     fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050',
     whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const,
     letterSpacing: '0.05em', backgroundColor: '#0A1422',
@@ -315,18 +315,18 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
               <span style={{ fontSize: '13px', fontWeight: 700, color: heroColor }}>
                 {heroText}
               </span>
-              <span style={{ fontSize: '12px', color: '#64748B' }}>—</span>
-              <span style={{ fontSize: '12px', color: '#94A3B8' }}>Hoy</span>
+              <span style={{ fontSize: '12px', color: '#7A90AA' }}>—</span>
+              <span style={{ fontSize: '12px', color: '#A8BCD0' }}>Hoy</span>
             </div>
             <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap' }}>
               {[
-                { label: 'VENTAS', value: String(td.purchases), color: td.purchases > 0 ? '#22C55E' : '#64748B' },
+                { label: 'VENTAS', value: String(td.purchases), color: td.purchases > 0 ? '#22C55E' : '#7A90AA' },
                 { label: 'ROAS', value: t.roas ? `${t.roas.toFixed(2)}x` : '—', color: roasColor(t.roas) },
                 { label: 'CPA', value: t.cpa ? formatCurrency(t.cpa, currency) : '—', color: cpaColor(t.cpa) },
                 { label: 'GASTO', value: formatCurrency(td.spend, currency), color: '#F1F5F9' },
               ].map(k => (
                 <div key={k.label}>
-                  <div style={{ fontSize: '9px', color: '#64748B', letterSpacing: '0.08em', marginBottom: '2px' }}>{k.label}</div>
+                  <div style={{ fontSize: '9px', color: '#7A90AA', letterSpacing: '0.08em', marginBottom: '2px' }}>{k.label}</div>
                   <div style={{ fontSize: '18px', fontWeight: 700, color: k.color, letterSpacing: '-0.02em' }}>{k.value}</div>
                 </div>
               ))}
@@ -359,7 +359,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                 <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#F1F5F9' }}>
                   📅 {customFrom && customTo ? `${customFrom} → ${customTo}` : `Últimos ${days} días`}
                 </h3>
-                <span style={{ fontSize: '10px', color: '#64748B' }}>CPA target ≤${CPA_TARGET}</span>
+                <span style={{ fontSize: '10px', color: '#7A90AA' }}>CPA target ≤${CPA_TARGET}</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', minWidth: '1500px', borderCollapse: 'collapse', fontSize: '11px' }}>
@@ -401,23 +401,23 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                             {new Date(d.date + 'T12:00:00Z').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}
                             {isToday && <span style={{ marginLeft: '5px', fontSize: '9px', color: '#6366F1', backgroundColor: '#6366F120', padding: '1px 5px', borderRadius: '3px' }}>HOY</span>}
                           </td>
-                          {cell(d.purchases > 0 ? d.purchases : '—', d.purchases > 0 ? '#22C55E' : '#64748B')}
-                          {cell(d.purchase_value > 0 ? formatCurrency(d.purchase_value, currency) : '—', '#94A3B8')}
+                          {cell(d.purchases > 0 ? d.purchases : '—', d.purchases > 0 ? '#22C55E' : '#7A90AA')}
+                          {cell(d.purchase_value > 0 ? formatCurrency(d.purchase_value, currency) : '—', '#A8BCD0')}
                           {cell(d.cpa ? formatCurrency(d.cpa, currency) : '—', cpaColor(d.cpa))}
                           {cell(d.roas ? `${d.roas.toFixed(2)}x` : '—', roasColor(d.roas))}
                           {cell(formatCurrency(d.spend, currency))}
-                          {cell(d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—', '#94A3B8')}
+                          {cell(d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—', '#A8BCD0')}
                           {cell(d.cpm ? formatCurrency(d.cpm, currency) : '—', cpmColor(d.cpm))}
                           {cell(d.cpc ? formatCurrency(d.cpc, currency) : '—', cpcColor(d.cpc))}
                           {cell(d.ctr ? `${d.ctr.toFixed(2)}%` : '—', ctrColor(d.ctr))}
-                          {cell(d.unique_link_clicks > 0 ? d.unique_link_clicks : '—', '#94A3B8')}
-                          {cell(d.landing_page_views > 0 ? d.landing_page_views : '—', '#94A3B8')}
-                          {cell(d.conv_web !== null && d.clicks > 0 ? `${(d.landing_page_views / d.clicks * 100).toFixed(2)}%` : '—', '#94A3B8')}
-                          {cell(d.conv_web ? `${d.conv_web.toFixed(2)}%` : '—', '#94A3B8')}
+                          {cell(d.unique_link_clicks > 0 ? d.unique_link_clicks : '—', '#A8BCD0')}
+                          {cell(d.landing_page_views > 0 ? d.landing_page_views : '—', '#A8BCD0')}
+                          {cell(d.conv_web !== null && d.clicks > 0 ? `${(d.landing_page_views / d.clicks * 100).toFixed(2)}%` : '—', '#A8BCD0')}
+                          {cell(d.conv_web ? `${d.conv_web.toFixed(2)}%` : '—', '#A8BCD0')}
                           {cell(d.add_to_cart > 0 ? d.add_to_cart : '—')}
                           {cell(d.cost_atc ? formatCurrency(d.cost_atc, currency) : '—')}
                           {cell(d.checkout_initiated > 0 ? d.checkout_initiated : '—')}
-                          {cell(d.frequency ? `${d.frequency.toFixed(2)}x` : '—', d.frequency && d.frequency > 3.5 ? '#EF4444' : d.frequency && d.frequency > 2.5 ? '#F59E0B' : '#94A3B8')}
+                          {cell(d.frequency ? `${d.frequency.toFixed(2)}x` : '—', d.frequency && d.frequency > 3.5 ? '#EF4444' : d.frequency && d.frequency > 2.5 ? '#F59E0B' : '#A8BCD0')}
                         </tr>
                       )
                     })}
@@ -454,14 +454,14 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                       <td style={{ padding: '9px 6px', textAlign: 'left' }}>
                         <span className={c.status === 'ACTIVE' ? 'status-active' : 'status-paused'} />
                       </td>
-                      <td style={{ padding: '9px 10px', textAlign: 'right', color: c.m.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{c.m.purchases}</td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: c.m.purchases > 0 ? '#22C55E' : '#7A90AA', fontWeight: 600 }}>{c.m.purchases}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: cpaColor(c.m.cpa), fontWeight: 600 }}>{c.m.cpa ? formatCurrency(c.m.cpa, currency) : '—'}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: roasColor(c.m.roas) }}>{c.m.roas ? `${c.m.roas.toFixed(2)}x` : '—'}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: '#F1F5F9' }}>{formatCurrency(c.m.spend, currency)}</td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: ctrColor(c.m.ctr) }}>{c.m.ctr ? `${c.m.ctr.toFixed(2)}%` : '—'}</td>
-                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#94A3B8' }}>{c.m.add_to_cart}</td>
-                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#94A3B8' }}>{c.m.link_clicks > 0 ? `${(c.m.landing_page_views / c.m.link_clicks * 100).toFixed(1)}%` : '—'}</td>
-                      <td style={{ padding: '9px 10px', textAlign: 'right', color: c.trend === '▲' ? '#22C55E' : c.trend === '▼' ? '#EF4444' : '#64748B', fontWeight: 600 }}>{c.trend}</td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#A8BCD0' }}>{c.m.add_to_cart}</td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#A8BCD0' }}>{c.m.link_clicks > 0 ? `${(c.m.landing_page_views / c.m.link_clicks * 100).toFixed(1)}%` : '—'}</td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: c.trend === '▲' ? '#22C55E' : c.trend === '▼' ? '#EF4444' : '#7A90AA', fontWeight: 600 }}>{c.trend}</td>
                     </tr>
                   ))}
                 </tbody>

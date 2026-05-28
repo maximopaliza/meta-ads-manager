@@ -15,7 +15,7 @@ import type { TreeCampaign, TreeAdSet, TreeAd } from '@/components/dashboard/Col
 const C_GREEN  = '#22C55E'
 const C_RED    = '#EF4444'
 const C_YELLOW = '#F59E0B'
-const C_MUTED  = '#64748B'
+const C_MUTED  = '#7A90AA'
 const C_TEXT   = '#F1F5F9'
 const BG_GREEN = '#22c55e0d'
 const BG_RED   = '#ef44440d'
@@ -47,7 +47,7 @@ function hookColor(v: number | null) {
 function freqColor(v: number | null) {
   if (!v) return C_MUTED
   if (v > 3) return C_YELLOW
-  return '#94A3B8'
+  return '#A8BCD0'
 }
 
 function pctFmt(p: number) {
@@ -556,19 +556,19 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         <td style={cellStyle(td, dCpa, dCpa ? undefined : cpaColor(d.cpa))}>{d.cpa ? formatCurrency(d.cpa, currency) : '—'}</td>
         {/* 💸 Costos */}
         <td style={{ ...tdG, color: C_TEXT }}>{d.spend > 0 ? formatCurrency(d.spend, currency) : '—'}</td>
-        <td style={{ ...td, color: dImpr?.color || '#94A3B8', backgroundColor: dImpr?.bg }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
+        <td style={{ ...td, color: dImpr?.color || '#A8BCD0', backgroundColor: dImpr?.bg }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
         <td style={cellStyle(td, dCpm, dCpm ? undefined : cpmColor(d.cpm))}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
         <td style={cellStyle(td, dCpc, dCpc ? undefined : cpcColor(d.cpc))}>{d.cpc ? formatCurrency(d.cpc, currency) : '—'}</td>
         {/* 🌐 Tráfico */}
         <td style={cellStyle({ ...tdG }, dCtr, dCtr ? undefined : ctrColor(d.ctr))}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
-        <td style={{ ...td, color: dClics?.color || '#94A3B8', backgroundColor: dClics?.bg }}>{d.unique_link_clicks > 0 ? formatNumber(d.unique_link_clicks) : '—'}</td>
-        <td style={{ ...td, color: dLpv?.color || '#94A3B8', backgroundColor: dLpv?.bg }}>{d.landing_page_views > 0 ? formatNumber(d.landing_page_views) : '—'}</td>
+        <td style={{ ...td, color: dClics?.color || '#A8BCD0', backgroundColor: dClics?.bg }}>{d.unique_link_clicks > 0 ? formatNumber(d.unique_link_clicks) : '—'}</td>
+        <td style={{ ...td, color: dLpv?.color || '#A8BCD0', backgroundColor: dLpv?.bg }}>{d.landing_page_views > 0 ? formatNumber(d.landing_page_views) : '—'}</td>
         <td style={{ ...td, color: dTraf?.color || C_TEXT, backgroundColor: dTraf?.bg }}>{d.trafEf ? `${d.trafEf.toFixed(1)}%` : '—'}</td>
         <td style={{ ...td, color: dConvW?.color || C_TEXT, backgroundColor: dConvW?.bg }}>{d.convWeb ? `${d.convWeb.toFixed(1)}%` : '—'}</td>
         {/* 🎬 Video */}
         <td style={cellStyle({ ...tdG }, dHook, dHook ? undefined : hookColor(d.hook_rate))}>{d.hook_rate ? `${d.hook_rate.toFixed(1)}%` : '—'}</td>
         <td style={{ ...td, color: dFreq?.color || freqColor(d.frequency), backgroundColor: dFreq?.bg }}>{d.frequency ? d.frequency.toFixed(1) : '—'}</td>
-        <td style={{ ...td, color: dVideoA?.color || '#94A3B8', backgroundColor: dVideoA?.bg }}>{d.video_avg_time_watched ? `${d.video_avg_time_watched.toFixed(0)}s` : '—'}</td>
+        <td style={{ ...td, color: dVideoA?.color || '#A8BCD0', backgroundColor: dVideoA?.bg }}>{d.video_avg_time_watched ? `${d.video_avg_time_watched.toFixed(0)}s` : '—'}</td>
         {/* 🔁 Embudo */}
         <td style={{ ...tdG, color: dAtc?.color || C_TEXT, backgroundColor: dAtc?.bg }}>{d.add_to_cart || '—'}</td>
         <td style={{ ...td, color: dCostAtc?.color || C_TEXT, backgroundColor: dCostAtc?.bg }}>{d.cost_per_atc ? formatCurrency(d.cost_per_atc, currency) : '—'}</td>
@@ -681,7 +681,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                     { label: 'Gasto',       value: ts > 0 ? formatCurrency(ts, currency) : '—',              color: C_TEXT },
                     { label: 'ATC',         value: todayData.add_to_cart > 0 ? String(todayData.add_to_cart) : '—', color: todayData.add_to_cart > 0 ? C_TEXT : C_MUTED },
                     { label: 'Pagos inic.', value: todayData.checkout_initiated > 0 ? String(todayData.checkout_initiated) : '—', color: todayData.checkout_initiated > 0 ? C_TEXT : C_MUTED },
-                    { label: 'Valor conv.', value: todayData.purchase_value > 0 ? formatCurrency(todayData.purchase_value, currency) : '—', color: '#94A3B8' },
+                    { label: 'Valor conv.', value: todayData.purchase_value > 0 ? formatCurrency(todayData.purchase_value, currency) : '—', color: '#A8BCD0' },
                   ].map(kpi => (
                     <div key={kpi.label}>
                       <div style={{ fontSize: '9px', color: C_MUTED, textTransform: 'uppercase' as const, letterSpacing: '0.04em', marginBottom: '2px' }}>{kpi.label}</div>
@@ -894,13 +894,13 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                           <td style={{ ...td, color: cpaColor(d.cpa), fontWeight: 600 }}>{d.cpa ? formatCurrency(d.cpa, currency) : '—'}</td>
                           <td style={{ ...td, color: roasColor(d.roas) }}>{d.roas ? `${d.roas.toFixed(2)}x` : '—'}</td>
                           <td style={{ ...td, color: C_TEXT }}>{d.spend > 0 ? formatCurrency(d.spend, currency) : '—'}</td>
-                          <td style={{ ...td, color: '#94A3B8' }}>{d.purchase_value > 0 ? formatCurrency(d.purchase_value, currency) : '—'}</td>
-                          <td style={{ ...td, color: '#94A3B8' }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
+                          <td style={{ ...td, color: '#A8BCD0' }}>{d.purchase_value > 0 ? formatCurrency(d.purchase_value, currency) : '—'}</td>
+                          <td style={{ ...td, color: '#A8BCD0' }}>{d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—'}</td>
                           <td style={{ ...td, color: cpmColor(d.cpm) }}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
                           <td style={{ ...td, color: ctrColor(d.ctr) }}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
                           <td style={{ ...td, color: cpcColor(d.cpc) }}>{d.cpc ? formatCurrency(d.cpc, currency) : '—'}</td>
-                          <td style={{ ...td, color: '#94A3B8' }}>{d.unique_link_clicks > 0 ? d.unique_link_clicks : '—'}</td>
-                          <td style={{ ...td, color: '#94A3B8' }}>{d.landing_page_views > 0 ? d.landing_page_views : '—'}</td>
+                          <td style={{ ...td, color: '#A8BCD0' }}>{d.unique_link_clicks > 0 ? d.unique_link_clicks : '—'}</td>
+                          <td style={{ ...td, color: '#A8BCD0' }}>{d.landing_page_views > 0 ? d.landing_page_views : '—'}</td>
                           <td style={{ ...td, color: C_TEXT }}>{d.trafEf ? `${d.trafEf.toFixed(1)}%` : '—'}</td>
                           <td style={{ ...td, color: d.convWeb ? C_GREEN : C_MUTED }}>{d.convWeb ? `${d.convWeb.toFixed(1)}%` : '—'}</td>
                           <td style={{ ...td, color: hookColor(d.hook_rate) }}>{d.hook_rate ? `${d.hook_rate.toFixed(1)}%` : '—'}</td>

@@ -10,7 +10,7 @@ import { notFound } from 'next/navigation'
 
 const BORDER = '#1A3050'
 const SURFACE = '#0E1B30'
-const MUTED = '#64748B'
+const MUTED = '#7A90AA'
 
 function StatCard({ label, value, sub, color }: {
   label: string; value: string; sub?: string; color?: string
@@ -114,7 +114,7 @@ export default async function AdDetailPage({
   const adSet = ad.ad_sets as any
   const campaign = adSet?.campaigns as any
 
-  const tdStyle: any = { padding: '8px 10px', fontSize: '11px', borderBottom: `1px solid ${BORDER}`, color: '#94A3B8' }
+  const tdStyle: any = { padding: '8px 10px', fontSize: '11px', borderBottom: `1px solid ${BORDER}`, color: '#A8BCD0' }
   const thStyle: any = { ...tdStyle, color: MUTED, fontWeight: 600, fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: '#151820' }
 
   return (

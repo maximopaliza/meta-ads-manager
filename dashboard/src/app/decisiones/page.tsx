@@ -55,7 +55,7 @@ function pct(a: number | null, b: number | null): number | null {
 }
 
 function fmtPct(v: number | null, invert = false) {
-  if (v === null) return { text: '—', color: '#64748B' }
+  if (v === null) return { text: '—', color: '#7A90AA' }
   const good = invert ? v < 0 : v > 0
   return {
     text: `${v > 0 ? '+' : ''}${v.toFixed(0)}%`,
@@ -64,7 +64,7 @@ function fmtPct(v: number | null, invert = false) {
 }
 
 function actionSignal(days4: any[]): { label: string; color: string; bg: string; priority: number; border: string } {
-  if (days4.length === 0) return { label: '— Sin datos', color: '#64748B', bg: '#64748B10', border: '#64748B20', priority: 99 }
+  if (days4.length === 0) return { label: '— Sin datos', color: '#7A90AA', bg: '#7A90AA10', border: '#7A90AA20', priority: 99 }
 
   const recent = days4.slice(-3)
   const totalSpend = recent.reduce((s, d) => s + (d?.spend || 0), 0)
@@ -155,7 +155,7 @@ const qBg     = { good: '#22C55E22', ok: '#F59E0B22', bad: '#EF444422', empty: '
 const qBorder = { good: '#22C55E50', ok: '#F59E0B50', bad: '#EF444450', empty: '#1A3050' }
 
 // ─── shared table styles ─────────────────────────────────────────────────────
-const TH: any  = { padding: '7px 8px', color: '#64748B', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: '#0A1422', textAlign: 'right' }
+const TH: any  = { padding: '7px 8px', color: '#7A90AA', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: '#0A1422', textAlign: 'right' }
 const THL: any = { ...TH, textAlign: 'left' }
 const TD: any  = { padding: '7px 8px', fontSize: '11px', borderBottom: '1px solid #0E1B3080', textAlign: 'right', verticalAlign: 'middle' }
 const TDL: any = { ...TD, textAlign: 'left' }
@@ -397,7 +397,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
         </div>
         <div>
           <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#F1F5F9', letterSpacing: '-0.01em' }}>{title}</h2>
-          <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748B' }}>{sub}</p>
+          <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#7A90AA' }}>{sub}</p>
         </div>
       </div>
     )
@@ -416,7 +416,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
         const dr = adRows.find((r: any) => r.ad.id === ad.id)
         return {
           id: ad.id, name: ad.name || ad.id, status: ad.status,
-          signal: dr?.signal || { label: '— Sin datos', color: '#64748B', bg: '#64748B10', border: '#64748B20', priority: 99 },
+          signal: dr?.signal || { label: '— Sin datos', color: '#7A90AA', bg: '#7A90AA10', border: '#7A90AA20', priority: 99 },
           alerts: dr?.alerts || [],
           days4: (dr?.days4 || [null, null, null, null]).map((m: any) => m ? { purchases: m.purchases || 0, spend: m.spend || 0, roas: m.roas, cpa: m.cpa } : null),
           d7: dr?.d7 ? { spend: dr.d7.spend, purchases: dr.d7.purchases, roas: dr.d7.roas, cpa: dr.d7.cpa } : null,
@@ -425,7 +425,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
       }).sort((a: any, b: any) => (b.d7?.spend || 0) - (a.d7?.spend || 0))
       return {
         id: as.id, name: as.name || as.id, status: as.status,
-        signal: ar?.signal || { label: '— Sin datos', color: '#64748B', bg: '#64748B10', border: '#64748B20', priority: 99 },
+        signal: ar?.signal || { label: '— Sin datos', color: '#7A90AA', bg: '#7A90AA10', border: '#7A90AA20', priority: 99 },
         days4: (ar?.days4 || [null, null, null, null]).map((m: any) => m ? { purchases: m.purchases || 0, spend: m.spend || 0, roas: m.roas, cpa: m.cpa } : null),
         d7: ar?.d7 ? { spend: ar.d7.spend, purchases: ar.d7.purchases, roas: ar.d7.roas, cpa: ar.d7.cpa } : null,
         prev7: ar?.prev7 ? { spend: ar.prev7.spend, purchases: ar.prev7.purchases, roas: ar.prev7.roas, cpa: ar.prev7.cpa } : null,
@@ -434,7 +434,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
     }).sort((a: any, b: any) => (b.d7?.spend || 0) - (a.d7?.spend || 0))
     return {
       id: camp.id, name: camp.name || camp.id, status: camp.status,
-      signal: cr?.signal || { label: '— Sin datos', color: '#64748B', bg: '#64748B10', border: '#64748B20', priority: 99 },
+      signal: cr?.signal || { label: '— Sin datos', color: '#7A90AA', bg: '#7A90AA10', border: '#7A90AA20', priority: 99 },
       days4: (cr?.days4 || [null, null, null, null]).map((m: any) => m ? { purchases: m.purchases || 0, spend: m.spend || 0, roas: m.roas, cpa: m.cpa } : null),
       d7: cr?.d7 ? { spend: cr.d7.spend, purchases: cr.d7.purchases, roas: cr.d7.roas, cpa: cr.d7.cpa } : null,
       prev7: cr?.prev7 ? { spend: cr.prev7.spend, purchases: cr.prev7.purchases, roas: cr.prev7.roas, cpa: cr.prev7.cpa } : null,
@@ -469,7 +469,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
               <div key={s.label} style={{ backgroundColor: s.bg, border: `1px solid ${s.color}30`, borderRadius: '12px', padding: '16px 18px' }}>
                 <div style={{ fontSize: '11px', color: s.color, fontWeight: 700, letterSpacing: '0.01em', marginBottom: '8px' }}>{s.label}</div>
                 <div style={{ fontSize: '32px', fontWeight: 800, color: s.color, lineHeight: 1, letterSpacing: '-0.03em' }}>{s.count}</div>
-                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>anuncios</div>
+                <div style={{ fontSize: '11px', color: '#7A90AA', marginTop: '4px' }}>anuncios</div>
               </div>
             ))}
           </div>
@@ -489,7 +489,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
 
               {/* Nivel 1: cuenta */}
               <div style={{ padding: '16px 20px 0' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#A8BCD0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
                   Nivel 1 — Cuenta global
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
@@ -519,7 +519,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                         <tbody>
                           {panel.rows.map(([label, val]) => (
                             <tr key={label}>
-                              <td style={{ padding: '3px 0', color: '#94A3B8', borderBottom: '1px solid #ffffff06' }}>{label}</td>
+                              <td style={{ padding: '3px 0', color: '#A8BCD0', borderBottom: '1px solid #ffffff06' }}>{label}</td>
                               <td style={{ padding: '3px 0', color: panel.color, fontWeight: 700, textAlign: 'right', borderBottom: '1px solid #ffffff06' }}>{val}</td>
                             </tr>
                           ))}
@@ -533,7 +533,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
               {/* Nivel 2: por campaña */}
               {campComparison.length > 0 && (
                 <div style={{ padding: '0 20px 0' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #1A3050' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#A8BCD0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #1A3050' }}>
                     Nivel 2 — Por campaña
                   </div>
                   <div style={{ overflowX: 'auto', marginBottom: '4px' }}>
@@ -556,7 +556,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                           return (
                             <tr key={r.id} className="tr-hover">
                               <td style={{ ...TDL, maxWidth: '180px' }}>
-                                <span style={{ color: r.status === 'ACTIVE' ? '#F1F5F9' : '#64748B', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <span style={{ color: r.status === 'ACTIVE' ? '#F1F5F9' : '#7A90AA', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {r.status === 'ACTIVE' ? '🟢 ' : '⏸ '}{r.name}
                                 </span>
                               </td>
@@ -566,7 +566,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                               <td style={{ ...TD, color: roasColor(r.bad?.roas) }}>{r.bad?.roas ? `${r.bad.roas.toFixed(2)}x` : '—'}</td>
                               <td style={{ ...TD, color: cpaColor(r.bad?.cpa) }}>{r.bad?.cpa ? formatCurrency(r.bad.cpa, currency) : '—'}</td>
                               <td style={{ ...TD, color: '#EF4444', fontWeight: 600 }}>{r.bad?.purchases || '—'}</td>
-                              <td style={{ ...TD, color: roasDiff !== null ? (roasDiff > 0 ? '#22C55E' : '#EF4444') : '#64748B', fontWeight: 700 }}>
+                              <td style={{ ...TD, color: roasDiff !== null ? (roasDiff > 0 ? '#22C55E' : '#EF4444') : '#7A90AA', fontWeight: 700 }}>
                                 {roasDiff !== null ? `${roasDiff > 0 ? '+' : ''}${roasDiff.toFixed(2)}x` : '—'}
                               </td>
                             </tr>
@@ -581,7 +581,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
               {/* Nivel 3: por Ad Set */}
               {asComparison.length > 0 && (
                 <div style={{ padding: '0 20px 0' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #1A3050' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#A8BCD0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #1A3050' }}>
                     Nivel 3 — Por conjunto de anuncios
                   </div>
                   <div style={{ overflowX: 'auto', marginBottom: '4px' }}>
@@ -612,7 +612,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                               <td style={{ ...TD, color: roasColor(r.bad?.roas) }}>{r.bad?.roas ? `${r.bad.roas.toFixed(2)}x` : '—'}</td>
                               <td style={{ ...TD, color: cpaColor(r.bad?.cpa) }}>{r.bad?.cpa ? formatCurrency(r.bad.cpa, currency) : '—'}</td>
                               <td style={{ ...TD, color: '#EF4444', fontWeight: 600 }}>{r.bad?.purchases || '—'}</td>
-                              <td style={{ ...TD, color: roasDiff !== null ? (roasDiff > 0 ? '#22C55E' : '#EF4444') : '#64748B', fontWeight: 700 }}>
+                              <td style={{ ...TD, color: roasDiff !== null ? (roasDiff > 0 ? '#22C55E' : '#EF4444') : '#7A90AA', fontWeight: 700 }}>
                                 {roasDiff !== null ? `${roasDiff > 0 ? '+' : ''}${roasDiff.toFixed(2)}x` : '—'}
                               </td>
                             </tr>
@@ -627,7 +627,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
               {/* Nivel 4: por Anuncio */}
               {adComparison.length > 0 && (
                 <div style={{ padding: '0 20px 16px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #1A3050' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#A8BCD0', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', paddingTop: '12px', borderTop: '1px solid #1A3050' }}>
                     Nivel 4 — Por anuncio (top {adComparison.length})
                   </div>
                   <div style={{ overflowX: 'auto' }}>
@@ -662,7 +662,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                               <td style={{ ...TD, color: cpaColor(r.bad?.cpa) }}>{r.bad?.cpa ? formatCurrency(r.bad.cpa, currency) : '—'}</td>
                               <td style={{ ...TD, color: '#EF4444', fontWeight: 600 }}>{r.bad?.purchases || '—'}</td>
                               <td style={{ ...TD, color: '#EF4444' }}>{r.bad?.hook_rate ? `${r.bad.hook_rate.toFixed(1)}%` : '—'}</td>
-                              <td style={{ ...TD, color: roasDiff !== null ? (roasDiff > 0 ? '#22C55E' : '#EF4444') : '#64748B', fontWeight: 700 }}>
+                              <td style={{ ...TD, color: roasDiff !== null ? (roasDiff > 0 ? '#22C55E' : '#EF4444') : '#7A90AA', fontWeight: 700 }}>
                                 {roasDiff !== null ? `${roasDiff > 0 ? '+' : ''}${roasDiff.toFixed(2)}x` : '—'}
                               </td>
                             </tr>
@@ -671,8 +671,8 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                       </tbody>
                     </table>
                   </div>
-                  <div style={{ fontSize: '10px', color: '#64748B', marginTop: '10px', lineHeight: 1.6 }}>
-                    💡 <strong style={{ color: '#94A3B8' }}>Cómo leer esto:</strong> Cada fila muestra cómo se comportó ese anuncio en los días buenos vs malos.
+                  <div style={{ fontSize: '10px', color: '#7A90AA', marginTop: '10px', lineHeight: 1.6 }}>
+                    💡 <strong style={{ color: '#A8BCD0' }}>Cómo leer esto:</strong> Cada fila muestra cómo se comportó ese anuncio en los días buenos vs malos.
                     Un anuncio con ROAS alto en días buenos y bajo en días malos fue el <em style={{ color: '#F1F5F9' }}>driver</em> de la diferencia.
                     Si todos los anuncios cayeron igual, el problema fue externo (audiencia, CPM, estacionalidad).
                   </div>
@@ -689,9 +689,9 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
 
           {/* ── BLOQUE 7: Leyenda ────────────────────────────────────────── */}
           <div style={{ ...CARD, marginBottom: 0 }}>
-            <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px', fontSize: '11px', color: '#64748B' }}>
+            <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px', fontSize: '11px', color: '#7A90AA' }}>
               <div>
-                <div style={{ fontWeight: 700, color: '#94A3B8', marginBottom: '10px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Señales de acción</div>
+                <div style={{ fontWeight: 700, color: '#A8BCD0', marginBottom: '10px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Señales de acción</div>
                 {[
                   { s: '🚀 Escalar', d: 'ROAS subiendo + CPA ≤ $7', c: '#22C55E' },
                   { s: '✅ Mantener', d: 'CPA ≤ $7, estable', c: '#6366F1' },
@@ -705,7 +705,7 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                 ))}
               </div>
               <div>
-                <div style={{ fontWeight: 700, color: '#94A3B8', marginBottom: '10px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Métricas clave</div>
+                <div style={{ fontWeight: 700, color: '#A8BCD0', marginBottom: '10px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Métricas clave</div>
                 {[
                   { m: 'Hook rate', d: '≥30% excelente · ≥15% ok · <15% cambiar' },
                   { m: 'CTR',       d: '≥2% excelente · ≥0.8% ok · <0.8% problema' },
@@ -719,10 +719,10 @@ export default async function DecisionesPage({ searchParams }: { searchParams: P
                 ))}
               </div>
               <div>
-                <div style={{ fontWeight: 700, color: '#94A3B8', marginBottom: '10px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Celdas de días</div>
-                <div style={{ marginBottom: '5px', color: '#94A3B8' }}>Número grande = <span style={{ color: '#F1F5F9' }}>ventas del día</span></div>
-                <div style={{ marginBottom: '5px', color: '#94A3B8' }}>Segunda línea = <span style={{ color: '#F1F5F9' }}>ROAS</span></div>
-                <div style={{ marginBottom: '5px', color: '#94A3B8' }}>Tercera línea = <span style={{ color: '#F1F5F9' }}>gasto</span></div>
+                <div style={{ fontWeight: 700, color: '#A8BCD0', marginBottom: '10px', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Celdas de días</div>
+                <div style={{ marginBottom: '5px', color: '#A8BCD0' }}>Número grande = <span style={{ color: '#F1F5F9' }}>ventas del día</span></div>
+                <div style={{ marginBottom: '5px', color: '#A8BCD0' }}>Segunda línea = <span style={{ color: '#F1F5F9' }}>ROAS</span></div>
+                <div style={{ marginBottom: '5px', color: '#A8BCD0' }}>Tercera línea = <span style={{ color: '#F1F5F9' }}>gasto</span></div>
                 <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {[{ l: 'Bueno', c: '#22C55E', b: '#22C55E22' }, { l: 'Regular', c: '#F59E0B', b: '#F59E0B22' }, { l: 'Malo', c: '#EF4444', b: '#EF444422' }].map(({ l, c, b }) => (
                     <span key={l} style={{ fontSize: '9px', padding: '2px 8px', borderRadius: '4px', backgroundColor: b, color: c, fontWeight: 600 }}>{l}</span>

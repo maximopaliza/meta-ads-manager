@@ -1,4 +1,4 @@
-import { headers } from 'next/headers'
+﻿import { headers } from 'next/headers'
 import { supabaseAdmin } from '@/lib/supabase'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
@@ -8,7 +8,7 @@ import { formatCurrency, formatNumber } from '@/lib/utils'
 import { getLatestDate, cpaColor, roasColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-const G = '#22C55E', Y = '#F59E0B', R = '#EF4444', M = '#4A5568', TEXT = '#E8EDF5'
+const G = '#22C55E', Y = '#F59E0B', R = '#EF4444', M = '#7A90AA', TEXT = '#E8EDF5'
 const SURFACE = '#0C0F1A', BORDER = '#161A2C'
 
 function hkColor(v: number | null) { return !v ? M : v >= 30 ? G : v >= 15 ? Y : R }
@@ -193,7 +193,7 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
                 <div key={s.label} style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: '10px', padding: '14px 16px' }}>
                   <div style={{ fontSize: '9px', color: M, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: '5px' }}>{s.icon} {s.label}</div>
                   <div style={{ fontSize: '22px', fontWeight: 800, color: s.color, lineHeight: 1.1, marginBottom: '4px' }}>{s.value}</div>
-                  <div style={{ fontSize: '10px', color: '#2D3350', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.name}</div>
+                  <div style={{ fontSize: '10px', color: '#4A6080', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.name}</div>
                 </div>
               ))}
             </div>
@@ -283,11 +283,11 @@ export default async function CreativosPage({ searchParams }: { searchParams: Pr
                       {row.name}
                     </div>
                     {/* Ad Set */}
-                    <div style={{ fontSize: '10px', color: '#4A5568', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, marginTop: '2px' }}>
+                    <div style={{ fontSize: '10px', color: '#7A90AA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, marginTop: '2px' }}>
                       <span style={{ color: '#2D3458', marginRight: '4px' }}>Conj.</span>{row.asName}
                     </div>
                     {/* Campaign */}
-                    <div style={{ fontSize: '10px', color: '#2D3350', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    <div style={{ fontSize: '10px', color: '#4A6080', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                       <span style={{ marginRight: '4px' }}>Camp.</span>{row.campName}
                     </div>
                   </div>

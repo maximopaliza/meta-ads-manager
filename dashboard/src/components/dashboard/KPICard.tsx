@@ -7,10 +7,10 @@
 }
 
 export default function KPICard({ label, value, delta, icon, color = '#6366F1' }: KPICardProps) {
-  const deltaColor = delta === null || delta === undefined ? '#64748B'
+  const deltaColor = delta === null || delta === undefined ? '#7A90AA'
     : delta > 0 ? '#22C55E'
     : delta < 0 ? '#EF4444'
-    : '#64748B'
+    : '#7A90AA'
 
   return (
     <div
@@ -24,7 +24,7 @@ export default function KPICard({ label, value, delta, icon, color = '#6366F1' }
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <span style={{ fontSize: '12px', fontWeight: 500, color: '#7A90AA', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           {label}
         </span>
         <span style={{ fontSize: '20px' }}>{icon}</span>

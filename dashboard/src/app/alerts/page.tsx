@@ -29,7 +29,7 @@ export default async function AlertsPage() {
         <main style={{ padding: '32px', maxWidth: '1400px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {(alerts || []).length === 0 ? (
-              <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#64748B' }}>
+              <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', padding: '48px', textAlign: 'center', color: '#7A90AA' }}>
                 Sin alertas todavía. El sistema empezará a generar alertas luego del primer sync.
               </div>
             ) : (
@@ -57,8 +57,8 @@ export default async function AlertsPage() {
                       {alert.type}
                     </span>
                   </div>
-                  <p style={{ fontSize: '13px', color: '#94A3B8', lineHeight: 1.6 }}>{alert.message}</p>
-                  <p style={{ fontSize: '11px', color: '#64748B', marginTop: '8px' }}>
+                  <p style={{ fontSize: '13px', color: '#A8BCD0', lineHeight: 1.6 }}>{alert.message}</p>
+                  <p style={{ fontSize: '11px', color: '#7A90AA', marginTop: '8px' }}>
                     {new Date(alert.created_at).toLocaleString('es-AR')}
                     {alert.sent_to_telegram && <span style={{ marginLeft: '8px' }}>✈️ Enviado</span>}
                   </p>

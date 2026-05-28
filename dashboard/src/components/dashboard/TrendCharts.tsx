@@ -37,7 +37,7 @@ interface Props {
 
 const DARK_BG = '#0E1B30'
 const BORDER  = '#1A3050'
-const MUTED   = '#64748B'
+const MUTED   = '#7A90AA'
 const TEXT    = '#F1F5F9'
 const GREEN   = '#22C55E'
 const RED     = '#EF4444'

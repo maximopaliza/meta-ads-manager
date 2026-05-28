@@ -2,7 +2,7 @@
 import { useState } from 'react'
 
 // ── Inline color helpers (no server-only imports) ───────────────────────────
-const G = '#22C55E', Y = '#F59E0B', R = '#EF4444', M = '#64748B', TEXT = '#F1F5F9'
+const G = '#22C55E', Y = '#F59E0B', R = '#EF4444', M = '#7A90AA', TEXT = '#F1F5F9'
 
 function roasColor(v: number | null) { return !v ? M : v >= 3.5 ? G : v >= 1.5 ? Y : R }
 function cpaColor(v: number | null)  { return !v ? M : v <= 7 ? G : v <= 15 ? Y : R }
@@ -247,7 +247,7 @@ export default function DiagnosticoTree({ hierarchy, currency, labelA, labelB, a
                             <div key={ad.id} style={{ marginLeft: 20, borderLeft: '2px solid #1e2235', borderBottom: '1px solid #1a1d27' }}>
                               <div style={{ padding: '6px 12px', backgroundColor: '#0e1015', borderBottom: '1px solid #1a1d27', display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <span style={{ fontSize: 9, color: '#3A4060' }}>AD</span>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: '#94A3B8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{ad.name}</span>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: '#A8BCD0', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{ad.name}</span>
                                 <span style={{ fontSize: 10, color: M }}>{ad.status}</span>
                                 <span style={{ fontSize: 11, color: ad.a?.purchases && ad.a.purchases > 0 ? G : M, fontWeight: 600 }}>
                                   {ad.a?.purchases ? `${Math.round(ad.a.purchases)} ventas` : '—'}

@@ -35,16 +35,16 @@ export default function CampaignChart({ data, currency = 'ARS' }: CampaignChartP
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={formatted}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1A3050" />
-              <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis yAxisId="spend" tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-              <YAxis yAxisId="roas" orientation="right" tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}x`} />
+              <XAxis dataKey="date" tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="spend" tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+              <YAxis yAxisId="roas" orientation="right" tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}x`} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px' }}
                 formatter={((v: unknown, n: unknown) => [n === 'Gasto' ? formatSpend(v as number) : `${v}x`, n]) as any}
               />
               <Line yAxisId="spend" type="monotone" dataKey="Gasto" stroke="#6366F1" strokeWidth={2} dot={false} />
               <Line yAxisId="roas" type="monotone" dataKey="ROAS" stroke="#22C55E" strokeWidth={2} dot={false} />
-              <Legend wrapperStyle={{ fontSize: '12px', color: '#64748B' }} />
+              <Legend wrapperStyle={{ fontSize: '12px', color: '#7A90AA' }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -63,8 +63,8 @@ export default function CampaignChart({ data, currency = 'ARS' }: CampaignChartP
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={formatted}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1A3050" />
-              <XAxis dataKey="date" tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#64748B', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="date" tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px' }}
               />

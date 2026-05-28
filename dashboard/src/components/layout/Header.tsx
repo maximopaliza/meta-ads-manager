@@ -54,7 +54,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
           {subtitle && (
             <p style={{
               fontSize: '11px',
-              color: '#64748B',
+              color: '#7A90AA',
               marginTop: '2px',
               display: 'flex',
               alignItems: 'center',
