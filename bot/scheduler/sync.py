@@ -36,6 +36,15 @@ def run_sync() -> None:
             except Exception as e:
                 logger.warning(f"Ad sets sync failed for {account_id}: {e}")
 
+            # Ads (with thumbnails)
+            try:
+                ads = client.get_ads(account_id)
+                for ad in ads:
+                    queries.upsert_ad(ad)
+                logger.info(f"Synced {len(ads)} ads for {account_id}")
+            except Exception as e:
+                logger.warning(f"Ads sync failed for {account_id}: {e}")
+
             # Campaign-level insights (today + last 30d for full dashboard coverage)
             for preset in ("today", "last_7d", "last_30d"):
                 try:

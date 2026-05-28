@@ -129,16 +129,19 @@ class MetaClient:
         return result
 
     def get_ads(self, account_id: str) -> list[dict]:
-        fields = "id,name,status,adset_id,updated_time"
-        data = self._get(f"{account_id}/ads", {"fields": fields})
+        fields = "id,name,status,adset_id,updated_time,creative{thumbnail_url,image_url}"
+        data = self._get_all_pages(f"{account_id}/ads", {"fields": fields, "limit": 500})
         result = []
-        for a in data.get("data", []):
+        for a in data:
+            creative = a.get("creative", {})
+            thumbnail = creative.get("thumbnail_url") or creative.get("image_url")
             result.append({
                 "id": a["id"],
                 "ad_set_id": a.get("adset_id"),
                 "name": a["name"],
                 "status": a["status"],
                 "creative_id": None,
+                "thumbnail_url": thumbnail,
                 "updated_at": a.get("updated_time", _today_arg()),
             })
         return result
