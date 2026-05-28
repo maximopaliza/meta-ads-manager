@@ -5,14 +5,14 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Meta Ads Manager',
-  description: 'Dashboard de gestión de Meta Ads con IA',
+  title: 'J.A.R.V.I.S Masivo',
+  description: 'Dashboard de gestión de Meta Ads con IA — Argentina',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={inter.className} style={{ backgroundColor: '#0F1117', color: '#F1F5F9' }}>
+      <body className={inter.className} style={{ backgroundColor: '#070911', color: '#F1F5F9' }}>
         {children}
       </body>
     </html>

@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0F1117;
-  --surface: #1A1D27;
-  --surface-hover: #1E2235;
-  --surface-deep: #13151F;
+  --background: #070911;
+  --surface: #0C0F1A;
+  --surface-hover: #10131F;
+  --surface-deep: #080A14;
   --primary: #6366F1;
-  --primary-glow: #6366F130;
+  --primary-glow: #6366F125;
   --success: #22C55E;
   --warning: #F59E0B;
   --destructive: #EF4444;
-  --text: #F1F5F9;
-  --muted: #64748B;
-  --muted-light: #94A3B8;
-  --border: #2D3244;
-  --border-light: #3A3F5C;
+  --text: #E8EDF5;
+  --muted: #4A5568;
+  --muted-light: #718096;
+  --border: #161A2C;
+  --border-light: #1E2438;
 }
 
 * {
@@ -32,6 +32,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* ── Scrollbar (black edition) ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #050709; }
+::-webkit-scrollbar-thumb { background: #1a1f2e; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #252b3d; }
 
 /* ── Scrollbar ────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

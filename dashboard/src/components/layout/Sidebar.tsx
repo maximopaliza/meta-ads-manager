@@ -27,8 +27,8 @@ export default function Sidebar() {
     <aside style={{
       width: '220px',
       minHeight: '100vh',
-      backgroundColor: '#131620',
-      borderRight: '1px solid #2D3244',
+      backgroundColor: '#05070D',
+      borderRight: '1px solid #111525',
       display: 'flex',
       flexDirection: 'column',
       position: 'fixed',
@@ -38,30 +38,32 @@ export default function Sidebar() {
     }}>
       {/* Logo */}
       <div style={{
-        padding: '22px 20px 18px',
-        borderBottom: '1px solid #2D3244',
+        padding: '20px 18px 16px',
+        borderBottom: '1px solid #111525',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
-            width: '32px', height: '32px',
+            width: '34px', height: '34px',
             borderRadius: '8px',
-            background: 'linear-gradient(135deg, #6366F1 0%, #818CF8 100%)',
+            background: 'linear-gradient(135deg, #1a1d2e 0%, #23273a 100%)',
+            border: '1px solid #6366F130',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '15px', flexShrink: 0,
-            boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
+            fontSize: '16px', flexShrink: 0,
+            boxShadow: '0 0 12px rgba(99,102,241,0.15)',
           }}>
-            ◎
+            ◈
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '14px', color: '#F1F5F9', letterSpacing: '-0.01em' }}>Meta Ads</div>
-            <div style={{ fontSize: '10px', color: '#6366F1', fontWeight: 500, letterSpacing: '0.04em' }}>AI MANAGER</div>
+            <div style={{ fontWeight: 800, fontSize: '13px', color: '#E8EDF5', letterSpacing: '0.06em' }}>J.A.R.V.I.S</div>
+            <div style={{ fontSize: '10px', color: '#6366F1', fontWeight: 700, letterSpacing: '0.12em' }}>MASIVO</div>
+            <div style={{ fontSize: '8px', color: '#2D3350', fontWeight: 500, letterSpacing: '0.08em', marginTop: '1px' }}>ARGENTINA</div>
           </div>
         </div>
       </div>
 
       {/* Nav */}
       <nav style={{ padding: '12px 10px', flex: 1 }}>
-        <div style={{ fontSize: '9px', color: '#3A3F5C', fontWeight: 700, letterSpacing: '0.1em', padding: '4px 10px 8px', textTransform: 'uppercase' }}>
+        <div style={{ fontSize: '8px', color: '#1E2338', fontWeight: 700, letterSpacing: '0.12em', padding: '4px 10px 8px', textTransform: 'uppercase' }}>
           NAVEGACIÓN
         </div>
         {links.map(link => {
@@ -76,22 +78,22 @@ export default function Sidebar() {
                 alignItems: 'center',
                 gap: '10px',
                 padding: '9px 10px',
-                borderRadius: '8px',
+                borderRadius: '6px',
                 marginBottom: '2px',
-                backgroundColor: active ? '#1E2235' : 'transparent',
-                color: active ? '#F1F5F9' : '#64748B',
+                backgroundColor: active ? '#0D1020' : 'transparent',
+                color: active ? '#E8EDF5' : '#3A4560',
                 textDecoration: 'none',
                 fontSize: '13px',
                 fontWeight: active ? 600 : 400,
                 position: 'relative',
-                borderLeft: active ? '3px solid #6366F1' : '3px solid transparent',
+                borderLeft: active ? '2px solid #6366F1' : '2px solid transparent',
                 paddingLeft: active ? '8px' : '10px',
                 transition: 'all 0.12s ease',
               }}
             >
               <span style={{
-                fontSize: '14px',
-                color: active ? '#6366F1' : '#3A4060',
+                fontSize: '13px',
+                color: active ? '#6366F1' : '#252B40',
                 width: '18px',
                 textAlign: 'center',
               }}>{link.icon}</span>
@@ -99,10 +101,10 @@ export default function Sidebar() {
               {active && (
                 <span style={{
                   marginLeft: 'auto',
-                  width: '5px', height: '5px',
+                  width: '4px', height: '4px',
                   borderRadius: '50%',
                   background: '#6366F1',
-                  boxShadow: '0 0 6px #6366F1',
+                  boxShadow: '0 0 8px #6366F1',
                   flexShrink: 0,
                 }} />
               )}
@@ -112,7 +114,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '12px 10px', borderTop: '1px solid #2D3244' }}>
+      <div style={{ padding: '12px 10px', borderTop: '1px solid #111525' }}>
         <button
           onClick={handleLogout}
           className="nav-link"
@@ -121,18 +123,18 @@ export default function Sidebar() {
             padding: '9px 10px',
             backgroundColor: 'transparent',
             border: 'none',
-            color: '#64748B',
+            color: '#2D3350',
             fontSize: '13px',
             cursor: 'pointer',
             textAlign: 'left',
-            borderRadius: '8px',
+            borderRadius: '6px',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            borderLeft: '3px solid transparent',
+            borderLeft: '2px solid transparent',
           }}
         >
-          <span style={{ fontSize: '14px', color: '#3A4060', width: '18px', textAlign: 'center' }}>→</span>
+          <span style={{ fontSize: '13px', color: '#252B40', width: '18px', textAlign: 'center' }}>→</span>
           Salir
         </button>
       </div>
