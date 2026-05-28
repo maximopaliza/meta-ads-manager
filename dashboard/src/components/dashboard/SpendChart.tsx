@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  AreaChart, Area,
   ComposedChart, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
@@ -14,25 +13,25 @@ interface SpendChartProps {
   currency?: string
 }
 
-const DARK_BG = '#1A1D27'
-const BORDER  = '#2D3244'
-const MUTED   = '#64748B'
-const TEXT    = '#F1F5F9'
+const DARK_BG = '#111828'
+const BORDER  = '#1E2A42'
+const MUTED   = '#5E6E8A'
+const TEXT    = '#E8EDF5'
 
 export default function SpendChart({ data, currency = 'ARS' }: SpendChartProps) {
   const formatted = data.map(d => ({
     date: formatDate(d.date),
     Gasto:  d.spend,
-    ROAS:   d.roas  ?? null,
-    Ventas: d.purchases,
-    CPA:    (d as any).cpa ?? null,
+    Ventas: d.purchases ?? 0,
+    CPA:    (d as any).cpa   ?? 0,   // 0 si no hubo ventas
+    ROAS:   d.roas            ?? 0,   // 0 si no hubo ventas
   }))
 
   const fmtCurr = (v: number) =>
     new Intl.NumberFormat('es-AR', {
       style: 'currency', currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(v)
 
   const fmtAxis = (v: number) => {
@@ -42,76 +41,128 @@ export default function SpendChart({ data, currency = 'ARS' }: SpendChartProps) 
   }
 
   const tickStyle = { fill: MUTED, fontSize: 11 }
-  const axisProps = { axisLine: false, tickLine: false }
-  const tooltipStyle = {
-    contentStyle: { backgroundColor: DARK_BG, border: `1px solid ${BORDER}`, borderRadius: '8px' },
-    labelStyle:   { color: TEXT, marginBottom: '4px' },
-    itemStyle:    { color: MUTED },
+  const axisProps = { axisLine: false as const, tickLine: false as const }
+
+  function CustomTooltip({ active, payload, label }: any) {
+    if (!active || !payload?.length) return null
+    const vals: Record<string, number> = {}
+    for (const p of payload) vals[p.dataKey] = p.value
+    return (
+      <div style={{
+        backgroundColor: '#0C1020', border: `1px solid ${BORDER}`,
+        borderRadius: '8px', padding: '10px 14px', fontSize: '12px', minWidth: '160px',
+      }}>
+        <div style={{ color: TEXT, marginBottom: '8px', fontWeight: 600 }}>{label}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+          <span style={{ color: '#818CF8' }}>
+            Gasto: <b>{fmtCurr(vals.Gasto ?? 0)}</b>
+          </span>
+          <span style={{ color: '#22C55E' }}>
+            Ventas: <b>{vals.Ventas ?? 0}</b>
+          </span>
+          <span style={{ color: '#EF4444' }}>
+            CPA: <b>{(vals.CPA ?? 0) > 0 ? fmtCurr(vals.CPA) : '—'}</b>
+          </span>
+          <span style={{ color: '#F59E0B' }}>
+            ROAS: <b>{(vals.ROAS ?? 0) > 0 ? `${vals.ROAS.toFixed(2)}x` : '—'}</b>
+          </span>
+        </div>
+      </div>
+    )
   }
 
+  const legend = [
+    { color: '#6366F1', label: '■ Gasto' },
+    { color: '#22C55E', label: '■ Ventas' },
+    { color: '#EF4444', label: '— CPA' },
+    { color: '#F59E0B', label: '— ROAS' },
+  ]
+
   return (
-    <div style={{ backgroundColor: DARK_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '24px' }}>
-      <h3 style={{ fontSize: '14px', fontWeight: 600, color: TEXT, marginBottom: '16px' }}>
-        📈 Histórico — últimos {data.length} días
-      </h3>
-
-      {/* ── Panel 1: Gasto + ROAS ── */}
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '6px' }}>
-        <span style={{ fontSize: '10px', color: '#6366F1', fontWeight: 600 }}>▬ Gasto</span>
-        <span style={{ fontSize: '10px', color: '#22C55E', fontWeight: 600 }}>— ROAS</span>
-      </div>
-      <div style={{ height: '160px', marginBottom: '16px' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={formatted} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-            <defs>
-              <linearGradient id="spendGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#6366F1" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
-            <XAxis dataKey="date" tick={tickStyle} {...axisProps} />
-            <YAxis yAxisId="spend" tick={tickStyle} {...axisProps} tickFormatter={fmtAxis} width={52} />
-            <YAxis yAxisId="roas" orientation="right" tick={tickStyle} {...axisProps}
-              tickFormatter={v => `${v.toFixed(1)}x`} width={36} />
-            <Tooltip {...tooltipStyle}
-              formatter={((value: number, name: string) => [
-                name === 'Gasto' ? fmtCurr(value) : `${value.toFixed(2)}x`,
-                name,
-              ]) as any}
-            />
-            <Area yAxisId="spend" type="monotone" dataKey="Gasto"
-              stroke="#6366F1" fill="url(#spendGrad)" strokeWidth={2} />
-            <Area yAxisId="roas" type="monotone" dataKey="ROAS"
-              stroke="#22C55E" fill="none" strokeWidth={2} connectNulls />
-          </AreaChart>
-        </ResponsiveContainer>
+    <div style={{ backgroundColor: DARK_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '20px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <h3 style={{ fontSize: '13px', fontWeight: 600, color: TEXT }}>
+          📈 Histórico — {data.length} días
+        </h3>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          {legend.map(l => (
+            <span key={l.label} style={{ fontSize: '10px', color: l.color, fontWeight: 700 }}>
+              {l.label}
+            </span>
+          ))}
+        </div>
       </div>
 
-      <div style={{ borderTop: `1px solid ${BORDER}`, marginBottom: '16px' }} />
-
-      {/* ── Panel 2: Ventas + CPA ── */}
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '6px' }}>
-        <span style={{ fontSize: '10px', color: '#22C55E', fontWeight: 600 }}>■ Ventas</span>
-        <span style={{ fontSize: '10px', color: '#EF4444', fontWeight: 600 }}>— CPA</span>
-      </div>
-      <div style={{ height: '140px' }}>
+      <div style={{ height: '230px' }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={formatted} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={BORDER} />
+            <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
             <XAxis dataKey="date" tick={tickStyle} {...axisProps} />
-            <YAxis yAxisId="ventas" tick={tickStyle} {...axisProps} allowDecimals={false} width={28} />
-            <YAxis yAxisId="cpa" orientation="right" tick={tickStyle} {...axisProps}
-              tickFormatter={fmtAxis} width={52} />
-            <Tooltip {...tooltipStyle}
-              formatter={((value: number, name: string) => [
-                name === 'CPA' ? fmtCurr(value) : String(value),
-                name,
-              ]) as any}
+
+            {/* Eje izquierdo: Gasto en $ */}
+            <YAxis
+              yAxisId="spend"
+              tick={tickStyle} {...axisProps}
+              tickFormatter={fmtAxis}
+              width={52}
             />
-            <Bar yAxisId="ventas" dataKey="Ventas" fill="#22C55E" radius={[3, 3, 0, 0]} opacity={0.85} />
-            <Line yAxisId="cpa" type="monotone" dataKey="CPA"
-              stroke="#EF4444" strokeWidth={2} dot={{ fill: '#EF4444', r: 2 }} connectNulls />
+
+            {/* Eje derecho (visible): Ventas en cantidad */}
+            <YAxis
+              yAxisId="count"
+              orientation="right"
+              tick={tickStyle} {...axisProps}
+              allowDecimals={false}
+              width={30}
+            />
+
+            {/* Ejes ocultos para escalar CPA y ROAS independientemente */}
+            <YAxis yAxisId="cpa"  orientation="right" hide />
+            <YAxis yAxisId="roas" orientation="right" hide />
+
+            <Tooltip content={<CustomTooltip />} />
+
+            {/* Barras de Gasto (morado, ancho completo) */}
+            <Bar
+              yAxisId="spend"
+              dataKey="Gasto"
+              fill="#6366F1"
+              fillOpacity={0.55}
+              stroke="#818CF8"
+              strokeWidth={1}
+              radius={[3, 3, 0, 0]}
+            />
+
+            {/* Barras de Ventas (verde, lado a lado con Gasto) */}
+            <Bar
+              yAxisId="count"
+              dataKey="Ventas"
+              fill="#22C55E"
+              fillOpacity={0.80}
+              radius={[3, 3, 0, 0]}
+            />
+
+            {/* Línea de CPA (rojo) */}
+            <Line
+              yAxisId="cpa"
+              type="monotone"
+              dataKey="CPA"
+              stroke="#EF4444"
+              strokeWidth={2}
+              dot={{ fill: '#EF4444', r: 2 }}
+              activeDot={{ r: 4 }}
+            />
+
+            {/* Línea de ROAS (ámbar) */}
+            <Line
+              yAxisId="roas"
+              type="monotone"
+              dataKey="ROAS"
+              stroke="#F59E0B"
+              strokeWidth={2}
+              dot={{ fill: '#F59E0B', r: 2 }}
+              activeDot={{ r: 4 }}
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

@@ -27,8 +27,8 @@ export default function Sidebar() {
     <aside style={{
       width: '220px',
       minHeight: '100vh',
-      backgroundColor: '#05070D',
-      borderRight: '1px solid #111525',
+      backgroundColor: '#070A14',
+      borderRight: '1px solid #182036',
       display: 'flex',
       flexDirection: 'column',
       position: 'fixed',
@@ -39,7 +39,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div style={{
         padding: '20px 18px 16px',
-        borderBottom: '1px solid #111525',
+        borderBottom: '1px solid #182036',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
@@ -80,8 +80,8 @@ export default function Sidebar() {
                 padding: '9px 10px',
                 borderRadius: '6px',
                 marginBottom: '2px',
-                backgroundColor: active ? '#0D1020' : 'transparent',
-                color: active ? '#E8EDF5' : '#3A4560',
+                backgroundColor: active ? '#111828' : 'transparent',
+                color: active ? '#E8EDF5' : '#5A6C88',
                 textDecoration: 'none',
                 fontSize: '13px',
                 fontWeight: active ? 600 : 400,
@@ -93,7 +93,7 @@ export default function Sidebar() {
             >
               <span style={{
                 fontSize: '13px',
-                color: active ? '#6366F1' : '#252B40',
+                color: active ? '#6366F1' : '#3E5070',
                 width: '18px',
                 textAlign: 'center',
               }}>{link.icon}</span>
@@ -114,7 +114,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '12px 10px', borderTop: '1px solid #111525' }}>
+      <div style={{ padding: '12px 10px', borderTop: '1px solid #182036' }}>
         <button
           onClick={handleLogout}
           className="nav-link"
