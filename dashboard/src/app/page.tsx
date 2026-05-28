@@ -160,20 +160,26 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
 
   const byDate = new Map<string, any>()
   for (const m of weekM.data || []) {
-    const e = byDate.get(m.date) || { spend: 0, purchase_value: 0, purchases: 0, impressions: 0, clicks: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0, add_to_cart: 0, landing_page_views: 0, freq_sum: 0, freq_imp: 0 }
+    const e = byDate.get(m.date) || {
+      spend: 0, purchase_value: 0, purchases: 0, impressions: 0,
+      clicks: 0, link_clicks: 0, unique_link_clicks: 0, reach: 0,
+      add_to_cart: 0, landing_page_views: 0, checkout_initiated: 0,
+      freq_sum: 0, freq_imp: 0,
+    }
     byDate.set(m.date, {
-      spend: e.spend + (m.spend || 0),
-      purchase_value: e.purchase_value + (m.purchase_value || 0),
-      purchases: e.purchases + (m.purchases || 0),
-      impressions: e.impressions + (m.impressions || 0),
-      clicks: e.clicks + (m.clicks || 0),
-      link_clicks: e.link_clicks + (m.link_clicks || 0),
+      spend:              e.spend              + (m.spend              || 0),
+      purchase_value:     e.purchase_value     + (m.purchase_value     || 0),
+      purchases:          e.purchases          + (m.purchases          || 0),
+      impressions:        e.impressions        + (m.impressions        || 0),
+      clicks:             e.clicks             + (m.clicks             || 0),
+      link_clicks:        e.link_clicks        + (m.link_clicks        || 0),
       unique_link_clicks: e.unique_link_clicks + (m.unique_link_clicks || 0),
-      reach: e.reach + (m.reach || 0),
-      add_to_cart: e.add_to_cart + (m.add_to_cart || 0),
+      reach:              e.reach              + (m.reach              || 0),
+      add_to_cart:        e.add_to_cart        + (m.add_to_cart        || 0),
       landing_page_views: e.landing_page_views + (m.landing_page_views || 0),
-      freq_sum: e.freq_sum + ((m.frequency || 0) * (m.impressions || 0)),
-      freq_imp: e.freq_imp + (m.impressions || 0),
+      checkout_initiated: e.checkout_initiated + (m.checkout_initiated || 0),
+      freq_sum:           e.freq_sum           + ((m.frequency || 0) * (m.impressions || 0)),
+      freq_imp:           e.freq_imp           + (m.impressions || 0),
     })
   }
 
@@ -181,19 +187,23 @@ async function getOverviewData(days: number, customFrom: string | null, customTo
     const lc = d.link_clicks || d.clicks
     return {
       date,
-      spend: d.spend,
-      roas: d.spend > 0 ? d.purchase_value / d.spend : null,
-      purchases: d.purchases,
-      impressions: d.impressions,
-      clicks: lc,
+      spend:              d.spend,
+      roas:               d.spend > 0       ? d.purchase_value / d.spend : null,
+      purchases:          d.purchases,
+      purchase_value:     d.purchase_value,
+      impressions:        d.impressions,
+      clicks:             lc,
       unique_link_clicks: d.unique_link_clicks,
-      add_to_cart: d.add_to_cart,
+      add_to_cart:        d.add_to_cart,
       landing_page_views: d.landing_page_views,
-      cpa: d.purchases > 0 ? d.spend / d.purchases : null,
-      ctr: d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null,
-      cpm: d.impressions > 0 ? d.spend / d.impressions * 1000 : null,
-      cost_atc: d.add_to_cart > 0 ? d.spend / d.add_to_cart : null,
-      frequency: d.freq_imp > 0 ? d.freq_sum / d.freq_imp : null,
+      checkout_initiated: d.checkout_initiated,
+      cpa:      d.purchases > 0    ? d.spend / d.purchases : null,
+      ctr:      d.reach > 0 && d.unique_link_clicks > 0 ? d.unique_link_clicks / d.reach * 100 : null,
+      cpm:      d.impressions > 0  ? d.spend / d.impressions * 1000 : null,
+      cpc:      lc > 0             ? d.spend / lc : null,
+      cost_atc: d.add_to_cart > 0  ? d.spend / d.add_to_cart : null,
+      conv_web: d.landing_page_views > 0 && d.purchases > 0 ? d.purchases / d.landing_page_views * 100 : null,
+      frequency: d.freq_imp > 0    ? d.freq_sum / d.freq_imp : null,
     }
   })
 
@@ -352,32 +362,62 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                 <span style={{ fontSize: '10px', color: '#64748B' }}>CPA target ≤${CPA_TARGET}</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', fontSize: '11px' }}>
+                <table style={{ width: '100%', minWidth: '1500px', borderCollapse: 'collapse', fontSize: '11px' }}>
                   <thead>
                     <tr>
-                      {['Fecha', 'Ventas', 'CPA', 'ROAS', 'Gasto', 'CTR', 'CPM', 'ATC', 'Tráf.', 'Frec.'].map((h, i) => (
-                        <th key={h} style={{ ...thStyle, textAlign: i === 0 ? 'left' as const : 'right' as const }}>{h}</th>
+                      {[
+                        { h: 'Fecha',      left: true },
+                        { h: 'Ventas',     left: false },
+                        { h: 'Valor conv.', left: false },
+                        { h: 'CPA',        left: false },
+                        { h: 'ROAS',       left: false },
+                        { h: 'Gasto',      left: false },
+                        { h: 'Impr.',      left: false },
+                        { h: 'CPM',        left: false },
+                        { h: 'CPC',        left: false },
+                        { h: 'CTR',        left: false },
+                        { h: 'Clics',      left: false },
+                        { h: 'Visit. LP',  left: false },
+                        { h: 'Tráf. ef.', left: false },
+                        { h: 'Conv. web', left: false },
+                        { h: 'ATC',        left: false },
+                        { h: 'Costo ATC', left: false },
+                        { h: 'Pagos inic.', left: false },
+                        { h: 'Frec.',      left: false },
+                      ].map(({ h, left }) => (
+                        <th key={h} style={{ ...thStyle, textAlign: left ? 'left' as const : 'right' as const }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {[...dailyData].reverse().map((d: any) => {
                       const isToday = d.date === today
+                      const cell = (v: React.ReactNode, color?: string) => (
+                        <td style={{ padding: '7px 10px', textAlign: 'right', color: color || '#F1F5F9' }}>{v}</td>
+                      )
                       return (
                         <tr key={d.date} className="tr-hover" style={{ backgroundColor: isToday ? '#1E2235' : 'transparent' }}>
-                          <td style={{ padding: '7px 10px', color: isToday ? '#6366F1' : '#F1F5F9', fontWeight: isToday ? 700 : 400, textAlign: 'left', whiteSpace: 'nowrap', fontSize: '11px' }}>
+                          <td style={{ padding: '7px 10px', color: isToday ? '#6366F1' : '#F1F5F9', fontWeight: isToday ? 700 : 400, textAlign: 'left', whiteSpace: 'nowrap' }}>
                             {new Date(d.date + 'T12:00:00Z').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}
                             {isToday && <span style={{ marginLeft: '5px', fontSize: '9px', color: '#6366F1', backgroundColor: '#6366F120', padding: '1px 5px', borderRadius: '3px' }}>HOY</span>}
                           </td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: d.purchases > 0 ? '#22C55E' : '#64748B', fontWeight: 600 }}>{d.purchases}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: cpaColor(d.cpa), fontWeight: 600 }}>{d.cpa ? formatCurrency(d.cpa, currency) : '—'}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: roasColor(d.roas) }}>{d.roas ? `${d.roas.toFixed(2)}x` : '—'}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{formatCurrency(d.spend, currency)}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: ctrColor(d.ctr) }}>{d.ctr ? `${d.ctr.toFixed(2)}%` : '—'}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: cpmColor(d.cpm) }}>{d.cpm ? formatCurrency(d.cpm, currency) : '—'}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: '#F1F5F9' }}>{d.add_to_cart || 0}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: '#94A3B8' }}>{(d.clicks || 0) > 0 ? `${(d.landing_page_views / d.clicks * 100).toFixed(1)}%` : '—'}</td>
-                          <td style={{ padding: '7px 10px', textAlign: 'right', color: d.frequency && d.frequency > 3.5 ? '#EF4444' : d.frequency && d.frequency > 2.5 ? '#F59E0B' : '#94A3B8' }}>{d.frequency ? d.frequency.toFixed(1) : '—'}</td>
+                          {cell(d.purchases > 0 ? d.purchases : '—', d.purchases > 0 ? '#22C55E' : '#64748B')}
+                          {cell(d.purchase_value > 0 ? formatCurrency(d.purchase_value, currency) : '—', '#94A3B8')}
+                          {cell(d.cpa ? formatCurrency(d.cpa, currency) : '—', cpaColor(d.cpa))}
+                          {cell(d.roas ? `${d.roas.toFixed(2)}x` : '—', roasColor(d.roas))}
+                          {cell(formatCurrency(d.spend, currency))}
+                          {cell(d.impressions > 0 ? new Intl.NumberFormat('es-AR').format(d.impressions) : '—', '#94A3B8')}
+                          {cell(d.cpm ? formatCurrency(d.cpm, currency) : '—', cpmColor(d.cpm))}
+                          {cell(d.cpc ? formatCurrency(d.cpc, currency) : '—', cpcColor(d.cpc))}
+                          {cell(d.ctr ? `${d.ctr.toFixed(2)}%` : '—', ctrColor(d.ctr))}
+                          {cell(d.unique_link_clicks > 0 ? d.unique_link_clicks : '—', '#94A3B8')}
+                          {cell(d.landing_page_views > 0 ? d.landing_page_views : '—', '#94A3B8')}
+                          {cell(d.conv_web !== null && d.clicks > 0 ? `${(d.landing_page_views / d.clicks * 100).toFixed(2)}%` : '—', '#94A3B8')}
+                          {cell(d.conv_web ? `${d.conv_web.toFixed(2)}%` : '—', '#94A3B8')}
+                          {cell(d.add_to_cart > 0 ? d.add_to_cart : '—')}
+                          {cell(d.cost_atc ? formatCurrency(d.cost_atc, currency) : '—')}
+                          {cell(d.checkout_initiated > 0 ? d.checkout_initiated : '—')}
+                          {cell(d.frequency ? `${d.frequency.toFixed(2)}x` : '—', d.frequency && d.frequency > 3.5 ? '#EF4444' : d.frequency && d.frequency > 2.5 ? '#F59E0B' : '#94A3B8')}
                         </tr>
                       )
                     })}

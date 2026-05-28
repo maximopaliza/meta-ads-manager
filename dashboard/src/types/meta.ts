@@ -82,4 +82,14 @@ export interface DailyMetric {
   purchases: number
   impressions: number
   clicks: number
+  unique_link_clicks?: number
+  add_to_cart?: number
+  landing_page_views?: number
+  purchase_value?: number
+  checkout_initiated?: number
+  cpa?: number | null
+  ctr?: number | null
+  cpm?: number | null
+  cost_atc?: number | null
+  frequency?: number | null
 }

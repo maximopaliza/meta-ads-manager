@@ -5,6 +5,7 @@ import Header from '@/components/layout/Header'
 import { formatCurrency, formatNumber, formatDate } from '@/lib/utils'
 import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 import RangeSelector from '@/components/dashboard/RangeSelector'
+import { Suspense } from 'react'
 import TrendCharts from '@/components/dashboard/TrendCharts'
 import CollapsibleCampaignTree from '@/components/dashboard/CollapsibleCampaignTree'
 import type { TreeCampaign, TreeAdSet, TreeAd } from '@/components/dashboard/CollapsibleCampaignTree'
@@ -112,6 +113,7 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
   await headers()
   const sp = await searchParams
   const view = sp?.view || 'summary'
+  const isCustomRange = !!(sp?.from && sp?.to)
 
   const today = await getLatestDate()
   const { rangeStart, rangeEnd, days } = resolveDateRange(sp, today, 7)
@@ -572,6 +574,16 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
         <Header title="Análisis" subtitle={`Tendencias · ${today}`} />
         <main style={{ padding: '20px 16px', maxWidth: '100%' }}>
 
+          {/* ── Período bar ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' as const }}>
+            <span style={{ fontSize: '11px', color: C_MUTED }}>Período analizado:</span>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: '#6366F1', backgroundColor: '#6366F115', border: '1px solid #6366F130', borderRadius: '5px', padding: '2px 8px' }}>
+              {isCustomRange
+                ? `${rangeStart} → ${rangeEnd}`
+                : `Últimos ${days}d — ${rangeStart} → ${rangeEnd}`}
+            </span>
+          </div>
+
           {/* ── View + Range controls ── */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap' as const, gap: '8px' }}>
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -581,13 +593,9 @@ export default async function AnalisisPage({ searchParams }: { searchParams: Pro
                 </a>
               ))}
             </div>
-            <div style={{ display: 'flex', gap: '4px' }}>
-              {[4, 7, 14].map(d => (
-                <a key={d} href={`?view=${view}&days=${d}`} style={{ padding: '4px 10px', borderRadius: '5px', fontSize: '11px', textDecoration: 'none', backgroundColor: days === d ? '#6366F110' : 'transparent', color: days === d ? '#6366F1' : C_MUTED, border: `1px solid ${days === d ? '#6366F1' : '#2D3244'}` }}>
-                  {d}d
-                </a>
-              ))}
-            </div>
+            <Suspense fallback={null}>
+              <RangeSelector />
+            </Suspense>
           </div>
 
           {view === 'summary' ? (
