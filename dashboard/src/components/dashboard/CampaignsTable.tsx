@@ -19,27 +19,27 @@ export default function CampaignsTable({ campaigns, currency = 'ARS', compact = 
     color: '#7A90AA',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
-    borderBottom: '1px solid #1A3050',
+    borderBottom: '1px solid #1A4080',
   }
 
   const tdStyle = {
     padding: '12px',
     fontSize: '13px',
     color: '#F1F5F9',
-    borderBottom: '1px solid #1A3050',
+    borderBottom: '1px solid #1A4080',
   }
 
   return (
     <div
       style={{
-        backgroundColor: '#0E1B30',
-        border: '1px solid #1A3050',
+        backgroundColor: '#071428',
+        border: '1px solid #1A4080',
         borderRadius: '12px',
         overflow: 'hidden',
       }}
     >
       {compact && (
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #1A3050', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #1A4080', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 500, color: '#F1F5F9' }}>📣 Top campañas</h3>
           <Link href="/campaigns" style={{ fontSize: '12px', color: '#6366F1', textDecoration: 'none' }}>Ver todas →</Link>
         </div>

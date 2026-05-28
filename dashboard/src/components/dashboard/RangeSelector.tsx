@@ -68,8 +68,8 @@ export default function RangeSelector() {
   })()
 
   const inputStyle = {
-    backgroundColor: '#060810',
-    border: '1px solid #1A3050',
+    backgroundColor: '#030810',
+    border: '1px solid #1A4080',
     borderRadius: '6px',
     color: '#F1F5F9',
     fontSize: '12px',
@@ -91,7 +91,7 @@ export default function RangeSelector() {
       </div>
 
       {/* Presets */}
-      <div style={{ display: 'flex', gap: '4px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px', padding: '4px' }}>
+      <div style={{ display: 'flex', gap: '4px', backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '8px', padding: '4px' }}>
         {PRESETS.map(o => (
           <button
             key={o.value}
@@ -151,7 +151,7 @@ export default function RangeSelector() {
 
       {/* Single day input */}
       {showDay && !showCustom && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px', padding: '6px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '8px', padding: '6px 10px' }}>
           <span style={{ fontSize: '11px', color: '#7A90AA' }}>Día</span>
           <input
             type="date"
@@ -169,7 +169,7 @@ export default function RangeSelector() {
               cursor: singleDay ? 'pointer' : 'not-allowed',
               fontSize: '12px',
               fontWeight: 600,
-              backgroundColor: singleDay ? '#6366F1' : '#1A3050',
+              backgroundColor: singleDay ? '#6366F1' : '#1A4080',
               color: singleDay ? '#fff' : '#7A90AA',
             }}
           >
@@ -180,7 +180,7 @@ export default function RangeSelector() {
 
       {/* Custom date range inputs */}
       {showCustom && !showDay && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px', padding: '6px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '8px', padding: '6px 10px' }}>
           <span style={{ fontSize: '11px', color: '#7A90AA' }}>Desde</span>
           <input
             type="date"
@@ -205,7 +205,7 @@ export default function RangeSelector() {
               cursor: from && to ? 'pointer' : 'not-allowed',
               fontSize: '12px',
               fontWeight: 600,
-              backgroundColor: from && to ? '#6366F1' : '#1A3050',
+              backgroundColor: from && to ? '#6366F1' : '#1A4080',
               color: from && to ? '#fff' : '#7A90AA',
             }}
           >

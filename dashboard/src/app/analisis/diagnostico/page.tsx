@@ -11,7 +11,7 @@ import type { CampDiag, AsDiag, AdDiag, MetricsDiag } from '@/components/dashboa
 
 // ── Tokens ─────────────────────────────────────────────────────────────────
 const G = '#22C55E', Y = '#F59E0B', R = '#EF4444', M = '#7A90AA'
-const BORDER = '#1A3050', SURFACE = '#0E1B30', TEXT = '#F1F5F9'
+const BORDER = '#1A4080', SURFACE = '#071428', TEXT = '#F1F5F9'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function dPct(a: number | null, b: number | null) {
@@ -366,7 +366,7 @@ export default async function DiagnosticoPage({
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#060810' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#030810' }}>
       <Sidebar />
       <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
         <Header title="Diagnóstico de Día" subtitle="Comparación profunda entre dos días" />
@@ -416,7 +416,7 @@ export default async function DiagnosticoPage({
               </div>
               <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {findings.map((f, i) => (
-                  <div key={i} style={{ padding: '10px 12px', backgroundColor: '#060810', borderRadius: 8, borderLeft: `3px solid ${f.color}` }}>
+                  <div key={i} style={{ padding: '10px 12px', backgroundColor: '#030810', borderRadius: 8, borderLeft: `3px solid ${f.color}` }}>
                     <span style={{ fontSize: 16, marginRight: 8 }}>{f.icon}</span>
                     <span style={{ fontSize: 12, color: '#CBD5E1', lineHeight: 1.6 }}>{f.text}</span>
                   </div>

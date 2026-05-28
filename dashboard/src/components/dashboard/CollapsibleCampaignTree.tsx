@@ -135,17 +135,17 @@ function totalDelta(rows: DayData[], key: keyof DayData, invert = false) {
 function pctFmt(p: number) { return `${p > 0 ? '+' : ''}${p.toFixed(0)}%` }
 
 // ─── Shared table styles ──────────────────────────────────────────────────────
-const th: any  = { padding: '7px 8px', textAlign: 'right' as const, color: C_MUTED, fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
+const th: any  = { padding: '7px 8px', textAlign: 'right' as const, color: C_MUTED, fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A4080', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
 const td: any  = { padding: '7px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '1px solid #1a1d27' }
-const thG: any = { ...th, borderLeft: '1px solid #1A3050' }
-const tdG: any = { ...td, borderLeft: '1px solid #1A3050' }
+const thG: any = { ...th, borderLeft: '1px solid #1A4080' }
+const tdG: any = { ...td, borderLeft: '1px solid #1A4080' }
 
 function thGrp(color: string, fnt: any = {}): any {
   return {
     padding: '5px 8px 4px', textAlign: 'center' as const,
     fontSize: '9px', fontWeight: 700, color, textTransform: 'uppercase' as const,
-    letterSpacing: '0.06em', backgroundColor: '#0e1015', borderBottom: '1px solid #1A3050',
-    borderLeft: '1px solid #1A3050', whiteSpace: 'nowrap' as const, ...fnt,
+    letterSpacing: '0.06em', backgroundColor: '#0e1015', borderBottom: '1px solid #1A4080',
+    borderLeft: '1px solid #1A4080', whiteSpace: 'nowrap' as const, ...fnt,
   }
 }
 
@@ -232,7 +232,7 @@ function renderDayRow(
 
   return (
     <tr key={d.date} style={{ backgroundColor: bg }}>
-      <td style={{ ...td, textAlign: 'left' as const, color: isToday ? '#6366F1' : C_MUTED, fontWeight: isToday ? 700 : 600, position: 'sticky' as const, left: 0, backgroundColor: isToday ? '#1e2035' : '#0E1B30', zIndex: 1, paddingLeft: '14px' }}>
+      <td style={{ ...td, textAlign: 'left' as const, color: isToday ? '#6366F1' : C_MUTED, fontWeight: isToday ? 700 : 600, position: 'sticky' as const, left: 0, backgroundColor: isToday ? '#1e2035' : '#071428', zIndex: 1, paddingLeft: '14px' }}>
         {dateLabel}
         {isToday && <span style={{ fontSize: '8px', color: '#6366F1', marginLeft: '5px', padding: '1px 4px', backgroundColor: '#6366F125', borderRadius: '3px' }}>HOY</span>}
       </td>
@@ -301,7 +301,7 @@ function ToggleBtn({ active, onClick, children }: { active: boolean; onClick: ()
     <button
       onClick={onClick}
       style={{
-        padding: '3px 8px', borderRadius: '5px', border: `1px solid ${active ? '#6366F1' : '#1A3050'}`,
+        padding: '3px 8px', borderRadius: '5px', border: `1px solid ${active ? '#6366F1' : '#1A4080'}`,
         cursor: 'pointer', backgroundColor: active ? '#6366F120' : 'transparent',
         color: active ? '#818CF8' : C_MUTED, fontSize: '10px', fontWeight: active ? 700 : 400, flexShrink: 0,
       }}
@@ -418,9 +418,9 @@ function CampaignCard({ camp, today, currency, days }: { camp: TreeCampaign; tod
   const statusColor = camp.status === 'ACTIVE' ? C_GREEN : camp.status === 'PAUSED' ? C_YELLOW : C_MUTED
 
   return (
-    <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden', opacity: camp.status === 'ACTIVE' ? 1 : 0.7 }}>
+    <div style={{ backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '12px', overflow: 'hidden', opacity: camp.status === 'ACTIVE' ? 1 : 0.7 }}>
       {/* Campaign header */}
-      <div style={{ padding: '9px 14px', borderBottom: '1px solid #1A3050', backgroundColor: '#151820', display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <div style={{ padding: '9px 14px', borderBottom: '1px solid #1A4080', backgroundColor: '#151820', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: statusColor, flexShrink: 0, display: 'inline-block' }} />
         <Link
           href={`/campaigns/${camp.id}`}
@@ -446,7 +446,7 @@ function CampaignCard({ camp, today, currency, days }: { camp: TreeCampaign; tod
 
       {/* Chart (toggleable) */}
       {openChart && (
-        <div style={{ borderTop: '1px solid #1A3050', backgroundColor: '#0d1018', padding: '16px' }}>
+        <div style={{ borderTop: '1px solid #1A4080', backgroundColor: '#0d1018', padding: '16px' }}>
           <TrendCharts
             data={camp.days as any}
             currency={currency}
@@ -458,7 +458,7 @@ function CampaignCard({ camp, today, currency, days }: { camp: TreeCampaign; tod
 
       {/* Ad Sets (collapsible) */}
       {openAdSets && camp.adSets.length > 0 && (
-        <div style={{ borderTop: '1px solid #1A3050', backgroundColor: '#13151e' }}>
+        <div style={{ borderTop: '1px solid #1A4080', backgroundColor: '#13151e' }}>
           <div style={{ padding: '6px 14px 4px', fontSize: '9px', color: C_MUTED, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
             Conjuntos de anuncios · {days}d
           </div>

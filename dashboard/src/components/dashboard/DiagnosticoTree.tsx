@@ -151,7 +151,7 @@ export default function DiagnosticoTree({ hierarchy, currency, labelA, labelB, a
     )
   }
 
-  const BORDER = '#1A3050'
+  const BORDER = '#1A4080'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -162,7 +162,7 @@ export default function DiagnosticoTree({ hierarchy, currency, labelA, labelB, a
         const warnPaused = !isActive && hadSpend   // pausada ahora pero tuvo gasto en el período
         const sc = isActive ? G : Y
         return (
-          <div key={camp.id} style={{ backgroundColor: '#0E1B30', border: `1px solid ${warnPaused ? '#F59E0B40' : BORDER}`, borderRadius: 12, overflow: 'hidden', borderTop: `2px solid ${sc}40` }}>
+          <div key={camp.id} style={{ backgroundColor: '#071428', border: `1px solid ${warnPaused ? '#F59E0B40' : BORDER}`, borderRadius: 12, overflow: 'hidden', borderTop: `2px solid ${sc}40` }}>
 
             {/* ── Campaign header ── */}
             <div

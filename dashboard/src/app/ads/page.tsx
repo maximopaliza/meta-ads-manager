@@ -107,12 +107,12 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
 
   const totals = deriveRaw(totalRaw) || ZEROS
 
-  const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#7A90AA', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
+  const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#7A90AA', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A4080', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
   const td: any = { padding: '7px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '1px solid #1a1d27' }
-  const tf: any = { padding: '8px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '2px solid #6366F1', fontWeight: 700, backgroundColor: '#060810', color: '#F1F5F9', whiteSpace: 'nowrap' as const }
+  const tf: any = { padding: '8px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '2px solid #6366F1', fontWeight: 700, backgroundColor: '#030810', color: '#F1F5F9', whiteSpace: 'nowrap' as const }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#060810' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#030810' }}>
       <Sidebar />
       <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
         <Header title="Ads" subtitle={`${rows.length} anuncios · ordenados por rendimiento`} />
@@ -120,8 +120,8 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
             <Suspense fallback={null}><RangeSelector /></Suspense>
           </div>
-          <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A3050', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const }}>
+          <div style={{ backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A4080', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const }}>
               <span style={{ fontSize: '12px', fontWeight: 600, color: '#6366F1' }}>{label}</span>
               <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#22C55E20', color: '#22C55E', borderRadius: '4px' }}>CPA ≤${CPA_TARGET} 🟢</span>
               <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#F59E0B20', color: '#F59E0B', borderRadius: '4px' }}>≤${CPA_BREAKEVEN} 🟡</span>
@@ -162,7 +162,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={{ ...tf, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#060810' }}>
+                    <td style={{ ...tf, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#030810' }}>
                       <span style={{ color: '#6366F1', fontWeight: 700, fontSize: '11px' }}>Total / Promedio</span>
                     </td>
                     <td style={{ ...tf, textAlign: 'left' as const }}>—</td>
@@ -194,7 +194,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                   </tr>
                   {rows.map((ad: any) => (
                     <tr key={ad.id} style={{ opacity: ad.status === 'ACTIVE' ? 1 : 0.5 }}>
-                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#0E1B30' }}>
+                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#071428' }}>
                         <Link href={`/ads/${ad.id}`} style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, textDecoration: 'none' }} title={ad.name}>{ad.name}</Link>
                       </td>
                       <td style={{ ...td, textAlign: 'left' as const, minWidth: '120px' }}>

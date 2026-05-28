@@ -34,8 +34,8 @@ const GREEN  = '#22C55E'
 const YELLOW = '#F59E0B'
 const RED    = '#EF4444'
 const MUTED  = '#7A90AA'
-const BORDER = '#1A3050'
-const SURFACE = '#0E1B30'
+const BORDER = '#1A4080'
+const SURFACE = '#071428'
 
 function hookColor(v: number | null | undefined) {
   if (!v) return MUTED

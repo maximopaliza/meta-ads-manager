@@ -24,8 +24,8 @@ export default function CampaignChart({ data, currency = 'ARS' }: CampaignChartP
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
       <div
         style={{
-          backgroundColor: '#0E1B30',
-          border: '1px solid #1A3050',
+          backgroundColor: '#071428',
+          border: '1px solid #1A4080',
           borderRadius: '12px',
           padding: '20px',
         }}
@@ -34,12 +34,12 @@ export default function CampaignChart({ data, currency = 'ARS' }: CampaignChartP
         <div style={{ height: '200px' }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={formatted}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1A3050" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1A4080" />
               <XAxis dataKey="date" tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis yAxisId="spend" tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
               <YAxis yAxisId="roas" orientation="right" tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}x`} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px' }}
+                contentStyle={{ backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '8px' }}
                 formatter={((v: unknown, n: unknown) => [n === 'Gasto' ? formatSpend(v as number) : `${v}x`, n]) as any}
               />
               <Line yAxisId="spend" type="monotone" dataKey="Gasto" stroke="#6366F1" strokeWidth={2} dot={false} />
@@ -52,8 +52,8 @@ export default function CampaignChart({ data, currency = 'ARS' }: CampaignChartP
 
       <div
         style={{
-          backgroundColor: '#0E1B30',
-          border: '1px solid #1A3050',
+          backgroundColor: '#071428',
+          border: '1px solid #1A4080',
           borderRadius: '12px',
           padding: '20px',
         }}
@@ -62,11 +62,11 @@ export default function CampaignChart({ data, currency = 'ARS' }: CampaignChartP
         <div style={{ height: '200px' }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={formatted}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1A3050" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1A4080" />
               <XAxis dataKey="date" tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#7A90AA', fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '8px' }}
+                contentStyle={{ backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '8px' }}
               />
               <Line type="monotone" dataKey="Compras" stroke="#F59E0B" strokeWidth={2} dot={false} />
             </LineChart>

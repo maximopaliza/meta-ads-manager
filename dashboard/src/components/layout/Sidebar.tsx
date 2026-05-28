@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -27,8 +27,8 @@ export default function Sidebar() {
     <aside style={{
       width: '220px',
       minHeight: '100vh',
-      backgroundColor: '#070A14',
-      borderRight: '1px solid #1C3255',
+      backgroundColor: '#050C1E',
+      borderRight: '1px solid #1A4080',
       display: 'flex',
       flexDirection: 'column',
       position: 'fixed',
@@ -39,8 +39,8 @@ export default function Sidebar() {
       {/* Logo */}
       <div style={{
         padding: '16px 16px 14px',
-        borderBottom: '1px solid #1C3255',
-        background: 'linear-gradient(180deg, #091628 0%, #070A14 100%)',
+        borderBottom: '1px solid #1A4080',
+        background: 'linear-gradient(180deg, #061228 0%, #050C1E 100%)',
       }}>
         {/* Indicador live */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '9px' }}>
@@ -106,7 +106,7 @@ export default function Sidebar() {
                 padding: '9px 10px',
                 borderRadius: '6px',
                 marginBottom: '1px',
-                backgroundColor: active ? '#0D1E35' : 'transparent',
+                backgroundColor: active ? '#071428' : 'transparent',
                 color: active ? '#E8EDF5' : '#7A90AA',
                 textDecoration: 'none',
                 fontSize: '13px',
@@ -140,7 +140,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div style={{ padding: '10px 10px', borderTop: '1px solid #1C3255' }}>
+      <div style={{ padding: '10px 10px', borderTop: '1px solid #1A4080' }}>
         <button
           onClick={handleLogout}
           className="nav-link"

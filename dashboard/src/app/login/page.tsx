@@ -35,13 +35,13 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#060810',
+        backgroundColor: '#030810',
       }}
     >
       <div
         style={{
-          backgroundColor: '#0E1B30',
-          border: '1px solid #1A3050',
+          backgroundColor: '#071428',
+          border: '1px solid #1A4080',
           borderRadius: '12px',
           padding: '48px',
           width: '100%',
@@ -68,8 +68,8 @@ export default function LoginPage() {
               style={{
                 width: '100%',
                 padding: '12px 16px',
-                backgroundColor: '#060810',
-                border: `1px solid ${error ? '#EF4444' : '#1A3050'}`,
+                backgroundColor: '#030810',
+                border: `1px solid ${error ? '#EF4444' : '#1A4080'}`,
                 borderRadius: '8px',
                 color: '#F1F5F9',
                 fontSize: '14px',

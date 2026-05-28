@@ -15,8 +15,8 @@ export default function KPICard({ label, value, delta, icon, color = '#6366F1' }
   return (
     <div
       style={{
-        backgroundColor: '#0E1B30',
-        border: '1px solid #1A3050',
+        backgroundColor: '#071428',
+        border: '1px solid #1A4080',
         borderRadius: '12px',
         padding: '24px',
         flex: 1,

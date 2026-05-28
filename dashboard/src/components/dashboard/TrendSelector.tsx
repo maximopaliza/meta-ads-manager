@@ -59,7 +59,7 @@ interface Props {
   rangeDays: number
 }
 
-const BORDER  = '#1A3050'
+const BORDER  = '#1A4080'
 const MUTED   = '#7A90AA'
 const TEXT    = '#F1F5F9'
 const INDIGO  = '#6366F1'
@@ -115,7 +115,7 @@ export default function TrendSelector({
   })
 
   const selectStyle: React.CSSProperties = {
-    backgroundColor: '#060810',
+    backgroundColor: '#030810',
     border: `1px solid ${BORDER}`,
     borderRadius: '6px',
     color: TEXT,

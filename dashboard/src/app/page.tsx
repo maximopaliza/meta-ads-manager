@@ -67,7 +67,7 @@ function KPI({ label, value, delta, color, sub }: {
   delta?: { text: string; color: string } | null
   color?: string; sub?: string
 }) {
-  const accentColor = color && color !== '#F1F5F9' && color !== '#7A90AA' ? color : '#1A3050'
+  const accentColor = color && color !== '#F1F5F9' && color !== '#7A90AA' ? color : '#1A4080'
   return (
     <div
       className="kpi-card"
@@ -284,13 +284,13 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
 
   const thStyle: any = {
     padding: '8px 10px', textAlign: 'right' as const, color: '#7A90AA',
-    fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050',
+    fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A4080',
     whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em', backgroundColor: '#0A1422',
+    letterSpacing: '0.05em', backgroundColor: '#050F1E',
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#060810' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#030810' }}>
       <Sidebar />
       <AutoRefresh />
       <div style={{ marginLeft: '220px', flex: 1 }}>
@@ -354,8 +354,8 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           {/* Day table + alerts */}
           <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: '16px', marginBottom: '20px' }}>
             {/* Daily table */}
-            <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #1A3050', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #1A4080', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#F1F5F9' }}>
                   📅 {customFrom && customTo ? `${customFrom} → ${customTo}` : `Últimos ${days} días`}
                 </h3>
@@ -396,7 +396,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                         <td style={{ padding: '7px 10px', textAlign: 'right', color: color || '#F1F5F9' }}>{v}</td>
                       )
                       return (
-                        <tr key={d.date} className="tr-hover" style={{ backgroundColor: isToday ? '#112040' : 'transparent' }}>
+                        <tr key={d.date} className="tr-hover" style={{ backgroundColor: isToday ? '#0A1E3A' : 'transparent' }}>
                           <td style={{ padding: '7px 10px', color: isToday ? '#6366F1' : '#F1F5F9', fontWeight: isToday ? 700 : 400, textAlign: 'left', whiteSpace: 'nowrap' }}>
                             {new Date(d.date + 'T12:00:00Z').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', timeZone: 'UTC' })}
                             {isToday && <span style={{ marginLeft: '5px', fontSize: '9px', color: '#6366F1', backgroundColor: '#6366F120', padding: '1px 5px', borderRadius: '3px' }}>HOY</span>}
@@ -429,8 +429,8 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           </div>
 
           {/* Campaigns table */}
-          <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
-            <div style={{ padding: '12px 16px', borderBottom: '1px solid #1A3050', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '12px', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #1A4080', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '12px', fontWeight: 600, color: '#F1F5F9' }}>Campañas — hoy</h3>
               <Link href="/campaigns" style={{ fontSize: '11px', color: '#6366F1', textDecoration: 'none', fontWeight: 500 }}>Ver todas →</Link>
             </div>
@@ -445,7 +445,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
                 </thead>
                 <tbody>
                   {campaignsWithMetrics.slice(0, 15).map((c: any) => (
-                    <tr key={c.id} className="tr-hover" style={{ borderBottom: '1px solid #0E1B3050' }}>
+                    <tr key={c.id} className="tr-hover" style={{ borderBottom: '1px solid #07142850' }}>
                       <td style={{ padding: '9px 10px', maxWidth: '200px' }}>
                         <Link href={`/campaigns/${c.id}`} style={{ color: '#F1F5F9', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {c.name}

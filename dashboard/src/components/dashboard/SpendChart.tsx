@@ -13,8 +13,8 @@ interface SpendChartProps {
   currency?: string
 }
 
-const DARK_BG = '#0E1B30'
-const BORDER  = '#1A3050'
+const DARK_BG = '#071428'
+const BORDER  = '#1A4080'
 const MUTED   = '#5E6E8A'
 const TEXT    = '#E8EDF5'
 

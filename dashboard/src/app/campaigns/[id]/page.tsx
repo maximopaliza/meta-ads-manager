@@ -116,13 +116,13 @@ export default async function CampaignDetailPage({
     conv_web: (tm.landing_page_views ?? 0) > 0 && (tm.purchases ?? 0) > 0 ? tm.purchases / tm.landing_page_views * 100 : null,
   } : null
 
-  const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#7A90AA', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A3050', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
+  const th: any = { padding: '7px 8px', textAlign: 'right' as const, color: '#7A90AA', fontSize: '10px', fontWeight: 600, borderBottom: '1px solid #1A4080', whiteSpace: 'nowrap' as const, textTransform: 'uppercase' as const, letterSpacing: '0.03em', backgroundColor: '#151820' }
   const td: any = { padding: '7px 8px', textAlign: 'right' as const, fontSize: '11px', borderBottom: '1px solid #1a1d27' }
-  const sep: any = { ...td, borderLeft: '1px solid #1A3050' }
-  const thSep: any = { ...th, borderLeft: '1px solid #1A3050' }
+  const sep: any = { ...td, borderLeft: '1px solid #1A4080' }
+  const thSep: any = { ...th, borderLeft: '1px solid #1A4080' }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#060810' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#030810' }}>
       <Sidebar />
       <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
         <Header
@@ -156,7 +156,7 @@ export default async function CampaignDetailPage({
                   { label: 'Frecuencia', value: todayKpis.frequency ? todayKpis.frequency.toFixed(1) : '—', color: todayKpis.frequency && todayKpis.frequency > 3 ? '#F59E0B' : '#F1F5F9' },
                   { label: 'Video avg', value: todayKpis.video_avg ? `${todayKpis.video_avg.toFixed(0)}s` : '—', color: '#7A90AA' },
                 ].map(kpi => (
-                  <div key={kpi.label} style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '10px', padding: '12px 14px' }}>
+                  <div key={kpi.label} style={{ backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '10px', padding: '12px 14px' }}>
                     <div style={{ fontSize: '10px', color: '#7A90AA', marginBottom: '4px', textTransform: 'uppercase' }}>{kpi.label}</div>
                     <div style={{ fontSize: '17px', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
                   </div>
@@ -167,8 +167,8 @@ export default async function CampaignDetailPage({
 
           {/* Tabla día por día */}
           {(rangeM.data || []).length > 0 && (
-            <div style={{ marginBottom: '24px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #1A3050' }}>
+            <div style={{ marginBottom: '24px', backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #1A4080' }}>
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#F1F5F9' }}>Histórico {days}d · día por día</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
@@ -237,8 +237,8 @@ export default async function CampaignDetailPage({
 
           {/* Ad Sets */}
           {adSetRows.length > 0 && (
-            <div style={{ marginBottom: '24px', backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A3050', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const }}>
+            <div style={{ marginBottom: '24px', backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ padding: '10px 16px', borderBottom: '1px solid #1A4080', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' as const }}>
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#F1F5F9' }}>Ad Sets — {adSetRows.length}</span>
                 <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#22C55E20', color: '#22C55E', borderRadius: '4px' }}>CPA ≤${CPA_TARGET} 🟢</span>
                 <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#F59E0B20', color: '#F59E0B', borderRadius: '4px' }}>≤${CPA_BREAKEVEN} 🟡</span>
@@ -280,7 +280,7 @@ export default async function CampaignDetailPage({
                   <tbody>
                     {adSetRows.map((as: any) => (
                       <tr key={as.id} style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.55 }}>
-                        <td style={{ ...td, textAlign: 'left' as const, minWidth: '150px', position: 'sticky', left: 0, backgroundColor: '#0E1B30' }}>
+                        <td style={{ ...td, textAlign: 'left' as const, minWidth: '150px', position: 'sticky', left: 0, backgroundColor: '#071428' }}>
                           <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{as.name}</span>
                         </td>
                         <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(as.status)}</td>
@@ -318,13 +318,13 @@ export default async function CampaignDetailPage({
 
           {/* Alertas */}
           {(alerts.data || []).length > 0 && (
-            <div style={{ backgroundColor: '#0E1B30', border: '1px solid #1A3050', borderRadius: '12px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #1A3050' }}>
+            <div style={{ backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '12px', overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #1A4080' }}>
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#F1F5F9' }}>Alertas recientes</span>
               </div>
               <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {(alerts.data || []).map((a: any) => (
-                  <div key={a.id} style={{ padding: '10px 14px', backgroundColor: '#060810', borderRadius: '8px', border: `1px solid ${a.severity === 'critical' ? '#EF444440' : a.severity === 'warning' ? '#F59E0B40' : '#6366F140'}` }}>
+                  <div key={a.id} style={{ padding: '10px 14px', backgroundColor: '#030810', borderRadius: '8px', border: `1px solid ${a.severity === 'critical' ? '#EF444440' : a.severity === 'warning' ? '#F59E0B40' : '#6366F140'}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
                       <div style={{ fontSize: '12px', color: '#F1F5F9', lineHeight: 1.5 }}>{a.message}</div>
                       <div style={{ fontSize: '10px', color: '#7A90AA', whiteSpace: 'nowrap' as const }}>{formatDate(a.created_at?.split('T')[0] || '')}</div>
