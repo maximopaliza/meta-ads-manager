@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/utils'
+import TrendCharts from './TrendCharts'
 
 // ─── Color helpers (inline to avoid pulling server-only lib/metrics) ──────────
 const CPA_TARGET    = 7
@@ -294,9 +295,41 @@ function DayTable({ days, today, currency, compact }: { days: DayData[]; today: 
   )
 }
 
+// ─── Toggle button ────────────────────────────────────────────────────────────
+function ToggleBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: '3px 8px', borderRadius: '5px', border: `1px solid ${active ? '#6366F1' : '#2D3244'}`,
+        cursor: 'pointer', backgroundColor: active ? '#6366F120' : 'transparent',
+        color: active ? '#818CF8' : C_MUTED, fontSize: '10px', fontWeight: active ? 700 : 400, flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+// ─── Mini chart panel ─────────────────────────────────────────────────────────
+function ChartPanel({ days, currency }: { days: DayData[]; currency: string }) {
+  if (days.length === 0) return null
+  return (
+    <div style={{ padding: '14px 16px', borderTop: '1px solid #1e2235', backgroundColor: '#0d1018' }}>
+      <TrendCharts
+        data={days as any}
+        currency={currency}
+        cpaTarget={CPA_TARGET}
+        cpaBreakeven={CPA_BREAKEVEN}
+      />
+    </div>
+  )
+}
+
 // ─── Ad card ─────────────────────────────────────────────────────────────────
 function AdCard({ ad, today, currency }: { ad: TreeAd; today: string; currency: string }) {
-  const [open, setOpen] = useState(false)
+  const [openTable, setOpenTable] = useState(false)
+  const [openChart, setOpenChart] = useState(false)
   const totalSpend = ad.days.reduce((s, d) => s + d.spend, 0)
   const totalV = ad.days.reduce((s, d) => s + d.purchases, 0)
   const lastRoas = ad.days[ad.days.length - 1]?.roas
@@ -304,24 +337,23 @@ function AdCard({ ad, today, currency }: { ad: TreeAd; today: string; currency: 
 
   return (
     <div style={{ borderTop: '1px solid #1e2235', opacity: ad.status === 'ACTIVE' ? 1 : 0.65 }}>
-      <div
-        onClick={() => setOpen(v => !v)}
-        style={{ padding: '7px 14px 7px 28px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', backgroundColor: open ? '#13151f' : 'transparent' }}
-      >
-        <span style={{ fontSize: '10px', color: C_MUTED, width: '12px', flexShrink: 0 }}>{open ? '▼' : '▶'}</span>
+      <div style={{ padding: '7px 14px 7px 28px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: (openTable || openChart) ? '#13151f' : 'transparent' }}>
         <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: statusColor, flexShrink: 0, display: 'inline-block' }} />
         <span style={{ fontSize: '11px', color: '#94A3B8', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-          <Link href={`/ads/${ad.id}`} style={{ color: '#94A3B8', textDecoration: 'none' }} onClick={e => e.stopPropagation()}>{ad.name}</Link>
+          <Link href={`/ads/${ad.id}`} style={{ color: '#94A3B8', textDecoration: 'none' }}>{ad.name}</Link>
         </span>
         <span style={{ fontSize: '10px', color: totalV > 0 ? C_GREEN : C_MUTED, flexShrink: 0 }}>{totalV > 0 ? `${totalV} ventas` : '0 ventas'}</span>
         <span style={{ fontSize: '10px', color: '#64748B', flexShrink: 0 }}>{formatCurrency(totalSpend, currency)}</span>
         {lastRoas && <span style={{ fontSize: '10px', color: roasColor(lastRoas), flexShrink: 0 }}>ROAS {lastRoas.toFixed(2)}x</span>}
+        <ToggleBtn active={openTable} onClick={() => setOpenTable(v => !v)}>▶ tabla</ToggleBtn>
+        <ToggleBtn active={openChart} onClick={() => setOpenChart(v => !v)}>📈 gráfico</ToggleBtn>
       </div>
-      {open && (
+      {openTable && (
         <div style={{ backgroundColor: '#0d0f18', borderTop: '1px solid #1e2235' }}>
           <DayTable days={ad.days} today={today} currency={currency} compact />
         </div>
       )}
+      {openChart && <ChartPanel days={ad.days} currency={currency} />}
     </div>
   )
 }
@@ -329,6 +361,7 @@ function AdCard({ ad, today, currency }: { ad: TreeAd; today: string; currency: 
 // ─── Ad Set card ─────────────────────────────────────────────────────────────
 function AdSetCard({ adSet, today, currency }: { adSet: TreeAdSet; today: string; currency: string }) {
   const [openTable, setOpenTable] = useState(false)
+  const [openChart, setOpenChart] = useState(false)
   const [openAds, setOpenAds] = useState(false)
   const totalSpend = adSet.days.reduce((s, d) => s + d.spend, 0)
   const totalV = adSet.days.reduce((s, d) => s + d.purchases, 0)
@@ -337,7 +370,6 @@ function AdSetCard({ adSet, today, currency }: { adSet: TreeAdSet; today: string
 
   return (
     <div style={{ borderTop: '1px solid #1e2235', backgroundColor: '#111420', opacity: adSet.status === 'ACTIVE' ? 1 : 0.7 }}>
-      {/* Ad Set header */}
       <div style={{ padding: '8px 14px 8px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: statusColor, flexShrink: 0, display: 'inline-block' }} />
         <span style={{ fontSize: '11px', color: '#CBD5E1', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, fontWeight: 600 }}>
@@ -346,30 +378,22 @@ function AdSetCard({ adSet, today, currency }: { adSet: TreeAdSet; today: string
         <span style={{ fontSize: '10px', color: totalV > 0 ? C_GREEN : C_MUTED, flexShrink: 0 }}>{totalV > 0 ? `${totalV} ventas` : '0 ventas'}</span>
         <span style={{ fontSize: '10px', color: '#94A3B8', flexShrink: 0 }}>{formatCurrency(totalSpend, currency)}</span>
         {lastRoas && <span style={{ fontSize: '10px', color: roasColor(lastRoas), flexShrink: 0 }}>ROAS {lastRoas.toFixed(2)}x</span>}
-        <button
-          onClick={() => setOpenTable(v => !v)}
-          style={{ padding: '3px 8px', borderRadius: '5px', border: '1px solid #2D3244', cursor: 'pointer', backgroundColor: openTable ? '#6366F120' : 'transparent', color: openTable ? '#6366F1' : C_MUTED, fontSize: '10px', flexShrink: 0 }}
-        >
-          {openTable ? '▼ tabla' : '▶ tabla'}
-        </button>
+        <ToggleBtn active={openTable} onClick={() => setOpenTable(v => !v)}>▶ tabla</ToggleBtn>
+        <ToggleBtn active={openChart} onClick={() => setOpenChart(v => !v)}>📈 gráfico</ToggleBtn>
         {adSet.ads.length > 0 && (
-          <button
-            onClick={() => setOpenAds(v => !v)}
-            style={{ padding: '3px 8px', borderRadius: '5px', border: '1px solid #2D3244', cursor: 'pointer', backgroundColor: openAds ? '#F59E0B20' : 'transparent', color: openAds ? C_YELLOW : C_MUTED, fontSize: '10px', flexShrink: 0 }}
-          >
-            {openAds ? '▼' : '▶'} {adSet.ads.length} ads
-          </button>
+          <ToggleBtn active={openAds} onClick={() => setOpenAds(v => !v)}>
+            {adSet.ads.length} ads
+          </ToggleBtn>
         )}
       </div>
 
-      {/* Ad Set 5-day table */}
       {openTable && (
         <div style={{ borderTop: '1px solid #1e2235', backgroundColor: '#0d1018' }}>
           <DayTable days={adSet.days} today={today} currency={currency} compact />
         </div>
       )}
+      {openChart && <ChartPanel days={adSet.days} currency={currency} />}
 
-      {/* Ads */}
       {openAds && adSet.ads.length > 0 && (
         <div style={{ borderTop: '1px solid #1e2235', backgroundColor: '#0f1120' }}>
           <div style={{ padding: '5px 14px 3px 28px', fontSize: '9px', color: C_MUTED, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
@@ -386,6 +410,7 @@ function AdSetCard({ adSet, today, currency }: { adSet: TreeAdSet; today: string
 
 // ─── Campaign card ────────────────────────────────────────────────────────────
 function CampaignCard({ camp, today, currency, days }: { camp: TreeCampaign; today: string; currency: string; days: number }) {
+  const [openChart, setOpenChart] = useState(false)
   const [openAdSets, setOpenAdSets] = useState(false)
   const totalSpend = camp.days.reduce((s, d) => s + d.spend, 0)
   const totalV = camp.days.reduce((s, d) => s + d.purchases, 0)
@@ -403,23 +428,33 @@ function CampaignCard({ camp, today, currency, days }: { camp: TreeCampaign; tod
         >
           {camp.name || camp.id}
         </Link>
-        <div style={{ display: 'flex', gap: '12px', flexShrink: 0, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignItems: 'center' }}>
           <span style={{ fontSize: '10px', color: totalV > 0 ? C_GREEN : C_MUTED }}>{totalV > 0 ? `${totalV} ventas` : '0 ventas'}</span>
           <span style={{ fontSize: '10px', color: '#94A3B8' }}>{formatCurrency(totalSpend, currency)} gasto</span>
           {lastRoas && <span style={{ fontSize: '10px', color: roasColor(lastRoas) }}>ROAS {lastRoas.toFixed(2)}x hoy</span>}
+          <ToggleBtn active={openChart} onClick={() => setOpenChart(v => !v)}>📈 gráfico</ToggleBtn>
           {camp.adSets.length > 0 && (
-            <button
-              onClick={() => setOpenAdSets(v => !v)}
-              style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #2D3244', cursor: 'pointer', backgroundColor: openAdSets ? '#6366F120' : 'transparent', color: openAdSets ? '#6366F1' : C_MUTED, fontSize: '10px', fontWeight: 600 }}
-            >
-              {openAdSets ? '▼' : '▶'} {camp.adSets.length} conjuntos
-            </button>
+            <ToggleBtn active={openAdSets} onClick={() => setOpenAdSets(v => !v)}>
+              {camp.adSets.length} conjuntos
+            </ToggleBtn>
           )}
         </div>
       </div>
 
-      {/* Campaign 5-day table */}
+      {/* Campaign 5-day table (always visible) */}
       <DayTable days={camp.days} today={today} currency={currency} />
+
+      {/* Chart (toggleable) */}
+      {openChart && (
+        <div style={{ borderTop: '1px solid #2D3244', backgroundColor: '#0d1018', padding: '16px' }}>
+          <TrendCharts
+            data={camp.days as any}
+            currency={currency}
+            cpaTarget={CPA_TARGET}
+            cpaBreakeven={CPA_BREAKEVEN}
+          />
+        </div>
+      )}
 
       {/* Ad Sets (collapsible) */}
       {openAdSets && camp.adSets.length > 0 && (
@@ -451,7 +486,7 @@ export default function CollapsibleCampaignTree({ campaigns, currency, today, da
             ● Campañas activas
             <span style={{ flex: 1, height: '1px', backgroundColor: '#22C55E20' }} />
             <span style={{ fontWeight: 400, fontSize: '10px', textTransform: 'none' as const, color: C_MUTED }}>
-              últimas 5 fechas con datos · clic en "conjuntos" para expandir
+              últimas 5 fechas con datos · 📈 gráfico y conjuntos disponibles por campaña
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '10px', marginBottom: paused.length > 0 ? '20px' : '0' }}>
