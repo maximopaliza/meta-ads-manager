@@ -3,15 +3,28 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
-const links = [
-  { href: '/', label: 'Overview',   icon: '◎' },
-  { href: '/campaigns', label: 'Campañas', icon: '⬡' },
-  { href: '/ad-sets',   label: 'Ad Sets',  icon: '◈' },
-  { href: '/ads',       label: 'Ads',      icon: '▣' },
-  { href: '/creativos', label: 'Creativos', icon: '🎬' },
-  { href: '/analisis',  label: 'Análisis', icon: '◉' },
-  { href: '/analisis/diagnostico', label: 'Diagnóstico', icon: '🔍' },
-  { href: '/alerts',    label: 'Alertas',  icon: '◌' },
+const SECTIONS = [
+  {
+    title: 'ANÁLISIS',
+    links: [
+      { href: '/', label: 'Overview',   icon: '◎' },
+      { href: '/campaigns', label: 'Campañas', icon: '⬡' },
+      { href: '/ad-sets',   label: 'Ad Sets',  icon: '◈' },
+      { href: '/ads',       label: 'Ads',      icon: '▣' },
+      { href: '/creativos', label: 'Creativos', icon: '🎬' },
+      { href: '/analisis',  label: 'Análisis', icon: '◉' },
+      { href: '/analisis/diagnostico', label: 'Diagnóstico', icon: '🔍' },
+      { href: '/alerts',    label: 'Alertas',  icon: '◌' },
+    ],
+  },
+  {
+    title: 'LANZAMIENTO',
+    links: [
+      { href: '/productos',  label: 'Productos',  icon: '📦' },
+      { href: '/lanzar',     label: 'Lanzar',     icon: '🚀' },
+      { href: '/borradores', label: 'Borradores', icon: '📋' },
+    ],
+  },
 ]
 
 export default function Sidebar() {
@@ -85,58 +98,63 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav style={{ padding: '10px 10px', flex: 1 }}>
-        <div style={{
-          fontSize: '9px', color: '#3A5272', fontWeight: 700,
-          letterSpacing: '0.12em', padding: '4px 10px 8px', textTransform: 'uppercase',
-        }}>
-          NAVEGACIÓN
-        </div>
-        {links.map(link => {
-          const active = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href))
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="nav-link"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '9px 10px',
-                borderRadius: '6px',
-                marginBottom: '1px',
-                backgroundColor: active ? '#071428' : 'transparent',
-                color: active ? '#E8EDF5' : '#7A90AA',
-                textDecoration: 'none',
-                fontSize: '13px',
-                fontWeight: active ? 600 : 400,
-                position: 'relative',
-                borderLeft: active ? '2px solid #6366F1' : '2px solid transparent',
-                paddingLeft: active ? '8px' : '10px',
-                transition: 'all 0.12s ease',
-              }}
-            >
-              <span style={{
-                fontSize: '13px',
-                color: active ? '#6366F1' : '#4A6080',
-                width: '18px',
-                textAlign: 'center',
-              }}>{link.icon}</span>
-              <span>{link.label}</span>
-              {active && (
-                <span style={{
-                  marginLeft: 'auto',
-                  width: '4px', height: '4px',
-                  borderRadius: '50%',
-                  background: '#6366F1',
-                  boxShadow: '0 0 8px #6366F1',
-                  flexShrink: 0,
-                }} />
-              )}
-            </Link>
-          )
-        })}
+      <nav style={{ padding: '10px 10px', flex: 1, overflowY: 'auto' }}>
+        {SECTIONS.map(section => (
+          <div key={section.title}>
+            <div style={{
+              fontSize: '9px', color: '#3A5272', fontWeight: 700,
+              letterSpacing: '0.12em', padding: '4px 10px 8px', textTransform: 'uppercase',
+            }}>
+              {section.title}
+            </div>
+            {section.links.map(link => {
+              const active = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href))
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="nav-link"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '9px 10px',
+                    borderRadius: '6px',
+                    marginBottom: '1px',
+                    backgroundColor: active ? '#071428' : 'transparent',
+                    color: active ? '#E8EDF5' : '#7A90AA',
+                    textDecoration: 'none',
+                    fontSize: '13px',
+                    fontWeight: active ? 600 : 400,
+                    position: 'relative',
+                    borderLeft: active ? '2px solid #6366F1' : '2px solid transparent',
+                    paddingLeft: active ? '8px' : '10px',
+                    transition: 'all 0.12s ease',
+                  }}
+                >
+                  <span style={{
+                    fontSize: '13px',
+                    color: active ? '#6366F1' : '#4A6080',
+                    width: '18px',
+                    textAlign: 'center',
+                  }}>{link.icon}</span>
+                  <span>{link.label}</span>
+                  {active && (
+                    <span style={{
+                      marginLeft: 'auto',
+                      width: '4px', height: '4px',
+                      borderRadius: '50%',
+                      background: '#6366F1',
+                      boxShadow: '0 0 8px #6366F1',
+                      flexShrink: 0,
+                    }} />
+                  )}
+                </Link>
+              )
+            })}
+            <div style={{ height: '8px' }} />
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}
