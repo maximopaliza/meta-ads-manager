@@ -8,6 +8,7 @@ import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
 import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 import RangeSelector from '@/components/dashboard/RangeSelector'
 import BudgetControl from '@/components/shared/BudgetControl'
+import StatusToggle from '@/components/shared/StatusToggle'
 
 export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
   await headers()
@@ -188,7 +189,9 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                           {c.name || c.id}
                         </Link>
                       </td>
-                      <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(c.status)}</td>
+                      <td style={{ ...td, textAlign: 'center' as const }}>
+                        <StatusToggle objectId={c.id} objectType="campaign" initialStatus={c.status} />
+                      </td>
                       <td style={{ ...td, color: '#A8BCD0' }}>{c.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(c.t.impressions) : '—'}</td>
                       <td style={{ ...td, color: cpmColor(c.t.cpm) }}>{c.t.cpm ? formatCurrency(c.t.cpm, currency) : '—'}</td>
                       <td style={{ ...td, color: ctrColor(c.t.ctr) }}>{c.t.ctr ? `${c.t.ctr.toFixed(2)}%` : '—'}</td>

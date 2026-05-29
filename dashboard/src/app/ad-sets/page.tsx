@@ -8,6 +8,7 @@ import { Suspense } from 'react'
 import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
 import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 import BudgetControl from '@/components/shared/BudgetControl'
+import StatusToggle from '@/components/shared/StatusToggle'
 
 export default async function AdSetsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
   await headers()
@@ -196,7 +197,9 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                           {as.campaigns?.name || as.campaign_id}
                         </Link>
                       </td>
-                      <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(as.status)}</td>
+                      <td style={{ ...td, textAlign: 'center' as const }}>
+                        <StatusToggle objectId={as.id} objectType="ad_set" initialStatus={as.status} />
+                      </td>
                       <td style={{ ...td, color: '#A8BCD0' }}>{as.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(as.t.impressions) : '—'}</td>
                       <td style={{ ...td, color: cpmColor(as.t.cpm) }}>{as.t.cpm ? formatCurrency(as.t.cpm, currency) : '—'}</td>
                       <td style={{ ...td, color: ctrColor(as.t.ctr) }}>{as.t.ctr ? `${as.t.ctr.toFixed(2)}%` : '—'}</td>

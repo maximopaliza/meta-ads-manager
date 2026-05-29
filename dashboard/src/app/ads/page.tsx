@@ -6,6 +6,7 @@ import RangeSelector from '@/components/dashboard/RangeSelector'
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
+import StatusToggle from '@/components/shared/StatusToggle'
 import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 
 export default async function AdsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
@@ -206,7 +207,9 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                           {ad.ad_sets?.campaigns?.name || '—'}
                         </Link>
                       </td>
-                      <td style={{ ...td, textAlign: 'center' as const }}>{statusEmoji(ad.status)}</td>
+                      <td style={{ ...td, textAlign: 'center' as const }}>
+                        <StatusToggle objectId={ad.id} objectType="ad" initialStatus={ad.status} />
+                      </td>
                       <td style={{ ...td, color: '#A8BCD0' }}>{ad.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(ad.t.impressions) : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{ad.t.cpm ? formatCurrency(ad.t.cpm, currency) : '—'}</td>
                       <td style={{ ...td, color: ctrColor(ad.t.ctr) }}>{ad.t.ctr ? `${ad.t.ctr.toFixed(2)}%` : '—'}</td>
