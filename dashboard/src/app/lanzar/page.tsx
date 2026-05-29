@@ -379,6 +379,11 @@ export default function LanzarPage() {
                     filtered.forEach(f => setSelectedFiles(s => { const n = new Set(s); n.add(f.id); return n }))
                   }} style={S.btnSec}>Todos</button>
                   <button onClick={() => { const ids = new Set((driveFiles[activeFolder] || []).map(f => f.id)); setSelectedFiles(s => { const n = new Set(s); ids.forEach(id => n.delete(id)); return n }) }} style={S.btnSec}>Ninguno</button>
+                  {totalSel > 0 && (
+                    <button onClick={goToStep1} style={{ ...S.btnPri, fontSize: '12px', padding: '8px 16px' }}>
+                      ✨ Analizar {totalSel} ads →
+                    </button>
+                  )}
                 </div>
 
                 {loadingDrive
@@ -794,13 +799,8 @@ export default function LanzarPage() {
                 {step > 0 && <button onClick={() => setStep(s => s - 1)} style={S.btnSec}>← Anterior</button>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {step === 0 && (
-                  <>
-                    {totalSel > 0 && <span style={{ fontSize: '13px', color: '#7A90AA' }}>{totalSel} seleccionados</span>}
-                    <button onClick={goToStep1} disabled={totalSel === 0} style={{ ...S.btnPri, opacity: totalSel === 0 ? 0.4 : 1, cursor: totalSel === 0 ? 'not-allowed' : 'pointer' }}>
-                      Analizar y generar copies ({totalSel}) →
-                    </button>
-                  </>
+                {step === 0 && totalSel === 0 && (
+                  <span style={{ fontSize: '13px', color: '#3A5270' }}>Seleccioná al menos un archivo</span>
                 )}
                 {step === 1 && loadingCount === 0 && (
                   <button onClick={() => setStep(2)} style={S.btnPri}>Organizar →</button>

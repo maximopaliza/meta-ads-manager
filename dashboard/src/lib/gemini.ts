@@ -91,7 +91,7 @@ interface GeminiPart {
 export async function generateContent(parts: GeminiPart[]): Promise<string> {
   const key = GEMINI_KEY()
   const res = await fetch(
-    `${BASE}/models/gemini-1.5-flash:generateContent?key=${key}`,
+    `${BASE}/models/gemini-2.0-flash-lite:generateContent?key=${key}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
