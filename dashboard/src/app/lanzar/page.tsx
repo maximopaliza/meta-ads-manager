@@ -51,7 +51,31 @@ type CreationProgress = {
 }
 
 // ── Steps ─────────────────────────────────────────────────────────────────────
-const STEPS = ['Archivos', 'Análisis IA', 'Configurar', 'Estructura', 'Revisar', 'Crear']
+const STEPS = ['Archivos', 'Copy', 'Configurar', 'Estructura', 'Revisar', 'Crear']
+
+// ── Predefined angles ──────────────────────────────────────────────────────────
+const ANGLES = [
+  { value: '',                     label: '— Elegir ángulo —' },
+  { value: 'deterioro_silencioso', label: '👁 Deterioro silencioso de la vista' },
+  { value: 'fatiga_pantallas',     label: '💻 Fatiga visual por pantallas' },
+  { value: 'ojo_seco',             label: '💧 Ojo seco crónico — las gotas no llegan' },
+  { value: 'danos_sol',            label: '☀️ Daños del sol en la retina' },
+  { value: 'glaucoma_macular',     label: '🔬 Glaucoma y degeneración macular' },
+  { value: 'diabetes_hipertension',label: '🩺 Diabetes e hipertensión — retina en riesgo' },
+  { value: 'carnosidad',           label: '🔴 Carnosidad / pterigión — frenar sin cirugía' },
+  { value: 'ojos_rojos',           label: '🔴 Ojos rojos e inflamados' },
+  { value: 'antecedentes',         label: '👨‍👩‍👧 Antecedentes familiares oculares' },
+  { value: 'spray_vs_capsula',     label: '💊 Spray vs cápsula — absorción vía sangre' },
+  { value: 'estudio_areds2',       label: '📊 68% menos riesgo — Estudio AREDS2' },
+  { value: 'recuperacion',         label: '✨ Recuperación — células que vuelven a nutrirse' },
+  { value: 'paso_anos',            label: '⏳ El paso de los años — deterioro progresivo' },
+  { value: 'conductores',          label: '🚗 Conductores nocturnos — halos y visión borrosa' },
+  { value: 'oferta_urgencia',      label: '⚡ Oferta limitada / stock limitado' },
+  { value: 'prevencion',           label: '🛡 Prevención general — cuidar antes de que falle' },
+  { value: 'posicionamiento',      label: '🏆 El mejor suplemento ocular — posicionamiento' },
+  { value: 'antes_cirugia',        label: '🏥 Quería intentar todo antes de operarme' },
+  { value: 'comparativa_packs',    label: '📦 Comparativa de packs — precio por mes' },
+]
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const S = {
@@ -178,20 +202,20 @@ export default function LanzarPage() {
   function goToAnalysis() {
     const all = Object.values(driveFiles).flat()
     const sel = all.filter(f => selectedFiles.has(f.id))
-    const cfgs: AdConfig[] = sel.map((f, i) => ({
+    const cfgs: AdConfig[] = sel.map(f => ({
       driveFileId: f.id, fileName: f.name, mimeType: f.mimeType,
       isVideo: f.isVideo, thumbnailLink: f.thumbnailLink,
       headline: '', primaryText: '', angle: '',
       targeting: { geo_locations: { countries: ['AR'] }, age_min: config.ageMin, age_max: config.ageMax },
-      analysisLoading: true,
-      adSetIdx: 0,  // all in set 0 by default
+      analysisLoading: false,  // no auto-analysis — manual copy
+      adSetIdx: 0,
     }))
     setAdConfigs(cfgs)
     const today = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }).replace('/', '.')
     setConfig(c => ({ ...c, campaignName: `Campaña ${today}` }))
     loadMeta()
     setStep(1)
-    setTimeout(() => analyzeAllSeq(cfgs), 200)
+    // No Gemini call — user fills copy manually
   }
 
   // ── Analysis ───────────────────────────────────────────────────────────────
@@ -348,58 +372,86 @@ export default function LanzarPage() {
             </div>
           )}
 
-          {/* ── STEP 1: Análisis IA ──────────────────────────────────────── */}
+          {/* ── STEP 1: Copy manual ──────────────────────────────────────── */}
           {step === 1 && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '13px', color: '#7A90AA', flex: 1 }}>
-                  {adConfigs.some(a => a.analysisLoading)
-                    ? `⏳ Analizando de a uno... (${adConfigs.filter(a => !a.analysisLoading).length}/${adConfigs.length} listos)`
-                    : `✅ ${adConfigs.filter(a => a.headline).length}/${adConfigs.length} analizados — podés editar el copy antes de continuar`}
-                </div>
-                <button onClick={() => analyzeAllSeq()} style={S.btnSec}>↻ Re-analizar todos</button>
+              <div style={{ fontSize: '13px', color: '#7A90AA', marginBottom: '16px' }}>
+                Abrí cada video, elegí el ángulo y completá el copy. El título va en el anuncio de Meta (máx 40 chars).
               </div>
-
-              {/* Quota error banner */}
-              {adConfigs.some(a => a.analysisError?.includes('quota')) && (
-                <div style={{ background: '#F59E0B10', border: '1px solid #F59E0B35', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '12px', color: '#F59E0B' }}>
-                  ⚠ <strong>Cuota de Gemini agotada.</strong> Habilitá facturación en <a href="https://ai.google.dev" target="_blank" style={{ color: '#6366F1' }}>ai.google.dev</a> (~$0.01/día para tu uso). Mientras tanto, completá el copy manualmente.
-                </div>
-              )}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {adConfigs.map((ad, i) => (
-                  <div key={ad.driveFileId} style={S.card}>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <div style={{ width: '72px', height: '72px', flexShrink: 0, borderRadius: '7px', overflow: 'hidden', background: '#050C1E' }}>
-                        {ad.thumbnailLink ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '24px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#C0CFDF', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {ad.fileName}
-                          {ad.angle && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#6366F1' }}>· {ad.angle}</span>}
+                  <div key={ad.driveFileId} style={{ ...S.card, padding: '0', overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', minHeight: '180px' }}>
+
+                      {/* Left: preview */}
+                      <div style={{ background: '#050C1E', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                        {/* Thumbnail */}
+                        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                          {ad.thumbnailLink
+                            ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '40px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>
+                          }
+                          {ad.isVideo && (
+                            <div style={{ position: 'absolute', top: '8px', left: '8px', background: '#00000080', borderRadius: '4px', padding: '2px 7px', fontSize: '10px', color: '#fff', fontWeight: 700 }}>VIDEO</div>
+                          )}
                         </div>
-                        {ad.analysisLoading ? (
-                          <div style={{ color: '#7A90AA', fontSize: '12px' }}>⏳ Analizando con Gemini...</div>
-                        ) : (
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                            <div>
-                              <label style={{ ...S.label, fontSize: '10px' }}>Título (máx 40)</label>
-                              <input value={ad.headline} onChange={e => updateAd(i, 'headline', e.target.value)} maxLength={40} style={{ ...S.input, fontWeight: 600, fontSize: '12px' }} />
-                              {ad.analysisError && !ad.headline && <div style={{ fontSize: '10px', color: '#F59E0B', marginTop: '2px' }}>⚠ IA falló — completá manualmente</div>}
-                            </div>
-                            <div>
-                              <label style={{ ...S.label, fontSize: '10px' }}>Ángulo</label>
-                              <input value={ad.angle} onChange={e => updateAd(i, 'angle', e.target.value)} style={{ ...S.input, fontSize: '12px' }} />
-                            </div>
-                            <div style={{ gridColumn: '1 / -1' }}>
-                              <label style={{ ...S.label, fontSize: '10px' }}>Texto principal</label>
-                              <textarea value={ad.primaryText} onChange={e => updateAd(i, 'primaryText', e.target.value)} rows={2} style={{ ...S.input, resize: 'vertical', lineHeight: 1.5, fontSize: '12px' }} />
-                            </div>
+                        {/* File name + open button */}
+                        <div style={{ padding: '8px 10px', borderTop: '1px solid #1A4080' }}>
+                          <div style={{ fontSize: '10px', color: '#7A90AA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '6px' }} title={ad.fileName}>
+                            {ad.fileName}
                           </div>
-                        )}
+                          <a
+                            href={`https://drive.google.com/file/d/${ad.driveFileId}/view`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', background: '#6366F1', color: '#fff', borderRadius: '6px', padding: '6px', fontSize: '11px', fontWeight: 600, textDecoration: 'none' }}
+                          >
+                            ▶ Ver {ad.isVideo ? 'video' : 'imagen'}
+                          </a>
+                        </div>
                       </div>
-                      <button onClick={() => analyzeOne(i, ad)} style={{ ...S.btnSec, padding: '6px 10px', fontSize: '11px', alignSelf: 'flex-start', flexShrink: 0 }}>↻</button>
+
+                      {/* Right: copy form */}
+                      <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                        {/* Angle selector */}
+                        <div>
+                          <label style={S.label}>Ángulo del ad</label>
+                          <select value={ad.angle} onChange={e => updateAd(i, 'angle', e.target.value)}
+                            style={{ ...S.input, appearance: 'none' as any }}>
+                            {ANGLES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                          </select>
+                        </div>
+
+                        {/* Headline */}
+                        <div>
+                          <label style={S.label}>
+                            Título del anuncio
+                            <span style={{ marginLeft: '8px', fontSize: '11px', color: ad.headline.length > 35 ? '#F59E0B' : '#3A5270' }}>
+                              {ad.headline.length}/40
+                            </span>
+                          </label>
+                          <input
+                            value={ad.headline}
+                            onChange={e => updateAd(i, 'headline', e.target.value)}
+                            maxLength={40}
+                            placeholder="Ej: ¿Tu vista está fallando después de los 40?"
+                            style={{ ...S.input, fontWeight: 600 }}
+                          />
+                        </div>
+
+                        {/* Primary text */}
+                        <div style={{ flex: 1 }}>
+                          <label style={S.label}>Texto principal del anuncio</label>
+                          <textarea
+                            value={ad.primaryText}
+                            onChange={e => updateAd(i, 'primaryText', e.target.value)}
+                            rows={4}
+                            placeholder="Escribí el copy del anuncio..."
+                            style={{ ...S.input, resize: 'vertical', lineHeight: 1.6 }}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -655,9 +707,7 @@ export default function LanzarPage() {
                   </>
                 )}
                 {step === 1 && (
-                  <button onClick={() => setStep(2)} style={S.btnPri}>
-                    {adConfigs.some(a => a.analysisLoading) ? 'Continuar sin esperar →' : 'Configurar →'}
-                  </button>
+                  <button onClick={() => setStep(2)} style={S.btnPri}>Configurar →</button>
                 )}
                 {step === 2 && (
                   <button onClick={() => {
