@@ -135,6 +135,7 @@ export default function LanzarPage() {
   const [loadingDrive, setLoadingDrive]   = useState(false)
   const [filterType, setFilterType]       = useState<'all' | 'video' | 'image'>('all')
   const [filterSort, setFilterSort]       = useState<'newest' | 'oldest' | 'name'>('newest')
+  const [filterSearch, setFilterSearch]   = useState('')
 
   // Step 1 — ads with auto-generated copy
   const [ads, setAds] = useState<AdDraft[]>([])
@@ -365,6 +366,14 @@ export default function LanzarPage() {
                     </button>
                   ))}
 
+                  {/* Search by name */}
+                  <input
+                    value={filterSearch}
+                    onChange={e => setFilterSearch(e.target.value)}
+                    placeholder="Buscar por nombre..."
+                    style={{ ...S.input, width: '160px', fontSize: '11px', padding: '4px 10px' }}
+                  />
+
                   {/* Sort */}
                   <select value={filterSort} onChange={e => setFilterSort(e.target.value as any)} style={{ ...S.input, width: 'auto', fontSize: '11px', padding: '4px 10px' }}>
                     <option value="newest">Más nuevos primero</option>
@@ -394,6 +403,7 @@ export default function LanzarPage() {
                         let files = [...(driveFiles[activeFolder] || [])]
                         if (filterType === 'video') files = files.filter(f => f.isVideo)
                         if (filterType === 'image') files = files.filter(f => !f.isVideo)
+                        if (filterSearch.trim()) files = files.filter(f => f.name.toLowerCase().includes(filterSearch.toLowerCase()))
                         if (filterSort === 'newest') files.sort((a, b) => b.modifiedTime.localeCompare(a.modifiedTime))
                         if (filterSort === 'oldest') files.sort((a, b) => a.modifiedTime.localeCompare(b.modifiedTime))
                         if (filterSort === 'name')   files.sort((a, b) => a.name.localeCompare(b.name))

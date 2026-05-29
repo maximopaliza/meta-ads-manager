@@ -10,6 +10,7 @@ const GEMINI_KEY = () => {
 }
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta'
+const MODEL = 'gemini-2.0-flash'
 
 // ── File Upload (resumable protocol — works for any size) ────────────────────
 
@@ -91,7 +92,7 @@ interface GeminiPart {
 export async function generateContent(parts: GeminiPart[]): Promise<string> {
   const key = GEMINI_KEY()
   const res = await fetch(
-    `${BASE}/models/gemini-2.0-flash-lite:generateContent?key=${key}`,
+    `${BASE}/models/${MODEL}:generateContent?key=${key}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
