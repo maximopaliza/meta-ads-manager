@@ -7,12 +7,15 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
 import StatusToggle from '@/components/shared/StatusToggle'
+import SortableHeader from '@/components/shared/SortableHeader'
 import { getLatestDate, cpaColor, roasColor, ctrColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 
-export default async function AdsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
+export default async function AdsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; sort?: string; dir?: string }> }) {
   await headers()
-  const sp = await searchParams
-  const today = await getLatestDate()
+  const sp      = await searchParams
+  const sortCol = sp.sort || ''
+  const sortDir = sp.dir  || 'desc'
+  const today   = await getLatestDate()
   const { rangeStart, rangeEnd, days, label } = resolveDateRange(sp, today, 7)
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
@@ -104,6 +107,11 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
   }).sort((a: any, b: any) => {
     if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
     if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
+    if (sortCol) {
+      const aVal = a.t[sortCol] ?? 0
+      const bVal = b.t[sortCol] ?? 0
+      return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+    }
     return b.t.spend - a.t.spend
   })
 
@@ -137,28 +145,28 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                     <th style={{ ...th, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 2 }}>Ad</th>
                     <th style={{ ...th, textAlign: 'left' as const, minWidth: '120px' }}>Ad Set</th>
                     <th style={{ ...th, textAlign: 'left' as const, minWidth: '120px' }}>Campaña</th>
-                    <th style={th}>Impresiones</th>
-                    <th style={th}>CPM</th>
-                    <th style={th}>CTR único</th>
-                    <th style={th}>CPC</th>
-                    <th style={th}>Clics únicos</th>
-                    <th style={th}>Visitas LP</th>
-                    <th style={th}>ATC</th>
-                    <th style={th}>Costo/ATC</th>
-                    <th style={th}>Pagos inic.</th>
-                    <th style={th}>Resultados</th>
-                    <th style={th}>CPA</th>
-                    <th style={th}>Importe gastado</th>
-                    <th style={th}>Valor resultados</th>
-                    <th style={th}>ROAS</th>
-                    <th style={th}>Tráf. ef.</th>
-                    <th style={th}>Conv. WEB</th>
-                    <th style={th}>Frecuencia</th>
-                    <th style={th}>Hook Rate</th>
-                    <th style={th}>Hold Rate</th>
-                    <th style={th}>ThruPlay%</th>
-                    <th style={th}>CTR post-view</th>
-                    <th style={th}>Video avg</th>
+                    <SortableHeader col="impressions"       label="Impresiones"   currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="cpm"               label="CPM"           currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="ctr"               label="CTR único"     currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="cpc"               label="CPC"           currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="unique_link_clicks" label="Clics únicos" currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="landing_page_views" label="Visitas LP"   currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="add_to_cart"       label="ATC"           currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="cost_per_atc"      label="Costo/ATC"     currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="checkout_initiated" label="Pagos inic."  currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="purchases"         label="Resultados"    currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="cpa"               label="CPA"           currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="spend"             label="Gasto"         currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="purchase_value"    label="Valor result." currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="roas"              label="ROAS"          currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="traf_ef"           label="Tráf. ef."     currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="conv_web"          label="Conv. WEB"     currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="frequency"         label="Frecuencia"    currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="hook_rate"         label="Hook Rate"     currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="hold_rate"         label="Hold Rate"     currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="thruplay_rate"     label="ThruPlay%"     currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="ctr_post_view"     label="CTR post-view" currentSort={sortCol} currentDir={sortDir} style={th} />
+                    <SortableHeader col="video_avg"         label="Video avg"     currentSort={sortCol} currentDir={sortDir} style={th} />
                     <th style={th}>Tend.</th>
                   </tr>
                 </thead>

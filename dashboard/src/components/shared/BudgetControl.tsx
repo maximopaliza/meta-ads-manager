@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 
 interface Props {
   objectId: string
@@ -13,17 +13,12 @@ interface Props {
 export default function BudgetControl({ objectId, objectType, budgetCents, currency, isActive }: Props) {
   const [cents, setCents]   = useState(budgetCents)
   const [open, setOpen]     = useState(false)
+  const [pos, setPos]       = useState({ top: 0, left: 0 })
   const [val, setVal]       = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState('')
+  const btnRef = useRef<HTMLButtonElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (open && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
-    }
-  }, [open])
 
   if (cents == null) return <span style={{ color: '#3A5270', fontSize: '11px' }}>—</span>
 
@@ -31,14 +26,17 @@ export default function BudgetControl({ objectId, objectType, budgetCents, curre
     style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0,
   }).format(c / 100)
 
-  const newCents  = Math.round(parseFloat(val) * 100)
-  const isValid   = !isNaN(newCents) && newCents >= 100
+  const newCents = Math.round(parseFloat(val) * 100)
+  const isValid  = !isNaN(newCents) && newCents >= 100
 
   function openPopover() {
-    if (!isActive) return
-    setVal((cents! / 100).toFixed(0))  // pre-fill with current value
+    if (!isActive || !btnRef.current) return
+    const rect = btnRef.current.getBoundingClientRect()
+    setPos({ top: rect.bottom + 4, left: rect.left })
+    setVal((cents! / 100).toFixed(0))
     setError('')
     setOpen(true)
+    setTimeout(() => inputRef.current?.select(), 50)
   }
 
   async function apply() {
@@ -64,9 +62,8 @@ export default function BudgetControl({ objectId, objectType, budgetCents, curre
 
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
-
-      {/* Current budget — click to edit */}
       <button
+        ref={btnRef}
         onClick={openPopover}
         disabled={!isActive}
         title={isActive ? 'Click para cambiar presupuesto' : 'Solo disponible para activos'}
@@ -75,27 +72,30 @@ export default function BudgetControl({ objectId, objectType, budgetCents, curre
           color: '#E8EDF5', fontSize: '11px', fontWeight: 700,
           cursor: isActive ? 'pointer' : 'default',
           padding: '3px 10px', opacity: isActive ? 1 : 0.5,
+          whiteSpace: 'nowrap',
         }}
       >
         {fmt(cents!)} {isActive && <span style={{ fontSize: '9px', color: '#6366F1' }}>✏</span>}
       </button>
 
-      {/* Popover */}
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
           <div style={{
-            position: 'fixed', right: 'auto', top: 'auto', zIndex: 9999,
-            transform: 'translateY(4px)',
-            background: '#0E1B30', border: '1px solid #1A4080', borderRadius: '10px',
-            padding: '16px', width: '220px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            zIndex: 9999,
+            background: '#0E1B30',
+            border: '1px solid #1A4080',
+            borderRadius: '10px',
+            padding: '16px',
+            width: '220px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
           }}>
             <div style={{ fontSize: '11px', color: '#7A90AA', marginBottom: '10px' }}>
               Presupuesto diario
             </div>
-
-            {/* Input — pre-filled with current, user types new total */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
               <span style={{ color: '#7A90AA', fontSize: '13px', fontWeight: 700 }}>$</span>
               <input
@@ -113,9 +113,7 @@ export default function BudgetControl({ objectId, objectType, budgetCents, curre
               />
               <span style={{ color: '#7A90AA', fontSize: '11px' }}>/día</span>
             </div>
-
             {error && <div style={{ fontSize: '11px', color: '#EF4444', marginBottom: '8px' }}>⚠ {error}</div>}
-
             <button
               onClick={apply}
               disabled={!isValid || loading}
