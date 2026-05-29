@@ -249,7 +249,7 @@ export default function LanzarPage() {
       primaryText:     '',
       angle:           '',
       targeting:       { geo_locations: { countries: ['AR'] }, age_min: 18, age_max: 65 },
-      analysisLoading: false,
+      analysisLoading: true,  // spinner visible from the start
     }))
     setAdConfigs(configs)
     // Auto-suggest campaign name
@@ -312,9 +312,12 @@ export default function LanzarPage() {
     }
   }
 
-  function analyzeAll(configs?: AdConfig[]) {
+  // Sequential — avoids overwhelming server with 5 simultaneous large video uploads
+  async function analyzeAll(configs?: AdConfig[]) {
     const list = configs || adConfigs
-    list.forEach((cfg, i) => analyzeOne(i, config.productId || undefined, cfg))
+    for (let i = 0; i < list.length; i++) {
+      await analyzeOne(i, config.productId || undefined, list[i])
+    }
   }
 
   function updateAdConfig(idx: number, field: keyof AdConfig, val: any) {
@@ -499,7 +502,10 @@ export default function LanzarPage() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ fontSize: '14px', color: '#7A90AA', flex: 1 }}>
-                  Analizando {adConfigs.length} creativos con Gemini...
+                  {adConfigs.some(a => a.analysisLoading)
+                    ? `⏳ Analizando de a uno... (${adConfigs.filter(a => !a.analysisLoading).length}/${adConfigs.length} listos — 1-2 min por video)`
+                    : `✅ ${adConfigs.filter(a => a.headline).length}/${adConfigs.length} analizados`
+                  }
                 </div>
                 <button onClick={() => analyzeAll()} style={S.btnSecondary}>↻ Re-analizar todos</button>
               </div>
