@@ -23,7 +23,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
 
   const [adsRes, yesterdayM, rangeM, accountRes] = await Promise.all([
-    supabaseAdmin.from('ads').select('*, ad_sets(name, campaign_id, campaigns(name))'),
+    supabaseAdmin.from('ads').select('*, ad_sets(name, campaign_id, status, campaigns(name, status))'),
     supabaseAdmin.from('metrics').select('object_id,roas').eq('object_type', 'ad').eq('date', yesterday),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad').gte('date', rangeStart).lte('date', rangeEnd),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
@@ -107,6 +107,10 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
       trend: (t.roas ?? 0) > (ym?.roas ?? 0) ? '▲' : (t.roas ?? 0) < (ym?.roas ?? 0) ? '▼' : '—',
     }
   }).sort((a: any, b: any) => {
+    const aEff = a.status === 'ACTIVE' && a.ad_sets?.status === 'ACTIVE' && a.ad_sets?.campaigns?.status === 'ACTIVE'
+    const bEff = b.status === 'ACTIVE' && b.ad_sets?.status === 'ACTIVE' && b.ad_sets?.campaigns?.status === 'ACTIVE'
+    if (aEff && !bEff) return -1
+    if (bEff && !aEff) return 1
     if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
     if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
     if (sortCol) {
@@ -206,9 +210,17 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                     <td style={tf}>—</td>
                   </tr>
                   {rows.map((ad: any, idx: number) => {
-                    const active  = ad.status === 'ACTIVE'
-                    const rowBg   = active ? '#071428' : '#050810'
-                    const showSep = idx > 0 && !active && rows[idx - 1].status === 'ACTIVE'
+                    const active    = ad.status === 'ACTIVE'
+                    const asOff     = ad.ad_sets?.status !== 'ACTIVE'
+                    const campOff   = ad.ad_sets?.campaigns?.status !== 'ACTIVE'
+                    const effective = active && !asOff && !campOff
+                    const blockedBy = active && campOff ? 'campaign' as const
+                                    : active && asOff   ? 'adset' as const
+                                    : null
+                    const rowBg     = effective ? '#071428' : '#050810'
+                    const prevRow   = rows[idx - 1]
+                    const prevEff   = idx > 0 && prevRow.status === 'ACTIVE' && prevRow.ad_sets?.status === 'ACTIVE' && prevRow.ad_sets?.campaigns?.status === 'ACTIVE'
+                    const showSep   = idx > 0 && !effective && prevEff
                     return (
                     <>
                     {showSep && (
@@ -218,9 +230,12 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                         </td>
                       </tr>
                     )}
-                    <tr key={ad.id} style={{ opacity: active ? 1 : 0.55, borderLeft: active ? '3px solid #22C55E' : '3px solid #EF444460' }}>
+                    <tr key={ad.id} style={{
+                      opacity: effective ? 1 : 0.6,
+                      borderLeft: effective ? '3px solid #22C55E' : blockedBy ? '3px solid #F59E0B60' : '3px solid #EF444460',
+                    }}>
                       <td style={{ ...td, position: 'sticky', left: 0, zIndex: 1, backgroundColor: rowBg, textAlign: 'center' as const, width: '64px' }}>
-                        <StatusToggle objectId={ad.id} objectType="ad" initialStatus={ad.status} />
+                        <StatusToggle objectId={ad.id} objectType="ad" initialStatus={ad.status} blockedBy={blockedBy} />
                       </td>
                       <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 1, backgroundColor: rowBg }}>
                         <Link href={`/ads/${ad.id}`} style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, textDecoration: 'none' }} title={ad.name}>{ad.name}</Link>

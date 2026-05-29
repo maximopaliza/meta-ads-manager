@@ -24,7 +24,7 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
 
   const [adSetsRes, yesterdayM, rangeM, accountRes] = await Promise.all([
-    supabaseAdmin.from('ad_sets').select('*, campaigns(name, daily_budget)'),
+    supabaseAdmin.from('ad_sets').select('*, campaigns(name, daily_budget, status)'),
     supabaseAdmin.from('metrics').select('object_id,roas').eq('object_type', 'ad_set').eq('date', yesterday),
     supabaseAdmin.from('metrics').select('*').eq('object_type', 'ad_set').gte('date', rangeStart).lte('date', rangeEnd),
     supabaseAdmin.from('ad_accounts').select('currency').limit(1),
@@ -104,6 +104,12 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
       trend: (t.roas ?? 0) > (ym?.roas ?? 0) ? '▲' : (t.roas ?? 0) < (ym?.roas ?? 0) ? '▼' : '—',
     }
   }).sort((a: any, b: any) => {
+    // effectiveActive = both ad_set AND campaign are ACTIVE
+    const aEff = a.status === 'ACTIVE' && a.campaigns?.status === 'ACTIVE'
+    const bEff = b.status === 'ACTIVE' && b.campaigns?.status === 'ACTIVE'
+    if (aEff && !bEff) return -1
+    if (bEff && !aEff) return 1
+    // Then: own-active (but campaign paused) before fully paused
     if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1
     if (b.status === 'ACTIVE' && a.status !== 'ACTIVE') return 1
     if (sortCol) {
@@ -199,8 +205,12 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                     <td style={tf}>—</td>
                   </tr>
                   {rows.map((as: any, idx: number) => {
-                    const active  = as.status === 'ACTIVE'
-                    const showSep = idx > 0 && !active && rows[idx - 1].status === 'ACTIVE'
+                    const active    = as.status === 'ACTIVE'
+                    const campOff   = as.campaigns?.status !== 'ACTIVE'
+                    const effective = active && !campOff   // truly running
+                    const blockedBy = active && campOff ? 'campaign' as const : null
+                    const prevEff   = idx > 0 && rows[idx - 1].status === 'ACTIVE' && rows[idx - 1].campaigns?.status === 'ACTIVE'
+                    const showSep   = idx > 0 && !effective && prevEff
                     return (
                     <>
                     {showSep && (
@@ -210,11 +220,14 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                         </td>
                       </tr>
                     )}
-                    <tr key={as.id} style={{ opacity: active ? 1 : 0.55, borderLeft: active ? '3px solid #22C55E' : '3px solid #EF444460' }}>
-                      <td style={{ ...td, position: 'sticky', left: 0, zIndex: 1, backgroundColor: as.status === 'ACTIVE' ? '#071428' : '#050810', textAlign: 'center' as const, width: '64px' }}>
-                        <StatusToggle objectId={as.id} objectType="ad_set" initialStatus={as.status} />
+                    <tr key={as.id} style={{
+                      opacity: effective ? 1 : 0.6,
+                      borderLeft: effective ? '3px solid #22C55E' : blockedBy ? '3px solid #F59E0B60' : '3px solid #EF444460',
+                    }}>
+                      <td style={{ ...td, position: 'sticky', left: 0, zIndex: 1, backgroundColor: effective ? '#071428' : '#050810', textAlign: 'center' as const, width: '64px' }}>
+                        <StatusToggle objectId={as.id} objectType="ad_set" initialStatus={as.status} blockedBy={blockedBy} />
                       </td>
-                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 1, backgroundColor: as.status === 'ACTIVE' ? '#071428' : '#050810' }}>
+                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 1, backgroundColor: effective ? '#071428' : '#050810' }}>
                         <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{as.name}</span>
                       </td>
                       <td style={{ ...td, textAlign: 'left' as const, minWidth: '130px' }}>
