@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateContent } from '@/lib/gemini'
 import { supabaseAdmin } from '@/lib/supabase'
+import { getDriveToken } from '@/lib/drive'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,10 +26,46 @@ Respondé ÚNICAMENTE con JSON (sin markdown, sin texto extra):
 }`
 
 export async function POST(req: NextRequest) {
-  const { angle } = await req.json()
+  const { angle, driveFileId, thumbnailLink } = await req.json()
   if (!angle) return NextResponse.json({ error: 'angle requerido' }, { status: 400 })
 
-  // Load winner examples for this angle to guide generation
+  // ── 1. Buscar análisis cacheado en Supabase ──────────────────────────────
+  let videoContext = ''
+  if (driveFileId) {
+    try {
+      const { data: cached } = await supabaseAdmin
+        .from('video_analysis')
+        .select('analysis, primary_text, headline')
+        .eq('drive_file_id', driveFileId)
+        .single()
+      if (cached?.analysis) {
+        videoContext = `\n\nEl video trata sobre: ${cached.analysis}`
+      }
+    } catch (_) {}
+  }
+
+  // ── 2. Si no hay cache, analizar el thumbnail con Gemini ─────────────────
+  if (!videoContext && thumbnailLink) {
+    try {
+      const token = await getDriveToken()
+      const thumbRes = await fetch(thumbnailLink, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (thumbRes.ok) {
+        const buf = Buffer.from(await thumbRes.arrayBuffer())
+        const base64 = buf.toString('base64')
+        const mime = thumbRes.headers.get('content-type') || 'image/jpeg'
+
+        const descRaw = await generateContent([
+          { inlineData: { mimeType: mime, data: base64 } },
+          { text: 'Describí en 1-2 oraciones de qué trata este video publicitario: qué problema muestra, qué emoción transmite, de qué habla. Sé concreto y breve.' },
+        ])
+        if (descRaw) videoContext = `\n\nEl video trata sobre: ${descRaw.trim()}`
+      }
+    } catch (_) {}
+  }
+
+  // ── 3. Cargar copies ganadores para este ángulo ──────────────────────────
   let winnersContext = ''
   try {
     const { data } = await supabaseAdmin
@@ -44,7 +81,11 @@ export async function POST(req: NextRequest) {
     }
   } catch (_) {}
 
-  const prompt = `Generá copy para un anuncio de Meta Ads con este ángulo: "${angle}"${winnersContext}\n\nRespondé solo con el JSON.`
+  // ── 4. Generar copy ───────────────────────────────────────────────────────
+  const prompt = `Generá copy para un anuncio de Meta Ads.
+Ángulo elegido: "${angle}"${videoContext}${winnersContext}
+
+El copy debe reflejar exactamente el tema del video. Respondé solo con el JSON.`
 
   try {
     const raw = await generateContent([{ text: SYSTEM_PROMPT + '\n\n' + prompt }])

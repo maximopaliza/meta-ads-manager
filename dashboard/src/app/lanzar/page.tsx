@@ -259,7 +259,7 @@ export default function LanzarPage() {
     try {
       const res = await fetch('/api/copy/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ angle: ad.angle }),
+        body: JSON.stringify({ angle: ad.angle, driveFileId: ad.driveFileId, thumbnailLink: ad.thumbnailLink }),
       })
       const data = await res.json()
       if (data.error) {
