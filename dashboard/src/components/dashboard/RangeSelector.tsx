@@ -24,8 +24,8 @@ export default function RangeSelector() {
 
   const hasNoParams = !currentDays && !currentFrom && !currentTo
   const isSingleDay = !!(currentFrom && currentTo && currentFrom === currentTo)
-  // "Día" está activo cuando: no hay params (default = hoy) o hay from=to
-  const isDay = isSingleDay || hasNoParams
+  // "Día" está activo solo cuando hay from=to explícito (no cuando no hay params)
+  const isDay = isSingleDay
   const [showCustom, setShowCustom] = useState(isCustom && !isSingleDay)
   const [showDay, setShowDay] = useState(isSingleDay)
   const [from, setFrom] = useState(currentFrom || '')
@@ -56,8 +56,8 @@ export default function RangeSelector() {
     router.push(`${pathname}?${p.toString()}`)
   }
 
-  // activePreset solo se activa cuando hay ?days=N explícito
-  const activePreset = (!isCustom && currentDays) ? Number(currentDays) : null
+  // activePreset: activo cuando hay ?days=N explícito, O cuando no hay params (default = 7d)
+  const activePreset = (!isCustom && currentDays) ? Number(currentDays) : (hasNoParams ? 7 : null)
 
   // Label del período actual
   const periodLabel = (() => {

@@ -30,10 +30,9 @@ export function resolveDateRange(
 }
 
 export async function getLatestDate(): Promise<string> {
-  const res = await supabaseAdmin
-    .from('metrics').select('date').eq('object_type', 'campaign')
-    .order('date', { ascending: false }).limit(1)
-  return res.data?.[0]?.date ?? new Date().toISOString().split('T')[0]
+  // Use today's actual date — the bot always upserts up to today.
+  // Don't rely on what's in the metrics table to avoid off-by-one issues.
+  return new Date().toISOString().split('T')[0]
 }
 
 export function calcDerived(m: any) {
