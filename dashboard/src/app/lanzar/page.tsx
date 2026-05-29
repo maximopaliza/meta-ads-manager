@@ -8,55 +8,39 @@ import { SUBFOLDER_NAMES, SUBFOLDER_EMOJI, type DriveFolder } from '@/lib/drive-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type DriveFile = {
-  id: string
-  name: string
-  size: number
-  mimeType: string
-  modifiedTime: string
-  folder: string
-  isVideo: boolean
-  thumbnailLink?: string
-}
-
-type AnalysisResult = {
-  cached: boolean
-  angle: string
-  analysis: string
-  primary_text: string
-  headline: string
-  audience_summary: string
-  targeting: Record<string, unknown>
-  error?: string
+  id: string; name: string; size: number; mimeType: string
+  modifiedTime: string; folder: string; isVideo: boolean; thumbnailLink?: string
 }
 
 type AdConfig = {
-  driveFileId: string
-  fileName: string
-  mimeType: string
-  isVideo: boolean
-  thumbnailLink?: string
-  headline: string
-  primaryText: string
-  angle: string
+  driveFileId: string; fileName: string; mimeType: string
+  isVideo: boolean; thumbnailLink?: string
+  headline: string; primaryText: string; angle: string
   targeting: Record<string, unknown>
-  analysisLoading: boolean
-  analysisError?: string
+  analysisLoading: boolean; analysisError?: string
+  adSetIdx: number  // which ad set this ad belongs to (0-based)
+}
+
+type AdSetGroup = {
+  idx: number       // 0-based
+  customName: string
 }
 
 type CampaignConfig = {
   campaignName: string
-  adSetName: string
   campaignType: 'CBO' | 'ABO'
   budgetAmount: string
-  budgetLevel: 'campaign' | 'adset'
   objective: 'ventas' | 'trafico' | 'alcance'
   accountId: string
   pageId: string
   destinationUrl: string
   startDate: string
-  productId: string
+  startTime: string
   numAdSets: number
-  adsPerAdSet: number
+  productId: string
+  ageMin: number
+  ageMax: number
+  gender: 'all' | 'male' | 'female'
 }
 
 type CreationProgress = {
@@ -66,83 +50,55 @@ type CreationProgress = {
   errors: number
 }
 
+// ── Steps ─────────────────────────────────────────────────────────────────────
+const STEPS = ['Archivos', 'Análisis IA', 'Configurar', 'Estructura', 'Revisar', 'Crear']
+
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const S = {
-  card: {
-    background: '#080E1C', border: '1px solid #1A4080', borderRadius: '12px', padding: '20px',
-  } as React.CSSProperties,
-  inputStyle: {
-    width: '100%', background: '#050C1E', border: '1px solid #1A4080',
-    borderRadius: '6px', color: '#E8EDF5', fontSize: '13px', padding: '8px 12px',
-    boxSizing: 'border-box',
-  } as React.CSSProperties,
-  label: { fontSize: '12px', color: '#7A90AA', display: 'block', marginBottom: '5px' } as React.CSSProperties,
-  btnPrimary: {
-    background: '#6366F1', color: '#fff', border: 'none', borderRadius: '6px',
-    padding: '10px 24px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-  } as React.CSSProperties,
-  btnSecondary: {
-    background: '#0C1A2E', color: '#C0CFDF', border: '1px solid #1A4080',
-    borderRadius: '6px', padding: '9px 18px', fontSize: '13px', cursor: 'pointer',
-  } as React.CSSProperties,
+  card:      { background: '#080E1C', border: '1px solid #1A4080', borderRadius: '12px', padding: '20px' } as React.CSSProperties,
+  input:     { width: '100%', background: '#050C1E', border: '1px solid #1A4080', borderRadius: '6px', color: '#E8EDF5', fontSize: '13px', padding: '8px 12px', boxSizing: 'border-box' as const },
+  label:     { fontSize: '12px', color: '#7A90AA', display: 'block', marginBottom: '5px' } as React.CSSProperties,
+  btnPri:    { background: '#6366F1', color: '#fff', border: 'none', borderRadius: '6px', padding: '10px 24px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' } as React.CSSProperties,
+  btnSec:    { background: '#0C1A2E', color: '#C0CFDF', border: '1px solid #1A4080', borderRadius: '6px', padding: '9px 18px', fontSize: '13px', cursor: 'pointer' } as React.CSSProperties,
+  btnGreen:  { background: '#22C55E', color: '#fff', border: 'none', borderRadius: '6px', padding: '10px 24px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' } as React.CSSProperties,
 }
 
-function Field({ label, value, onChange, type = 'text', placeholder = '' }: any) {
+function Field({ label, value, onChange, type = 'text', placeholder = '', small = false }: any) {
   return (
     <div style={{ marginBottom: '14px' }}>
       <label style={S.label}>{label}</label>
       <input type={type} value={value} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder} style={S.inputStyle} />
+        placeholder={placeholder} style={{ ...S.input, ...(small ? { width: 'auto' } : {}) }} />
     </div>
   )
 }
 
-function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+function Sel({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
   return (
     <div style={{ marginBottom: '14px' }}>
       <label style={S.label}>{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)}
-        style={{ ...S.inputStyle, appearance: 'none' }}>
+      <select value={value} onChange={e => onChange(e.target.value)} style={{ ...S.input, appearance: 'none' as any }}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
     </div>
   )
 }
 
-// ── Step Indicator ─────────────────────────────────────────────────────────────
-const STEPS = ['1. Archivos', '2. Análisis', '3. Configurar', '4. Revisar', '5. Crear']
-
 function StepBar({ step }: { step: number }) {
   return (
-    <div style={{ display: 'flex', gap: '0', marginBottom: '28px' }}>
+    <div style={{ display: 'flex', marginBottom: '28px' }}>
       {STEPS.map((s, i) => {
-        const done    = i < step
-        const current = i === step
+        const done = i < step; const cur = i === step
         return (
           <div key={i} style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-            <div style={{
-              flex: 1, height: '3px',
-              background: i === 0 ? 'transparent' : (done || current ? '#6366F1' : '#1A4080'),
-            }} />
-            <div style={{ textAlign: 'center', padding: '0 8px' }}>
-              <div style={{
-                width: '28px', height: '28px', borderRadius: '50%', display: 'flex',
-                alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700,
-                margin: '0 auto 4px',
-                background: done ? '#6366F1' : current ? '#6366F118' : 'transparent',
-                border: `2px solid ${done || current ? '#6366F1' : '#1A4080'}`,
-                color: done ? '#fff' : current ? '#6366F1' : '#3A5270',
-              }}>
+            <div style={{ flex: 1, height: '3px', background: i === 0 ? 'transparent' : (done || cur ? '#6366F1' : '#1A4080') }} />
+            <div style={{ textAlign: 'center', padding: '0 6px' }}>
+              <div style={{ width: '26px', height: '26px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700, margin: '0 auto 3px', background: done ? '#6366F1' : cur ? '#6366F118' : 'transparent', border: `2px solid ${done || cur ? '#6366F1' : '#1A4080'}`, color: done ? '#fff' : cur ? '#6366F1' : '#3A5270' }}>
                 {done ? '✓' : i + 1}
               </div>
-              <div style={{ fontSize: '10px', color: current ? '#6366F1' : done ? '#7A90AA' : '#3A5270', whiteSpace: 'nowrap' }}>
-                {s.split('. ')[1]}
-              </div>
+              <div style={{ fontSize: '9px', color: cur ? '#6366F1' : done ? '#7A90AA' : '#3A5270', whiteSpace: 'nowrap' }}>{s}</div>
             </div>
-            <div style={{
-              flex: 1, height: '3px',
-              background: i === STEPS.length - 1 ? 'transparent' : (done ? '#6366F1' : '#1A4080'),
-            }} />
+            <div style={{ flex: 1, height: '3px', background: i === STEPS.length - 1 ? 'transparent' : (done ? '#6366F1' : '#1A4080') }} />
           </div>
         )
       })}
@@ -150,269 +106,200 @@ function StepBar({ step }: { step: number }) {
   )
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Auto-name for an ad set based on ads inside ────────────────────────────────
+function autoSetName(ads: AdConfig[], setIdx: number): string {
+  const inside = ads.filter(a => a.adSetIdx === setIdx)
+  if (!inside.length) return `Conjunto ${setIdx + 1}`
+  return inside.map(a => a.fileName.replace(/\.[^.]+$/, '')).join(' | ').slice(0, 80)
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function LanzarPage() {
   const [step, setStep] = useState(0)
 
-  // Step 1
+  // Step 0
   const [driveFiles, setDriveFiles]       = useState<Record<string, DriveFile[]>>({})
   const [activeFolder, setActiveFolder]   = useState<DriveFolder>('No subidos')
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
   const [loadingDrive, setLoadingDrive]   = useState(false)
 
-  // Step 2
+  // Step 1
   const [adConfigs, setAdConfigs] = useState<AdConfig[]>([])
 
-  // Step 3
+  // Step 2
   const [accounts, setAccounts] = useState<any[]>([])
   const [pages, setPages]       = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [config, setConfig]     = useState<CampaignConfig>({
-    campaignName:  '',
-    adSetName:     '',
-    campaignType:  'CBO',
-    budgetAmount:  '50',
-    budgetLevel:   'campaign',
-    objective:     'ventas',
-    accountId:     '',
-    pageId:        '',
-    destinationUrl: '',
-    startDate:     '',
-    productId:     '',
-    numAdSets:     1,
-    adsPerAdSet:   1,
+    campaignName: '', campaignType: 'CBO', budgetAmount: '50',
+    objective: 'ventas', accountId: '', pageId: '',
+    destinationUrl: '', startDate: '', startTime: '08:00',
+    numAdSets: 1, productId: '', ageMin: 35, ageMax: 65, gender: 'all',
   })
+
+  // Step 3 — ad set groups (auto-managed)
+  const adSetGroups = (): AdSetGroup[] =>
+    Array.from({ length: config.numAdSets }, (_, i) => ({
+      idx: i,
+      customName: autoSetName(adConfigs, i),
+    }))
 
   // Step 5
   const [progress, setProgress] = useState<CreationProgress>({ status: 'idle', log: [], errors: 0 })
   const logRef = useRef<HTMLDivElement>(null)
 
-  // ── Data loading ───────────────────────────────────────────────────────────
+  // ── Drive ─────────────────────────────────────────────────────────────────
   async function loadDrive() {
     setLoadingDrive(true)
-    try {
-      const res = await fetch('/api/drive/files')
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
-      setDriveFiles(data)
-    } catch (e: any) {
-      console.error('Drive load error:', e)
-    }
+    try { const r = await fetch('/api/drive/files'); setDriveFiles(await r.json()) } catch (_) {}
     setLoadingDrive(false)
   }
-
-  async function loadMeta() {
-    const [accRes, pagesRes, prodRes] = await Promise.all([
-      fetch('/api/meta/accounts'),
-      fetch('/api/meta/pages'),
-      fetch('/api/products'),
-    ])
-    const accData   = await accRes.json()
-    const pagesData = await pagesRes.json()
-    const prodData  = await prodRes.json()
-    setAccounts(accData.accounts || [])
-    setPages(pagesData.pages || [])
-    setProducts(prodData.products || [])
-    setConfig(c => ({
-      ...c,
-      ...(accData.accounts?.length   ? { accountId: accData.accounts[0].id } : {}),
-      ...(pagesData.pages?.length    ? { pageId: pagesData.pages[0].id }     : {}),
-      ...(prodData.products?.length  ? {
-        productId:      prodData.products[0].id,
-        destinationUrl: prodData.products[0].url || '',
-      } : {}),
-    }))
-  }
-
   useEffect(() => { loadDrive() }, [])
 
-  // ── File selection ─────────────────────────────────────────────────────────
-  function toggleFile(id: string) {
-    setSelectedFiles(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
-  }
-  function selectAll() {
-    const cur = (driveFiles[activeFolder] || []).map(f => f.id)
-    setSelectedFiles(s => {
-      const n = new Set(s)
-      cur.forEach(id => n.add(id))
-      return n
-    })
-  }
-  function clearAll() {
-    const cur = new Set((driveFiles[activeFolder] || []).map(f => f.id))
-    setSelectedFiles(s => { const n = new Set(s); cur.forEach(id => n.delete(id)); return n })
-  }
-
-  function goToAnalysis() {
-    const allFiles = Object.values(driveFiles).flat()
-    const selected = allFiles.filter(f => selectedFiles.has(f.id))
-    const configs: AdConfig[] = selected.map(f => ({
-      driveFileId:     f.id,
-      fileName:        f.name,
-      mimeType:        f.mimeType,
-      isVideo:         f.isVideo,
-      thumbnailLink:   f.thumbnailLink,
-      headline:        '',
-      primaryText:     '',
-      angle:           '',
-      targeting:       { geo_locations: { countries: ['AR'] }, age_min: 18, age_max: 65 },
-      analysisLoading: true,  // spinner visible from the start
-    }))
-    setAdConfigs(configs)
-    // Auto-suggest campaign name
-    const today = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }).replace('/', '.')
+  async function loadMeta() {
+    const [a, p, pr] = await Promise.all([
+      fetch('/api/meta/accounts'), fetch('/api/meta/pages'), fetch('/api/products'),
+    ])
+    const ad = await a.json(); const pd = await p.json(); const prd = await pr.json()
+    setAccounts(ad.accounts || [])
+    setPages(pd.pages || [])
+    setProducts(prd.products || [])
     setConfig(c => ({
       ...c,
-      campaignName: `Campaña ${today}`,
-      adSetName:    `Conjunto ${today}`,
+      ...(ad.accounts?.length ? { accountId: ad.accounts[0].id } : {}),
+      ...(pd.pages?.length    ? { pageId: pd.pages[0].id }        : {}),
+      ...(prd.products?.length ? { productId: prd.products[0].id, destinationUrl: prd.products[0].url || '' } : {}),
     }))
+  }
+
+  // ── File selection ─────────────────────────────────────────────────────────
+  function toggleFile(id: string) { setSelectedFiles(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n }) }
+
+  function goToAnalysis() {
+    const all = Object.values(driveFiles).flat()
+    const sel = all.filter(f => selectedFiles.has(f.id))
+    const cfgs: AdConfig[] = sel.map((f, i) => ({
+      driveFileId: f.id, fileName: f.name, mimeType: f.mimeType,
+      isVideo: f.isVideo, thumbnailLink: f.thumbnailLink,
+      headline: '', primaryText: '', angle: '',
+      targeting: { geo_locations: { countries: ['AR'] }, age_min: config.ageMin, age_max: config.ageMax },
+      analysisLoading: true,
+      adSetIdx: 0,  // all in set 0 by default
+    }))
+    setAdConfigs(cfgs)
+    const today = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }).replace('/', '.')
+    setConfig(c => ({ ...c, campaignName: `Campaña ${today}` }))
     loadMeta()
     setStep(1)
-    // Trigger auto-analysis for all
-    setTimeout(() => analyzeAll(configs), 100)
+    setTimeout(() => analyzeAllSeq(cfgs), 200)
   }
 
   // ── Analysis ───────────────────────────────────────────────────────────────
-  // configData is passed directly to avoid stale React state closure issues
-  async function analyzeOne(idx: number, productId?: string, configData?: AdConfig) {
-    // Capture the config at call time — don't rely on state being up-to-date
-    const adData = configData ?? adConfigs[idx]
-    if (!adData?.driveFileId) return
-
-    setAdConfigs(prev => {
-      const n = [...prev]
-      if (n[idx]) n[idx] = { ...n[idx], analysisLoading: true, analysisError: undefined }
-      return n
-    })
+  async function analyzeOne(idx: number, adData: AdConfig) {
+    setAdConfigs(prev => { const n = [...prev]; if (n[idx]) n[idx] = { ...n[idx], analysisLoading: true, analysisError: undefined }; return n })
     try {
-      const ad = adData
       const res = await fetch('/api/creative/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileId:        ad.driveFileId,
-          fileName:      ad.fileName,
-          mimeType:      ad.mimeType,
-          isVideo:       ad.isVideo,
-          thumbnailLink: ad.thumbnailLink || undefined,
-          productId:     productId || config.productId || undefined,
+          fileId: adData.driveFileId, fileName: adData.fileName,
+          mimeType: adData.mimeType, isVideo: adData.isVideo,
+          thumbnailLink: adData.thumbnailLink || undefined,
+          productId: config.productId || undefined,
         }),
       })
-      const data: AnalysisResult = await res.json()
+      const data = await res.json()
       setAdConfigs(prev => {
         const n = [...prev]
-        n[idx] = {
-          ...n[idx],
-          analysisLoading: false,
-          headline:    data.headline || n[idx].headline,
-          primaryText: data.primary_text || n[idx].primaryText,
-          angle:       data.angle || '',
-          targeting:   data.targeting || n[idx].targeting,
-          analysisError: data.error,
-        }
+        n[idx] = { ...n[idx], analysisLoading: false, headline: data.headline || '', primaryText: data.primary_text || '', angle: data.angle || '', targeting: data.targeting || n[idx].targeting, analysisError: data.error }
         return n
       })
     } catch (e: any) {
-      setAdConfigs(prev => {
-        const n = [...prev]
-        n[idx] = { ...n[idx], analysisLoading: false, analysisError: e.message }
-        return n
-      })
+      setAdConfigs(prev => { const n = [...prev]; n[idx] = { ...n[idx], analysisLoading: false, analysisError: e.message }; return n })
     }
   }
 
-  // Sequential — avoids overwhelming server with 5 simultaneous large video uploads
-  async function analyzeAll(configs?: AdConfig[]) {
-    const list = configs || adConfigs
-    for (let i = 0; i < list.length; i++) {
-      await analyzeOne(i, config.productId || undefined, list[i])
-    }
+  async function analyzeAllSeq(cfgs?: AdConfig[]) {
+    const list = cfgs || adConfigs
+    for (let i = 0; i < list.length; i++) await analyzeOne(i, list[i])
   }
 
-  function updateAdConfig(idx: number, field: keyof AdConfig, val: any) {
+  function updateAd(idx: number, field: keyof AdConfig, val: any) {
     setAdConfigs(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: val }; return n })
   }
 
   // ── Campaign creation ──────────────────────────────────────────────────────
   async function createCampaign() {
-    setStep(4)
+    setStep(5)
     setProgress({ status: 'creating', log: ['Iniciando creación en Meta Ads...'], errors: 0 })
-
     const addLog = (msg: string) => setProgress(p => ({ ...p, log: [...p.log, msg] }))
 
     try {
-      addLog(`Creando campaña: ${config.campaignName}`)
       const budgetCents = Math.round(parseFloat(config.budgetAmount) * 100)
+      const targeting: any = {
+        geo_locations: { countries: ['AR'] },
+        age_min: config.ageMin,
+        age_max: config.ageMax,
+      }
+      if (config.gender === 'male')   targeting.genders = [1]
+      if (config.gender === 'female') targeting.genders = [2]
+
+      // Build ad sets list with assigned ads
+      const adSetsPayload = adSetGroups().map(g => ({
+        name: g.customName,
+        ads: adConfigs
+          .filter(a => a.adSetIdx === g.idx)
+          .map(a => ({ driveFileId: a.driveFileId, mimeType: a.mimeType, fileName: a.fileName, headline: a.headline, primaryText: a.primaryText, angle: a.angle })),
+      }))
+
+      let startDateTime: string | undefined
+      if (config.startDate) {
+        startDateTime = `${config.startDate}T${config.startTime || '08:00'}:00`
+      }
+
+      addLog(`Creando campaña "${config.campaignName}"...`)
       const res = await fetch('/api/campaign/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          campaignName:   config.campaignName,
-          adSetName:      config.adSetName,
-          campaignType:   config.campaignType,
-          budgetCents,
-          budgetLevel:    config.budgetLevel,
-          objective:      config.objective,
-          accountId:      config.accountId,
-          pageId:         config.pageId,
+          campaignName: config.campaignName,
+          campaignType: config.campaignType,
+          budgetCents, objective: config.objective,
+          accountId: config.accountId, pageId: config.pageId,
           destinationUrl: config.destinationUrl,
-          startDate:      config.startDate || undefined,
-          productId:      config.productId || undefined,
-          numAdSets:      config.numAdSets,
-          adsPerAdSet:    config.adsPerAdSet,
-          ads: adConfigs.map(a => ({
-            driveFileId: a.driveFileId,
-            mimeType:    a.mimeType,
-            fileName:    a.fileName,
-            headline:    a.headline,
-            primaryText: a.primaryText,
-            angle:       a.angle,
-            targeting:   a.targeting,
-          })),
+          startDateTime,
+          targeting,
+          productId: config.productId || undefined,
+          adSets: adSetsPayload,
         }),
       })
       const data = await res.json()
-
       if (data.error) throw new Error(data.error)
 
       addLog(`✅ Campaña creada: ${data.campaignId}`)
-      addLog(`✅ Conjunto creado: ${data.adSetId}`)
-      addLog(`✅ ${data.ads?.filter((a: any) => !a.error).length || 0} ads subidos exitosamente`)
+      data.adSets?.forEach((s: any) => addLog(`✅ Conjunto: ${s.name} → ${s.adIds?.length || 0} ads`))
       if (data.errors > 0) addLog(`⚠ ${data.errors} ads fallaron`)
-
-      setProgress(p => ({
-        ...p, status: 'done',
-        draftId: data.draftId,
-        errors:  data.errors || 0,
-        log: [...p.log, 'Todo creado como BORRADOR en Meta Ads. Activar desde Borradores.'],
-      }))
+      addLog('Todo creado como BORRADOR. Activar desde Borradores.')
+      setProgress(p => ({ ...p, status: 'done', draftId: data.draftId, errors: data.errors || 0 }))
     } catch (e: any) {
       setProgress(p => ({ ...p, status: 'error', log: [...p.log, '❌ Error: ' + e.message] }))
     }
   }
 
-  // ── Scroll log ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
-  }, [progress.log])
+  useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight }, [progress.log])
 
-  const totalSelected = selectedFiles.size
+  const totalSel = selectedFiles.size
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RENDER
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#030810' }}>
       <Sidebar />
       <div style={{ marginLeft: '220px', flex: 1, minWidth: 0 }}>
-        <Header title="Lanzar campaña" subtitle="Creación automática de campañas desde Google Drive" />
+        <Header title="Lanzar campaña" subtitle="Creación automática desde Google Drive" />
         <main style={{ padding: '20px', maxWidth: '1200px' }}>
-
           <StepBar step={step} />
 
-          {/* ── STEP 0: Archivos ── */}
+          {/* ── STEP 0: Archivos ─────────────────────────────────────────── */}
           {step === 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '16px', alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '16px', alignItems: 'start' }}>
               {/* Folder nav */}
               <div style={S.card}>
                 <div style={{ fontSize: '11px', color: '#3A5270', fontWeight: 700, letterSpacing: '0.12em', marginBottom: '10px' }}>CARPETAS</div>
@@ -420,175 +307,99 @@ export default function LanzarPage() {
                   const count = (driveFiles[folder] || []).length
                   const active = folder === activeFolder
                   return (
-                    <button key={folder} onClick={() => setActiveFolder(folder as DriveFolder)} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      width: '100%', padding: '8px 10px', borderRadius: '6px', marginBottom: '3px',
-                      background: active ? '#071428' : 'transparent',
-                      border: active ? '1px solid #1A4080' : '1px solid transparent',
-                      color: active ? '#E8EDF5' : '#7A90AA', fontSize: '13px', cursor: 'pointer', textAlign: 'left',
-                    }}>
+                    <button key={folder} onClick={() => setActiveFolder(folder as DriveFolder)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: '6px', marginBottom: '3px', background: active ? '#071428' : 'transparent', border: active ? '1px solid #1A4080' : '1px solid transparent', color: active ? '#E8EDF5' : '#7A90AA', fontSize: '12px', cursor: 'pointer', textAlign: 'left' }}>
                       <span>{SUBFOLDER_EMOJI[folder]} {folder}</span>
-                      {count > 0 && <span style={{ fontSize: '11px', color: '#3A5270' }}>{count}</span>}
+                      {count > 0 && <span style={{ fontSize: '10px', color: '#3A5270' }}>{count}</span>}
                     </button>
                   )
                 })}
               </div>
-
               {/* File grid */}
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                  <h3 style={{ color: '#E8EDF5', fontSize: '14px', fontWeight: 700, margin: 0, flex: 1 }}>
-                    {SUBFOLDER_EMOJI[activeFolder]} {activeFolder}
-                    {(driveFiles[activeFolder] || []).length > 0 && (
-                      <span style={{ color: '#7A90AA', fontWeight: 400 }}> · {(driveFiles[activeFolder] || []).length} archivos</span>
-                    )}
-                  </h3>
-                  <button onClick={loadDrive} style={S.btnSecondary} disabled={loadingDrive}>
-                    {loadingDrive ? '...' : '↻ Actualizar'}
-                  </button>
-                  <button onClick={selectAll} style={S.btnSecondary}>Selec. todos</button>
-                  <button onClick={clearAll} style={S.btnSecondary}>Limpiar</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <span style={{ color: '#E8EDF5', fontSize: '14px', fontWeight: 700, flex: 1 }}>{SUBFOLDER_EMOJI[activeFolder]} {activeFolder}</span>
+                  <button onClick={loadDrive} style={S.btnSec} disabled={loadingDrive}>{loadingDrive ? '...' : '↻'}</button>
+                  <button onClick={() => { const ids = (driveFiles[activeFolder] || []).map(f => f.id); setSelectedFiles(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n }) }} style={S.btnSec}>Todos</button>
+                  <button onClick={() => { const ids = new Set((driveFiles[activeFolder] || []).map(f => f.id)); setSelectedFiles(s => { const n = new Set(s); ids.forEach(id => n.delete(id)); return n }) }} style={S.btnSec}>Ninguno</button>
                 </div>
-
-                {loadingDrive ? (
-                  <div style={{ color: '#7A90AA', padding: '40px', textAlign: 'center' }}>Cargando Drive...</div>
-                ) : (driveFiles[activeFolder] || []).length === 0 ? (
-                  <div style={{ ...S.card, textAlign: 'center', padding: '40px', color: '#7A90AA', fontSize: '13px' }}>
-                    No hay archivos en esta carpeta
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px' }}>
-                    {(driveFiles[activeFolder] || []).map(file => {
-                      const sel = selectedFiles.has(file.id)
-                      return (
-                        <div key={file.id} onClick={() => toggleFile(file.id)} style={{
-                          ...S.card, padding: '0', cursor: 'pointer', overflow: 'hidden',
-                          border: sel ? '2px solid #6366F1' : '1px solid #1A4080',
-                          position: 'relative',
-                        }}>
-                          {/* Thumbnail */}
-                          <div style={{ width: '100%', height: '100px', background: '#050C1E', position: 'relative', overflow: 'hidden' }}>
-                            {file.thumbnailLink ? (
-                              <img src={file.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : (
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '32px' }}>
-                                {file.isVideo ? '🎬' : '🖼'}
-                              </div>
-                            )}
-                            {file.isVideo && (
-                              <div style={{
-                                position: 'absolute', top: '6px', left: '6px', background: '#00000080',
-                                borderRadius: '4px', padding: '2px 6px', fontSize: '9px', color: '#fff', fontWeight: 700,
-                              }}>VIDEO</div>
-                            )}
-                            {sel && (
-                              <div style={{
-                                position: 'absolute', top: '6px', right: '6px', width: '20px', height: '20px',
-                                background: '#6366F1', borderRadius: '50%', display: 'flex',
-                                alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#fff', fontWeight: 700,
-                              }}>✓</div>
-                            )}
-                          </div>
-                          {/* Name */}
-                          <div style={{ padding: '8px 10px' }}>
-                            <div style={{
-                              fontSize: '11px', color: '#C0CFDF', overflow: 'hidden',
-                              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }} title={file.name}>{file.name}</div>
-                            <div style={{ fontSize: '10px', color: '#3A5270', marginTop: '2px' }}>
-                              {(file.size / 1024 / 1024).toFixed(1)} MB
+                {loadingDrive ? <div style={{ color: '#7A90AA', padding: '40px', textAlign: 'center' }}>Cargando...</div>
+                  : (driveFiles[activeFolder] || []).length === 0 ? <div style={{ ...S.card, textAlign: 'center', padding: '40px', color: '#7A90AA' }}>Carpeta vacía</div>
+                  : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '10px' }}>
+                      {(driveFiles[activeFolder] || []).map(f => {
+                        const sel = selectedFiles.has(f.id)
+                        return (
+                          <div key={f.id} onClick={() => toggleFile(f.id)} style={{ ...S.card, padding: 0, cursor: 'pointer', overflow: 'hidden', border: sel ? '2px solid #6366F1' : '1px solid #1A4080', position: 'relative' }}>
+                            <div style={{ width: '100%', height: '95px', background: '#050C1E', position: 'relative' }}>
+                              {f.thumbnailLink ? <img src={f.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '28px' }}>{f.isVideo ? '🎬' : '🖼'}</div>}
+                              {f.isVideo && <div style={{ position: 'absolute', top: '5px', left: '5px', background: '#00000080', borderRadius: '3px', padding: '1px 5px', fontSize: '9px', color: '#fff', fontWeight: 700 }}>VIDEO</div>}
+                              {sel && <div style={{ position: 'absolute', top: '5px', right: '5px', width: '18px', height: '18px', background: '#6366F1', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#fff', fontWeight: 700 }}>✓</div>}
+                            </div>
+                            <div style={{ padding: '7px 9px' }}>
+                              <div style={{ fontSize: '10px', color: '#C0CFDF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</div>
+                              <div style={{ fontSize: '9px', color: '#3A5270', marginTop: '1px' }}>{(f.size / 1024 / 1024).toFixed(1)} MB</div>
                             </div>
                           </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+                        )
+                      })}
+                    </div>
+                  )}
               </div>
             </div>
           )}
 
-          {/* ── STEP 1: Análisis ── */}
+          {/* ── STEP 1: Análisis IA ──────────────────────────────────────── */}
           {step === 1 && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ fontSize: '14px', color: '#7A90AA', flex: 1 }}>
+                <div style={{ fontSize: '13px', color: '#7A90AA', flex: 1 }}>
                   {adConfigs.some(a => a.analysisLoading)
-                    ? `⏳ Analizando de a uno... (${adConfigs.filter(a => !a.analysisLoading).length}/${adConfigs.length} listos — 1-2 min por video)`
-                    : `✅ ${adConfigs.filter(a => a.headline).length}/${adConfigs.length} analizados`
-                  }
+                    ? `⏳ Analizando de a uno... (${adConfigs.filter(a => !a.analysisLoading).length}/${adConfigs.length} listos)`
+                    : `✅ ${adConfigs.filter(a => a.headline).length}/${adConfigs.length} analizados — podés editar el copy antes de continuar`}
                 </div>
-                <button onClick={() => analyzeAll()} style={S.btnSecondary}>↻ Re-analizar todos</button>
+                <button onClick={() => analyzeAllSeq()} style={S.btnSec}>↻ Re-analizar todos</button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+              {/* Quota error banner */}
+              {adConfigs.some(a => a.analysisError?.includes('quota')) && (
+                <div style={{ background: '#F59E0B10', border: '1px solid #F59E0B35', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', fontSize: '12px', color: '#F59E0B' }}>
+                  ⚠ <strong>Cuota de Gemini agotada.</strong> Habilitá facturación en <a href="https://ai.google.dev" target="_blank" style={{ color: '#6366F1' }}>ai.google.dev</a> (~$0.01/día para tu uso). Mientras tanto, completá el copy manualmente.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {adConfigs.map((ad, i) => (
                   <div key={ad.driveFileId} style={S.card}>
-                    <div style={{ display: 'flex', gap: '14px' }}>
-                      {/* Thumbnail */}
-                      <div style={{ width: '80px', height: '80px', flexShrink: 0, borderRadius: '8px', overflow: 'hidden', background: '#050C1E' }}>
-                        {ad.thumbnailLink
-                          ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '28px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>
-                        }
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <div style={{ width: '72px', height: '72px', flexShrink: 0, borderRadius: '7px', overflow: 'hidden', background: '#050C1E' }}>
+                        {ad.thumbnailLink ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '24px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>}
                       </div>
-
-                      {/* Content */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#C0CFDF', marginBottom: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#C0CFDF', marginBottom: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {ad.fileName}
-                          {ad.angle && <span style={{ marginLeft: '8px', fontSize: '11px', color: '#6366F1' }}>· {ad.angle}</span>}
+                          {ad.angle && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#6366F1' }}>· {ad.angle}</span>}
                         </div>
-
                         {ad.analysisLoading ? (
-                          <div style={{ color: '#7A90AA', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span>
-                            Analizando con Gemini...
-                          </div>
-                        ) : ad.analysisError ? (
-                          <div style={{ color: '#EF4444', fontSize: '12px', marginBottom: '8px' }}>
-                            ⚠ Error: {ad.analysisError}
-                            <button onClick={() => analyzeOne(i)} style={{ ...S.btnSecondary, padding: '4px 10px', fontSize: '11px', marginLeft: '8px' }}>
-                              Reintentar
-                            </button>
-                          </div>
+                          <div style={{ color: '#7A90AA', fontSize: '12px' }}>⏳ Analizando con Gemini...</div>
                         ) : (
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                             <div>
-                              <label style={S.label}>Título (máx 40 chars)</label>
-                              <input
-                                value={ad.headline}
-                                onChange={e => updateAdConfig(i, 'headline', e.target.value)}
-                                maxLength={40}
-                                style={{ ...S.inputStyle, fontWeight: 600 }}
-                              />
-                              <div style={{ fontSize: '10px', color: ad.headline.length > 35 ? '#F59E0B' : '#3A5270', marginTop: '2px', textAlign: 'right' }}>
-                                {ad.headline.length}/40
-                              </div>
+                              <label style={{ ...S.label, fontSize: '10px' }}>Título (máx 40)</label>
+                              <input value={ad.headline} onChange={e => updateAd(i, 'headline', e.target.value)} maxLength={40} style={{ ...S.input, fontWeight: 600, fontSize: '12px' }} />
+                              {ad.analysisError && !ad.headline && <div style={{ fontSize: '10px', color: '#F59E0B', marginTop: '2px' }}>⚠ IA falló — completá manualmente</div>}
                             </div>
                             <div>
-                              <label style={S.label}>Ángulo detectado</label>
-                              <input
-                                value={ad.angle}
-                                onChange={e => updateAdConfig(i, 'angle', e.target.value)}
-                                style={S.inputStyle}
-                              />
+                              <label style={{ ...S.label, fontSize: '10px' }}>Ángulo</label>
+                              <input value={ad.angle} onChange={e => updateAd(i, 'angle', e.target.value)} style={{ ...S.input, fontSize: '12px' }} />
                             </div>
                             <div style={{ gridColumn: '1 / -1' }}>
-                              <label style={S.label}>Texto principal</label>
-                              <textarea
-                                value={ad.primaryText}
-                                onChange={e => updateAdConfig(i, 'primaryText', e.target.value)}
-                                rows={3}
-                                style={{ ...S.inputStyle, resize: 'vertical', lineHeight: 1.5 }}
-                              />
+                              <label style={{ ...S.label, fontSize: '10px' }}>Texto principal</label>
+                              <textarea value={ad.primaryText} onChange={e => updateAd(i, 'primaryText', e.target.value)} rows={2} style={{ ...S.input, resize: 'vertical', lineHeight: 1.5, fontSize: '12px' }} />
                             </div>
                           </div>
                         )}
                       </div>
-
-                      <button onClick={() => analyzeOne(i)} style={{ ...S.btnSecondary, alignSelf: 'flex-start', flexShrink: 0, padding: '6px 10px', fontSize: '11px' }}>
-                        ↻
-                      </button>
+                      <button onClick={() => analyzeOne(i, ad)} style={{ ...S.btnSec, padding: '6px 10px', fontSize: '11px', alignSelf: 'flex-start', flexShrink: 0 }}>↻</button>
                     </div>
                   </div>
                 ))}
@@ -596,265 +407,269 @@ export default function LanzarPage() {
             </div>
           )}
 
-          {/* ── STEP 2: Configurar ── */}
+          {/* ── STEP 2: Configurar ──────────────────────────────────────── */}
           {step === 2 && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-
-              {/* Col 1 — Estructura */}
+              {/* Col 1 */}
               <div>
                 <div style={S.card}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '16px' }}>Campaña</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>Campaña</div>
                   <Field label="Nombre campaña *" value={config.campaignName} onChange={(v: string) => setConfig(c => ({ ...c, campaignName: v }))} />
-                  <Field label="Nombre base conjunto *" value={config.adSetName} onChange={(v: string) => setConfig(c => ({ ...c, adSetName: v }))} />
-                  <Select label="Tipo" value={config.campaignType} onChange={v => setConfig(c => ({ ...c, campaignType: v as any }))}
+                  <Sel label="Tipo" value={config.campaignType} onChange={v => setConfig(c => ({ ...c, campaignType: v as any }))}
                     options={[{ value: 'CBO', label: 'CBO — Presupuesto de campaña' }, { value: 'ABO', label: 'ABO — Presupuesto por conjunto' }]} />
-                  <Select label="Objetivo" value={config.objective} onChange={v => setConfig(c => ({ ...c, objective: v as any }))}
+                  <Sel label="Objetivo" value={config.objective} onChange={v => setConfig(c => ({ ...c, objective: v as any }))}
                     options={[{ value: 'ventas', label: '🛒 Ventas' }, { value: 'trafico', label: '🔗 Tráfico' }, { value: 'alcance', label: '📢 Alcance' }]} />
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={S.label}>Cantidad de conjuntos</label>
+                    <input type="number" min="1" max="20" value={config.numAdSets}
+                      onChange={e => {
+                        const n = parseInt(e.target.value) || 1
+                        setConfig(c => ({ ...c, numAdSets: n }))
+                        // Reset all ads to set 0 when numAdSets changes
+                        setAdConfigs(prev => prev.map(a => ({ ...a, adSetIdx: Math.min(a.adSetIdx, n - 1) })))
+                      }}
+                      style={{ ...S.input, width: '80px', textAlign: 'center', fontWeight: 700, fontSize: '16px' }} />
+                  </div>
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={S.label}>Presupuesto diario ({config.campaignType === 'CBO' ? 'campaña' : 'por conjunto'})</label>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ color: '#7A90AA', fontWeight: 700 }}>$</span>
+                      <input type="number" value={config.budgetAmount} onChange={e => setConfig(c => ({ ...c, budgetAmount: e.target.value }))} min="1" step="1" style={{ ...S.input, width: '120px' }} />
+                      <span style={{ color: '#7A90AA', fontSize: '13px' }}>/ día</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Estructura de conjuntos */}
-                <div style={{ ...S.card, marginTop: '16px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '4px' }}>Estructura</div>
-                  <div style={{ fontSize: '11px', color: '#7A90AA', marginBottom: '14px' }}>
-                    Ej: 1-2-1 = 1 campaña, 2 conjuntos, 1 video c/u
+                {/* Fecha y hora */}
+                <div style={{ ...S.card, marginTop: '14px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>Fecha y hora de activación</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <Field label="Fecha (opcional)" value={config.startDate} onChange={(v: string) => setConfig(c => ({ ...c, startDate: v }))} type="date" />
+                    <Field label="Hora" value={config.startTime} onChange={(v: string) => setConfig(c => ({ ...c, startTime: v }))} type="time" />
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                    <div>
-                      <label style={S.label}>Conjuntos</label>
-                      <input type="number" min="1" max="20" value={config.numAdSets}
-                        onChange={e => setConfig(c => ({ ...c, numAdSets: parseInt(e.target.value) || 1 }))}
-                        style={{ ...S.inputStyle, textAlign: 'center', fontWeight: 700, fontSize: '18px' }} />
-                    </div>
-                    <div>
-                      <label style={S.label}>Videos por conjunto</label>
-                      <input type="number" min="1" max="50" value={config.adsPerAdSet}
-                        onChange={e => setConfig(c => ({ ...c, adsPerAdSet: parseInt(e.target.value) || 1 }))}
-                        style={{ ...S.inputStyle, textAlign: 'center', fontWeight: 700, fontSize: '18px' }} />
-                    </div>
-                  </div>
-
-                  {/* Preview */}
-                  {(() => {
-                    const total   = config.numAdSets * config.adsPerAdSet
-                    const tenemos = adConfigs.length
-                    const ok      = tenemos >= total
-                    return (
-                      <div style={{
-                        background: ok ? '#22C55E10' : '#F59E0B10',
-                        border: `1px solid ${ok ? '#22C55E35' : '#F59E0B35'}`,
-                        borderRadius: '8px', padding: '10px 14px',
-                      }}>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: ok ? '#22C55E' : '#F59E0B' }}>
-                          1 campaña → {config.numAdSets} conjunto{config.numAdSets > 1 ? 's' : ''} → {config.adsPerAdSet} video{config.adsPerAdSet > 1 ? 's' : ''} c/u
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#7A90AA', marginTop: '4px' }}>
-                          Necesitás {total} videos · Seleccionaste {tenemos}
-                          {!ok && ` · ⚠ Faltan ${total - tenemos}`}
-                          {ok && tenemos > total && ` · Se usarán solo los primeros ${total}`}
-                        </div>
-                      </div>
-                    )
-                  })()}
+                  <div style={{ fontSize: '11px', color: '#3A5270' }}>Sin fecha → activa inmediatamente (en borrador, se activa manualmente)</div>
                 </div>
               </div>
 
-              {/* Col 2 — Cuenta & Presupuesto */}
-              <div style={S.card}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '16px' }}>Cuenta & Presupuesto</div>
-
-                <Select label="Cuenta publicitaria"
-                  value={config.accountId}
-                  onChange={v => setConfig(c => ({ ...c, accountId: v }))}
-                  options={accounts.length
-                    ? accounts.map(a => ({ value: a.id, label: `${a.name} (${a.id})` }))
-                    : [{ value: '', label: 'Cargando...' }]} />
-
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={S.label}>Fanpage</label>
-                  {pages.length > 0 ? (
-                    <select value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))}
-                      style={{ ...S.inputStyle, appearance: 'none' }}>
-                      {pages.map((p: any) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
-                    </select>
-                  ) : (
-                    <input value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))}
-                      placeholder="ID de la fanpage" style={S.inputStyle} />
-                  )}
+              {/* Col 2 */}
+              <div>
+                <div style={S.card}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>Cuenta & Fanpage</div>
+                  <Sel label="Cuenta publicitaria"
+                    value={config.accountId} onChange={v => setConfig(c => ({ ...c, accountId: v }))}
+                    options={accounts.length ? accounts.map(a => ({ value: a.id, label: `${a.name} (${a.id})` })) : [{ value: '', label: 'Cargando...' }]} />
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={S.label}>Fanpage</label>
+                    {pages.length > 0 ? (
+                      <select value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))}
+                        style={{ ...S.input, appearance: 'none' as any }}>
+                        {pages.map((p: any) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+                      </select>
+                    ) : (
+                      <>
+                        <input value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))}
+                          placeholder="ID de la fanpage (ej: 123456789)" style={S.input} />
+                        <div style={{ fontSize: '10px', color: '#3A5270', marginTop: '3px' }}>No se encontraron páginas automáticamente. Ingresá el ID manualmente.</div>
+                      </>
+                    )}
+                  </div>
+                  <Field label="URL destino *" value={config.destinationUrl} onChange={(v: string) => setConfig(c => ({ ...c, destinationUrl: v }))} type="url" />
+                  <Sel label="Producto (para copy automático)"
+                    value={config.productId} onChange={v => setConfig(c => ({ ...c, productId: v }))}
+                    options={[{ value: '', label: '— Sin producto —' }, ...products.map(p => ({ value: p.id, label: p.name }))]} />
                 </div>
 
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={S.label}>Presupuesto diario ({config.campaignType === 'CBO' ? 'campaña' : 'por conjunto'})</label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ color: '#7A90AA', fontSize: '14px', fontWeight: 700 }}>$</span>
-                    <input type="number" value={config.budgetAmount}
-                      onChange={e => setConfig(c => ({ ...c, budgetAmount: e.target.value }))}
-                      min="1" step="1" style={{ ...S.inputStyle, width: '120px' }} />
-                    <span style={{ color: '#7A90AA', fontSize: '13px' }}>AUD / día</span>
+                {/* Audiencia */}
+                <div style={{ ...S.card, marginTop: '14px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>Público objetivo</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div style={{ marginBottom: '14px' }}>
+                      <label style={S.label}>Edad mínima</label>
+                      <input type="number" min="18" max="65" value={config.ageMin}
+                        onChange={e => setConfig(c => ({ ...c, ageMin: parseInt(e.target.value) || 18 }))}
+                        style={{ ...S.input, textAlign: 'center' }} />
+                    </div>
+                    <div style={{ marginBottom: '14px' }}>
+                      <label style={S.label}>Edad máxima</label>
+                      <input type="number" min="18" max="65" value={config.ageMax}
+                        onChange={e => setConfig(c => ({ ...c, ageMax: parseInt(e.target.value) || 65 }))}
+                        style={{ ...S.input, textAlign: 'center' }} />
+                    </div>
+                  </div>
+                  <Sel label="Género" value={config.gender} onChange={v => setConfig(c => ({ ...c, gender: v as any }))}
+                    options={[{ value: 'all', label: 'Todos (hombres y mujeres)' }, { value: 'female', label: 'Solo mujeres' }, { value: 'male', label: 'Solo hombres' }]} />
+                  <div style={{ background: '#0C1A2E', borderRadius: '8px', padding: '10px 12px', fontSize: '11px', color: '#7A90AA' }}>
+                    🇦🇷 País: Argentina · Edades {config.ageMin}-{config.ageMax} · {config.gender === 'all' ? 'Todos los géneros' : config.gender === 'female' ? 'Mujeres' : 'Hombres'}
                   </div>
                 </div>
-
-                <Field label="URL destino *" value={config.destinationUrl}
-                  onChange={(v: string) => setConfig(c => ({ ...c, destinationUrl: v }))} type="url" />
-                <Field label="Fecha inicio (opcional)" value={config.startDate}
-                  onChange={(v: string) => setConfig(c => ({ ...c, startDate: v }))} type="date" />
-                <Select label="Producto (para copy automático)"
-                  value={config.productId}
-                  onChange={v => setConfig(c => ({ ...c, productId: v }))}
-                  options={[{ value: '', label: '— Sin producto —' }, ...products.map(p => ({ value: p.id, label: p.name }))]} />
               </div>
             </div>
           )}
 
-          {/* ── STEP 3: Revisar ── */}
+          {/* ── STEP 3: Estructura ──────────────────────────────────────── */}
           {step === 3 && (
             <div>
-              <div style={{ ...S.card, marginBottom: '16px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>Resumen de campaña</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+              <div style={{ fontSize: '13px', color: '#7A90AA', marginBottom: '16px' }}>
+                Asigná cada ad a un conjunto. El conjunto toma el nombre de los ads que tenga adentro.
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(config.numAdSets, 3)}, 1fr)`, gap: '12px', marginBottom: '20px' }}>
+                {adSetGroups().map(g => {
+                  const inside = adConfigs.filter(a => a.adSetIdx === g.idx)
+                  return (
+                    <div key={g.idx} style={{ ...S.card, border: '1px solid #1A4080' }}>
+                      <div style={{ fontSize: '11px', color: '#6366F1', fontWeight: 700, marginBottom: '6px' }}>CONJUNTO {g.idx + 1}</div>
+                      <div style={{ fontSize: '12px', color: '#E8EDF5', fontWeight: 600, marginBottom: '10px', minHeight: '32px', lineHeight: 1.4 }}>
+                        {g.customName}
+                      </div>
+                      {inside.length === 0 ? (
+                        <div style={{ fontSize: '11px', color: '#3A5270', textAlign: 'center', padding: '10px' }}>Sin ads asignados</div>
+                      ) : (
+                        inside.map(ad => (
+                          <div key={ad.driveFileId} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', background: '#050C1E', borderRadius: '6px', padding: '6px 8px' }}>
+                            <div style={{ width: '32px', height: '32px', flexShrink: 0, borderRadius: '4px', overflow: 'hidden', background: '#0C1A2E' }}>
+                              {ad.thumbnailLink ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '14px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0, fontSize: '11px', color: '#C0CFDF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.fileName.replace(/\.[^.]+$/, '')}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Ad assignment list */}
+              <div style={{ ...S.card }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#7A90AA', marginBottom: '12px', letterSpacing: '0.1em' }}>ASIGNAR ADS A CONJUNTOS</div>
+                {adConfigs.map((ad, i) => (
+                  <div key={ad.driveFileId} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', padding: '8px 10px', background: '#050C1E', borderRadius: '8px' }}>
+                    <div style={{ width: '40px', height: '40px', flexShrink: 0, borderRadius: '5px', overflow: 'hidden', background: '#0C1A2E' }}>
+                      {ad.thumbnailLink ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '18px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', color: '#E8EDF5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.fileName.replace(/\.[^.]+$/, '')}</div>
+                      {ad.headline && <div style={{ fontSize: '10px', color: '#6366F1', marginTop: '1px' }}>"{ad.headline}"</div>}
+                    </div>
+                    <div style={{ flexShrink: 0 }}>
+                      <label style={{ ...S.label, fontSize: '10px', marginBottom: '2px' }}>Conjunto</label>
+                      <select value={ad.adSetIdx} onChange={e => updateAd(i, 'adSetIdx', parseInt(e.target.value))}
+                        style={{ ...S.input, width: 'auto', fontSize: '12px', padding: '5px 10px', appearance: 'none' as any }}>
+                        {Array.from({ length: config.numAdSets }, (_, j) => (
+                          <option key={j} value={j}>Conjunto {j + 1}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 4: Revisar ─────────────────────────────────────────── */}
+          {step === 4 && (
+            <div>
+              <div style={{ ...S.card, marginBottom: '14px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>Resumen</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
                   {[
                     { label: 'Campaña', value: config.campaignName },
                     { label: 'Tipo', value: config.campaignType },
-                    { label: 'Conjuntos', value: String(config.numAdSets) },
-                    { label: 'Videos/conjunto', value: String(config.adsPerAdSet) },
-                    { label: 'Presupuesto', value: `AUD $${config.budgetAmount}/día` },
+                    { label: 'Presupuesto', value: `$${config.budgetAmount}/día` },
                     { label: 'Objetivo', value: config.objective },
+                    { label: 'Conjuntos', value: String(config.numAdSets) },
+                    { label: 'Total ads', value: String(adConfigs.length) },
+                    { label: 'Público', value: `${config.ageMin}-${config.ageMax} · ${config.gender}` },
+                    { label: 'Inicio', value: config.startDate ? `${config.startDate} ${config.startTime}` : 'Borrador (manual)' },
                   ].map(({ label, value }) => (
                     <div key={label}>
-                      <div style={{ fontSize: '11px', color: '#7A90AA' }}>{label}</div>
-                      <div style={{ fontSize: '13px', color: '#E8EDF5', fontWeight: 600, marginTop: '2px' }}>{value}</div>
+                      <div style={{ fontSize: '10px', color: '#7A90AA' }}>{label}</div>
+                      <div style={{ fontSize: '12px', color: '#E8EDF5', fontWeight: 600, marginTop: '2px' }}>{value}</div>
                     </div>
                   ))}
                 </div>
-                {config.destinationUrl && (
-                  <div style={{ marginTop: '12px', fontSize: '12px', color: '#7A90AA' }}>
-                    URL: <span style={{ color: '#6366F1' }}>{config.destinationUrl}</span>
-                  </div>
-                )}
               </div>
-
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#7A90AA', letterSpacing: '0.1em', marginBottom: '10px' }}>
-                ADS ({adConfigs.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {adConfigs.map((ad, i) => (
-                  <div key={i} style={{ ...S.card, padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                      <div style={{ width: '56px', height: '56px', flexShrink: 0, borderRadius: '6px', overflow: 'hidden', background: '#050C1E' }}>
-                        {ad.thumbnailLink
-                          ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '22px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>
-                        }
+              {adSetGroups().map(g => {
+                const inside = adConfigs.filter(a => a.adSetIdx === g.idx)
+                return (
+                  <div key={g.idx} style={{ ...S.card, marginBottom: '10px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#6366F1', marginBottom: '10px' }}>Conjunto {g.idx + 1} — {g.customName}</div>
+                    {inside.map(ad => (
+                      <div key={ad.driveFileId} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '8px', padding: '8px', background: '#050C1E', borderRadius: '6px' }}>
+                        <div style={{ width: '44px', height: '44px', flexShrink: 0, borderRadius: '5px', overflow: 'hidden', background: '#0C1A2E' }}>
+                          {ad.thumbnailLink ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '18px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '12px', color: '#E8EDF5', fontWeight: 600 }}>{ad.fileName.replace(/\.[^.]+$/, '')}</div>
+                          {ad.headline && <div style={{ fontSize: '11px', color: '#C0CFDF', marginTop: '2px' }}>"{ad.headline}"</div>}
+                          {!ad.headline && <div style={{ fontSize: '11px', color: '#F59E0B', marginTop: '2px' }}>⚠ Sin titular — el ad se crea igual</div>}
+                        </div>
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#E8EDF5' }}>{ad.fileName}</div>
-                        {ad.angle && <div style={{ fontSize: '11px', color: '#6366F1', marginTop: '2px' }}>🎯 {ad.angle}</div>}
-                        {ad.headline && <div style={{ fontSize: '12px', color: '#C0CFDF', marginTop: '4px', fontStyle: 'italic' }}>"{ad.headline}"</div>}
-                        {ad.primaryText && (
-                          <div style={{ fontSize: '11px', color: '#7A90AA', marginTop: '4px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                            {ad.primaryText}
-                          </div>
-                        )}
-                        {!ad.headline && !ad.primaryText && (
-                          <div style={{ fontSize: '12px', color: '#F59E0B' }}>⚠ Sin copy — editá en el paso anterior</div>
-                        )}
-                      </div>
-                    </div>
+                    ))}
+                    {inside.length === 0 && <div style={{ fontSize: '11px', color: '#EF4444' }}>⚠ Conjunto vacío — no se va a crear</div>}
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
           )}
 
-          {/* ── STEP 4: Creando ── */}
-          {step === 4 && (
+          {/* ── STEP 5: Crear ───────────────────────────────────────────── */}
+          {step === 5 && (
             <div style={{ maxWidth: '700px' }}>
               <div style={S.card}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#E8EDF5', marginBottom: '16px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>
                   {progress.status === 'creating' && '⏳ Creando campaña...'}
-                  {progress.status === 'done' && '✅ Campaña creada como borrador'}
-                  {progress.status === 'error' && '❌ Error al crear campaña'}
+                  {progress.status === 'done'     && '✅ Campaña creada como borrador'}
+                  {progress.status === 'error'    && '❌ Error al crear'}
                 </div>
-
-                <div ref={logRef} style={{
-                  background: '#050C1E', borderRadius: '8px', padding: '14px', fontFamily: 'monospace',
-                  fontSize: '12px', maxHeight: '300px', overflowY: 'auto', marginBottom: '16px',
-                }}>
-                  {progress.log.map((line, i) => (
-                    <div key={i} style={{ color: line.startsWith('❌') ? '#EF4444' : line.startsWith('⚠') ? '#F59E0B' : '#22C55E', marginBottom: '4px' }}>
-                      {line}
-                    </div>
+                <div ref={logRef} style={{ background: '#050C1E', borderRadius: '8px', padding: '12px', fontFamily: 'monospace', fontSize: '12px', maxHeight: '280px', overflowY: 'auto', marginBottom: '16px' }}>
+                  {progress.log.map((l, i) => (
+                    <div key={i} style={{ color: l.startsWith('❌') ? '#EF4444' : l.startsWith('⚠') ? '#F59E0B' : '#22C55E', marginBottom: '3px' }}>{l}</div>
                   ))}
-                  {progress.status === 'creating' && (
-                    <div style={{ color: '#7A90AA', animation: 'pulse 1s infinite' }}>...</div>
-                  )}
+                  {progress.status === 'creating' && <div style={{ color: '#7A90AA' }}>...</div>}
                 </div>
-
                 {progress.status === 'done' && (
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <a href="/borradores" style={{ ...S.btnPrimary, textDecoration: 'none', display: 'inline-block' }}>
-                      Ver en Borradores
-                    </a>
-                    <button onClick={() => { setStep(0); setSelectedFiles(new Set()); setAdConfigs([]); loadDrive() }} style={S.btnSecondary}>
-                      Nueva campaña
-                    </button>
+                    <a href="/borradores" style={{ ...S.btnPri, textDecoration: 'none', display: 'inline-block' }}>Ver en Borradores</a>
+                    <button onClick={() => { setStep(0); setSelectedFiles(new Set()); setAdConfigs([]); loadDrive() }} style={S.btnSec}>Nueva campaña</button>
                   </div>
                 )}
-                {progress.status === 'error' && (
-                  <button onClick={() => setStep(3)} style={S.btnSecondary}>← Volver</button>
-                )}
+                {progress.status === 'error' && <button onClick={() => setStep(4)} style={S.btnSec}>← Volver</button>}
               </div>
             </div>
           )}
 
-          {/* ── Navigation ── */}
-          {step < 4 && (
+          {/* ── Navigation ──────────────────────────────────────────────── */}
+          {step < 5 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
               <div>
-                {step > 0 && (
-                  <button onClick={() => setStep(s => s - 1)} style={S.btnSecondary}>← Anterior</button>
-                )}
+                {step > 0 && <button onClick={() => setStep(s => s - 1)} style={S.btnSec}>← Anterior</button>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {step === 0 && totalSelected > 0 && (
-                  <span style={{ fontSize: '13px', color: '#7A90AA' }}>{totalSelected} seleccionados</span>
-                )}
                 {step === 0 && (
-                  <button
-                    onClick={goToAnalysis}
-                    disabled={totalSelected === 0}
-                    style={{ ...S.btnPrimary, opacity: totalSelected === 0 ? 0.5 : 1, cursor: totalSelected === 0 ? 'not-allowed' : 'pointer' }}
-                  >
-                    Analizar {totalSelected > 0 ? `(${totalSelected})` : ''} →
-                  </button>
+                  <>
+                    {totalSel > 0 && <span style={{ fontSize: '13px', color: '#7A90AA' }}>{totalSel} seleccionados</span>}
+                    <button onClick={goToAnalysis} disabled={totalSel === 0}
+                      style={{ ...S.btnPri, opacity: totalSel === 0 ? 0.4 : 1, cursor: totalSel === 0 ? 'not-allowed' : 'pointer' }}>
+                      Analizar ({totalSel}) →
+                    </button>
+                  </>
                 )}
                 {step === 1 && (
-                  <button
-                    onClick={() => setStep(2)}
-                    disabled={adConfigs.some(a => a.analysisLoading)}
-                    style={{ ...S.btnPrimary, opacity: adConfigs.some(a => a.analysisLoading) ? 0.5 : 1 }}
-                  >
-                    Configurar →
+                  <button onClick={() => setStep(2)} style={S.btnPri}>
+                    {adConfigs.some(a => a.analysisLoading) ? 'Continuar sin esperar →' : 'Configurar →'}
                   </button>
                 )}
                 {step === 2 && (
-                  <button
-                    onClick={() => {
-                      if (!config.campaignName || !config.accountId || !config.pageId || !config.destinationUrl) {
-                        alert('Completá todos los campos requeridos')
-                        return
-                      }
-                      setStep(3)
-                    }}
-                    style={S.btnPrimary}
-                  >
-                    Revisar →
-                  </button>
+                  <button onClick={() => {
+                    if (!config.campaignName || !config.accountId || !config.pageId || !config.destinationUrl) {
+                      alert('Completá campaña, cuenta, fanpage y URL destino')
+                      return
+                    }
+                    setStep(3)
+                  }} style={S.btnPri}>Estructura →</button>
                 )}
-                {step === 3 && (
-                  <button onClick={createCampaign} style={{ ...S.btnPrimary, background: '#22C55E' }}>
-                    ✓ Crear como borrador
-                  </button>
-                )}
+                {step === 3 && <button onClick={() => setStep(4)} style={S.btnPri}>Revisar →</button>}
+                {step === 4 && <button onClick={createCampaign} style={S.btnGreen}>✓ Crear como borrador</button>}
               </div>
             </div>
           )}

@@ -132,28 +132,20 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const {
-    campaignName, adSetName, campaignType = 'CBO',
+    campaignName, campaignType = 'CBO',
     budgetCents, objective = 'ventas',
     accountId, pageId, destinationUrl,
-    numAdSets = 1, adsPerAdSet,
-    startDate, targeting, productId,
-    ads = [],
+    startDateTime, targeting, productId,
+    adSets = [],  // [{ name, ads: [{driveFileId, mimeType, fileName, headline, primaryText, angle}] }]
   } = body
 
-  if (!campaignName || !accountId || !pageId || !destinationUrl || !budgetCents || !ads.length) {
+  if (!campaignName || !accountId || !pageId || !destinationUrl || !budgetCents || !adSets.length) {
     return NextResponse.json({ error: 'Faltan parámetros requeridos' }, { status: 400 })
   }
 
   const metaObjective = OBJECTIVE_MAP[objective] || 'OUTCOME_SALES'
   const isCBO = campaignType === 'CBO'
-  const setsCount = Math.max(1, parseInt(String(numAdSets)))
-  const perSet    = adsPerAdSet ? Math.max(1, parseInt(String(adsPerAdSet))) : Math.ceil(ads.length / setsCount)
-
-  // Chunk ads into groups for each ad set
-  const adChunks: any[][] = []
-  for (let i = 0; i < setsCount; i++) {
-    adChunks.push(ads.slice(i * perSet, (i + 1) * perSet))
-  }
+  const setsCount = adSets.length
 
   try {
     // ── 1. Campaign ──────────────────────────────────────────────────────────
@@ -172,14 +164,14 @@ export async function POST(req: NextRequest) {
     console.log('[Campaign]', campaignId)
 
     const defaultTargeting = targeting || { geo_locations: { countries: ['AR'] }, age_min: 18, age_max: 65 }
-    const createdAds: any[] = []
+    const allCreatedAds: any[] = []
+    const createdAdSets: any[] = []
     let firstAdSetId = ''
 
     // ── 2. Ad Sets + Ads ─────────────────────────────────────────────────────
     for (let setIdx = 0; setIdx < setsCount; setIdx++) {
-      const setName = setsCount === 1
-        ? (adSetName || `${campaignName} — Conjunto`)
-        : `${adSetName || campaignName} — Conjunto ${setIdx + 1}`
+      const setSpec = adSets[setIdx]
+      const setName = setSpec.name || `${campaignName} — Conjunto ${setIdx + 1}`
 
       const asParams: Record<string, string> = {
         name:              setName,
@@ -191,34 +183,34 @@ export async function POST(req: NextRequest) {
         bid_strategy:      'LOWEST_COST_WITHOUT_CAP',
       }
       if (!isCBO) asParams.daily_budget = String(budgetCents)
-      if (startDate) asParams.start_time = String(Math.floor(new Date(startDate).getTime() / 1000))
+      if (startDateTime) asParams.start_time = String(Math.floor(new Date(startDateTime).getTime() / 1000))
 
       const asData  = await metaPost(`${accountId}/adsets`, asParams)
       const adSetId = asData.id
       if (setIdx === 0) firstAdSetId = adSetId
-      console.log(`[AdSet ${setIdx + 1}]`, adSetId)
+      console.log(`[AdSet ${setIdx + 1}] ${setName}`, adSetId)
 
-      // ── 3. Ads for this set ─────────────────────────────────────────────
-      for (const adSpec of adChunks[setIdx] || []) {
+      const setAdIds: string[] = []
+      for (const adSpec of setSpec.ads || []) {
         let bytes: Buffer
         try {
           const dl = await downloadFile(adSpec.driveFileId)
           bytes = dl.bytes
         } catch (err: any) {
-          createdAds.push({ ...adSpec, adSetIdx: setIdx, error: `Drive: ${err.message}` })
+          allCreatedAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, error: `Drive: ${err.message}` })
           continue
         }
-
         try {
           const { adId, creativeId } = await createAd(accountId, adSetId, pageId, destinationUrl, adSpec, bytes)
-          // Move to "Nuevos subidos"
           try { const { moveFile } = await import('@/lib/drive'); await moveFile(adSpec.driveFileId, 'Nuevos subidos') } catch (_) {}
-          createdAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, adId, creativeId })
+          allCreatedAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, adId, creativeId })
+          setAdIds.push(adId)
           console.log(`  [Ad]`, adId, adSpec.fileName)
         } catch (err: any) {
-          createdAds.push({ ...adSpec, adSetIdx: setIdx, error: `Upload: ${err.message}` })
+          allCreatedAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, error: `Upload: ${err.message}` })
         }
       }
+      createdAdSets.push({ name: setName, adSetId, adIds: setAdIds })
     }
 
     // ── 4. Save draft ────────────────────────────────────────────────────────
@@ -228,16 +220,16 @@ export async function POST(req: NextRequest) {
         campaign_id:   campaignId,
         ad_set_id:     firstAdSetId,
         campaign_name: campaignName,
-        ad_set_name:   adSetName || campaignName,
+        ad_set_name:   adSets[0]?.name || campaignName,
         campaign_type: campaignType,
         budget_cents:  budgetCents,
         budget_level:  isCBO ? 'campaign' : 'adset',
         objective,
         status:        'PAUSED',
-        ads:           createdAds,
+        ads:           allCreatedAds,
         product_id:    productId || null,
-        start_date:    startDate || null,
-        notes:         `${setsCount} conjuntos × ${perSet} ads`,
+        start_date:    startDateTime ? startDateTime.split('T')[0] : null,
+        notes:         `${setsCount} conjuntos — ${allCreatedAds.filter(a => !a.error).length} ads`,
       })
       .select()
       .single()
@@ -247,9 +239,9 @@ export async function POST(req: NextRequest) {
       campaignId,
       firstAdSetId,
       draftId:  draft?.id,
-      ads:      createdAds,
-      errors:   createdAds.filter(a => a.error).length,
-      structure: `${setsCount} conjuntos × ${perSet} ads`,
+      adSets:   createdAdSets,
+      ads:      allCreatedAds,
+      errors:   allCreatedAds.filter(a => a.error).length,
     })
 
   } catch (err: any) {
