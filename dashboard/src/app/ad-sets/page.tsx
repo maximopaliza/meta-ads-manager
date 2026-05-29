@@ -13,7 +13,7 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
   await headers()
   const sp = await searchParams
   const today = await getLatestDate()
-  const { rangeStart, rangeEnd, days, label } = resolveDateRange(sp, today, 1)
+  const { rangeStart, rangeEnd, days, label } = resolveDateRange(sp, today, 7)
   const todayMs = new Date(today + 'T12:00:00Z').getTime()
   const yesterday = new Date(todayMs - 86400000).toISOString().split('T')[0]
 
