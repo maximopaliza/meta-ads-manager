@@ -7,6 +7,7 @@ import { Suspense } from 'react'
 import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
 import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
 import RangeSelector from '@/components/dashboard/RangeSelector'
+import BudgetControl from '@/components/shared/BudgetControl'
 
 export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
   await headers()
@@ -200,7 +201,15 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                       <td style={{ ...td, color: c.t.purchases > 0 ? '#22C55E' : '#7A90AA', fontWeight: 600 }}>{c.t.purchases || '—'}</td>
                       <td style={{ ...td, color: cpaColor(c.t.cpa), fontWeight: 600 }}>{c.t.cpa ? formatCurrency(c.t.cpa, currency) : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{c.t.spend > 0 ? formatCurrency(c.t.spend, currency) : '—'}</td>
-                      <td style={{ ...td, color: '#7A90AA' }}>{c.budget}</td>
+                      <td style={td}>
+                        <BudgetControl
+                          objectId={c.id}
+                          objectType="campaign"
+                          budgetCents={c.daily_budget ?? null}
+                          currency={currency}
+                          isActive={c.status === 'ACTIVE'}
+                        />
+                      </td>
                       <td style={{ ...td, color: '#A8BCD0' }}>{c.t.purchase_value > 0 ? formatCurrency(c.t.purchase_value, currency) : '—'}</td>
                       <td style={{ ...td, color: roasColor(c.t.roas) }}>{c.t.roas ? `${c.t.roas.toFixed(2)}x` : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{c.t.traf_ef ? `${c.t.traf_ef.toFixed(1)}%` : '—'}</td>

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { formatCurrency, formatNumber, statusEmoji } from '@/lib/utils'
 import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_BREAKEVEN, CPA_TARGET, resolveDateRange } from '@/lib/metrics'
+import BudgetControl from '@/components/shared/BudgetControl'
 
 export default async function AdSetsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string }> }) {
   await headers()
@@ -208,7 +209,15 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                       <td style={{ ...td, color: as.t.purchases > 0 ? '#22C55E' : '#7A90AA', fontWeight: 600 }}>{as.t.purchases || '—'}</td>
                       <td style={{ ...td, color: cpaColor(as.t.cpa), fontWeight: 600 }}>{as.t.cpa ? formatCurrency(as.t.cpa, currency) : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{as.t.spend > 0 ? formatCurrency(as.t.spend, currency) : '—'}</td>
-                      <td style={{ ...td, color: '#7A90AA' }}>{as.budget}</td>
+                      <td style={td}>
+                        <BudgetControl
+                          objectId={as.id}
+                          objectType="ad_set"
+                          budgetCents={as.daily_budget ?? (as.campaigns?.daily_budget ?? null)}
+                          currency={currency}
+                          isActive={as.status === 'ACTIVE'}
+                        />
+                      </td>
                       <td style={{ ...td, color: '#A8BCD0' }}>{as.t.purchase_value > 0 ? formatCurrency(as.t.purchase_value, currency) : '—'}</td>
                       <td style={{ ...td, color: roasColor(as.t.roas) }}>{as.t.roas ? `${as.t.roas.toFixed(2)}x` : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{as.t.traf_ef ? `${as.t.traf_ef.toFixed(1)}%` : '—'}</td>
