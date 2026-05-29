@@ -187,8 +187,19 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                     <td style={tf}>{totals.video_avg ? `${totals.video_avg.toFixed(0)}s` : '—'}</td>
                     <td style={tf}>—</td>
                   </tr>
-                  {rows.map((as: any) => (
-                    <tr key={as.id} style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.55, borderLeft: as.status === 'ACTIVE' ? '3px solid #22C55E' : '3px solid #EF444460' }}>
+                  {rows.map((as: any, idx: number) => {
+                    const active  = as.status === 'ACTIVE'
+                    const showSep = idx > 0 && !active && rows[idx - 1].status === 'ACTIVE'
+                    return (
+                    <>
+                    {showSep && (
+                      <tr key={`sep-${as.id}`}>
+                        <td colSpan={25} style={{ padding: '0', borderBottom: '2px solid #1A4080', background: 'linear-gradient(90deg, #EF444415, transparent)' }}>
+                          <div style={{ padding: '3px 12px', fontSize: '10px', color: '#EF444480', fontWeight: 700, letterSpacing: '0.1em' }}>PAUSADAS</div>
+                        </td>
+                      </tr>
+                    )}
+                    <tr key={as.id} style={{ opacity: active ? 1 : 0.55, borderLeft: active ? '3px solid #22C55E' : '3px solid #EF444460' }}>
                       <td style={{ ...td, position: 'sticky', left: 0, zIndex: 1, backgroundColor: as.status === 'ACTIVE' ? '#071428' : '#050810', textAlign: 'center' as const, width: '64px' }}>
                         <StatusToggle objectId={as.id} objectType="ad_set" initialStatus={as.status} />
                       </td>
@@ -214,8 +225,8 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                       <td style={{ ...td, color: '#F1F5F9' }}>{as.t.spend > 0 ? formatCurrency(as.t.spend, currency) : '—'}</td>
                       <td style={td}>
                         <BudgetControl
-                          objectId={as.id}
-                          objectType="ad_set"
+                          objectId={as.daily_budget != null ? as.id : as.campaign_id}
+                          objectType={as.daily_budget != null ? 'ad_set' : 'campaign'}
                           budgetCents={as.daily_budget ?? (as.campaigns?.daily_budget ?? null)}
                           currency={currency}
                           isActive={as.status === 'ACTIVE'}
@@ -230,7 +241,9 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                       <td style={{ ...td, color: '#7A90AA' }}>{as.t.video_avg ? `${as.t.video_avg.toFixed(0)}s` : '—'}</td>
                       <td style={{ ...td, color: as.trend === '▲' ? '#22C55E' : as.trend === '▼' ? '#EF4444' : '#7A90AA' }}>{as.trend}</td>
                     </tr>
-                  ))}
+                    </>
+                  )})}
+
                 </tbody>
               </table>
             </div>

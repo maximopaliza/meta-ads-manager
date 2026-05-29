@@ -93,34 +93,38 @@ async function getOrCreateFolder(name: string, parentId: string): Promise<string
   return created.id
 }
 
-/** Lists all Drive files organized by subfolder */
+/** Lists all Drive files organized by subfolder — folders fetched in parallel */
 export async function getDriveStructure(): Promise<Record<DriveFolder, DriveFile[]>> {
   const rootId = process.env.GOOGLE_DRIVE_FOLDER_ID
   if (!rootId) throw new Error('GOOGLE_DRIVE_FOLDER_ID not set')
 
-  const result: Record<string, DriveFile[]> = {}
-  for (const folderName of SUBFOLDER_NAMES) {
-    const folderId = await getOrCreateFolder(folderName, rootId)
-    const mimeQ = [...VIDEO_MIMES, ...IMAGE_MIMES].map(m => `mimeType='${m}'`).join(' or ')
-    const q = `'${folderId}' in parents and (${mimeQ}) and trashed=false`
-    const res = await driveGet('files', {
-      q,
-      fields: 'files(id,name,size,mimeType,modifiedTime,thumbnailLink)',
-      orderBy: 'modifiedTime desc',
-      pageSize: '100',
+  const mimeQ = [...VIDEO_MIMES, ...IMAGE_MIMES].map(m => `mimeType='${m}'`).join(' or ')
+
+  const entries = await Promise.all(
+    SUBFOLDER_NAMES.map(async (folderName) => {
+      const folderId = await getOrCreateFolder(folderName, rootId)
+      const q = `'${folderId}' in parents and (${mimeQ}) and trashed=false`
+      const res = await driveGet('files', {
+        q,
+        fields: 'files(id,name,size,mimeType,modifiedTime,thumbnailLink)',
+        orderBy: 'modifiedTime desc',
+        pageSize: '200',
+      })
+      const files: DriveFile[] = (res.files || []).map((f: any) => ({
+        id: f.id,
+        name: f.name,
+        size: parseInt(f.size || '0'),
+        mimeType: f.mimeType,
+        modifiedTime: f.modifiedTime,
+        folder: folderName as DriveFolder,
+        isVideo: VIDEO_MIMES.has(f.mimeType),
+        thumbnailLink: f.thumbnailLink?.replace('=s220', '=s400'),
+      }))
+      return [folderName, files] as const
     })
-    result[folderName] = (res.files || []).map((f: any) => ({
-      id: f.id,
-      name: f.name,
-      size: parseInt(f.size || '0'),
-      mimeType: f.mimeType,
-      modifiedTime: f.modifiedTime,
-      folder: folderName as DriveFolder,
-      isVideo: VIDEO_MIMES.has(f.mimeType),
-      thumbnailLink: f.thumbnailLink?.replace('=s220', '=s400'),
-    }))
-  }
-  return result as Record<DriveFolder, DriveFile[]>
+  )
+
+  return Object.fromEntries(entries) as Record<DriveFolder, DriveFile[]>
 }
 
 /** Moves a file to a different subfolder */

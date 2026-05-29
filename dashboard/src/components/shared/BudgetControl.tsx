@@ -83,9 +83,10 @@ export default function BudgetControl({ objectId, objectType, budgetCents, curre
       {/* Popover */}
       {open && (
         <>
-          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 50 }} />
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 9998 }} />
           <div style={{
-            position: 'absolute', right: 0, top: '32px', zIndex: 100,
+            position: 'fixed', right: 'auto', top: 'auto', zIndex: 9999,
+            transform: 'translateY(4px)',
             background: '#0E1B30', border: '1px solid #1A4080', borderRadius: '10px',
             padding: '16px', width: '220px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.6)',

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { downloadFile } from '@/lib/drive'
+import { downloadFile, moveFile } from '@/lib/drive'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
         }
         try {
           const { adId, creativeId } = await createAd(accountId, adSetId, pageId, destinationUrl, adSpec, bytes)
-          try { const { moveFile } = await import('@/lib/drive'); await moveFile(adSpec.driveFileId, 'Nuevos subidos') } catch (_) {}
+          try { await moveFile(adSpec.driveFileId, 'Nuevos subidos') } catch (_) {}
           allCreatedAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, adId, creativeId })
           setAdIds.push(adId)
           console.log(`  [Ad]`, adId, adSpec.fileName)

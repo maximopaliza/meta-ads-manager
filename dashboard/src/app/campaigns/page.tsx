@@ -182,10 +182,20 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                     <td style={tf}>{totals.video_avg ? `${totals.video_avg.toFixed(0)}s` : '—'}</td>
                     <td style={tf}>—</td>
                   </tr>
-                  {rows.map((c: any) => {
-                    const active = c.status === 'ACTIVE'
-                    const rowBg  = active ? '#071428' : '#050810'
+                  {rows.map((c: any, idx: number) => {
+                    const active  = c.status === 'ACTIVE'
+                    const rowBg   = active ? '#071428' : '#050810'
+                    const showSep = idx > 0 && !active && rows[idx - 1].status === 'ACTIVE'
+                    const COLS    = 23  // total column count
                     return (
+                    <>
+                    {showSep && (
+                      <tr key={`sep-${c.id}`}>
+                        <td colSpan={COLS} style={{ padding: '0', borderBottom: '2px solid #1A4080', background: 'linear-gradient(90deg, #EF444415, transparent)' }}>
+                          <div style={{ padding: '3px 12px', fontSize: '10px', color: '#EF444480', fontWeight: 700, letterSpacing: '0.1em' }}>PAUSADAS</div>
+                        </td>
+                      </tr>
+                    )}
                     <tr key={c.id} style={{ opacity: active ? 1 : 0.55, borderLeft: active ? '3px solid #22C55E' : '3px solid #EF444460' }}>
                       <td style={{ ...td, position: 'sticky', left: 0, zIndex: 1, backgroundColor: rowBg, textAlign: 'center' as const, width: '64px' }}>
                         <StatusToggle objectId={c.id} objectType="campaign" initialStatus={c.status} />
@@ -225,6 +235,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                       <td style={{ ...td, color: '#7A90AA' }}>{c.t.video_avg ? `${c.t.video_avg.toFixed(0)}s` : '—'}</td>
                       <td style={{ ...td, color: c.trend === '▲' ? '#22C55E' : c.trend === '▼' ? '#EF4444' : '#7A90AA' }}>{c.trend}</td>
                     </tr>
+                    </>
                   )})}
                 </tbody>
               </table>

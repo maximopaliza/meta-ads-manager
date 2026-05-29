@@ -194,10 +194,19 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                     <td style={tf}>{totals.video_avg ? `${totals.video_avg.toFixed(0)}s` : '—'}</td>
                     <td style={tf}>—</td>
                   </tr>
-                  {rows.map((ad: any) => {
-                    const active = ad.status === 'ACTIVE'
-                    const rowBg  = active ? '#071428' : '#050810'
+                  {rows.map((ad: any, idx: number) => {
+                    const active  = ad.status === 'ACTIVE'
+                    const rowBg   = active ? '#071428' : '#050810'
+                    const showSep = idx > 0 && !active && rows[idx - 1].status === 'ACTIVE'
                     return (
+                    <>
+                    {showSep && (
+                      <tr key={`sep-${ad.id}`}>
+                        <td colSpan={26} style={{ padding: '0', borderBottom: '2px solid #1A4080', background: 'linear-gradient(90deg, #EF444415, transparent)' }}>
+                          <div style={{ padding: '3px 12px', fontSize: '10px', color: '#EF444480', fontWeight: 700, letterSpacing: '0.1em' }}>PAUSADAS</div>
+                        </td>
+                      </tr>
+                    )}
                     <tr key={ad.id} style={{ opacity: active ? 1 : 0.55, borderLeft: active ? '3px solid #22C55E' : '3px solid #EF444460' }}>
                       <td style={{ ...td, position: 'sticky', left: 0, zIndex: 1, backgroundColor: rowBg, textAlign: 'center' as const, width: '64px' }}>
                         <StatusToggle objectId={ad.id} objectType="ad" initialStatus={ad.status} />
@@ -237,6 +246,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                       <td style={{ ...td, color: '#7A90AA' }}>{ad.t.video_avg ? `${ad.t.video_avg.toFixed(0)}s` : '—'}</td>
                       <td style={{ ...td, color: ad.trend === '▲' ? '#22C55E' : ad.trend === '▼' ? '#EF4444' : '#7A90AA' }}>{ad.trend}</td>
                     </tr>
+                    </>
                   )})}
                 </tbody>
               </table>

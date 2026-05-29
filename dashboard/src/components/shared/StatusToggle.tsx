@@ -11,13 +11,20 @@ interface Props {
 export default function StatusToggle({ objectId, objectType, initialStatus }: Props) {
   const [status, setStatus]   = useState(initialStatus)
   const [loading, setLoading] = useState(false)
+  const [errored, setErrored] = useState(false)
 
   const isActive = status === 'ACTIVE'
 
   async function toggle() {
     if (loading) return
-    setLoading(true)
+    const prevStatus = status
     const action = isActive ? 'pause' : 'activate'
+
+    // Optimistic update
+    setStatus(action === 'activate' ? 'ACTIVE' : 'PAUSED')
+    setLoading(true)
+    setErrored(false)
+
     try {
       const res = await fetch('/api/meta/status', {
         method: 'POST',
@@ -25,10 +32,15 @@ export default function StatusToggle({ objectId, objectType, initialStatus }: Pr
         body: JSON.stringify({ objectId, objectType, action }),
       })
       const data = await res.json()
-      if (!data.error) setStatus(data.status)
-      else console.error('[StatusToggle]', data.error)
-    } catch (e) {
-      console.error('[StatusToggle]', e)
+      if (data.error) {
+        setStatus(prevStatus)   // revert on error
+        setErrored(true)
+        setTimeout(() => setErrored(false), 3000)
+      }
+    } catch (_) {
+      setStatus(prevStatus)     // revert on network error
+      setErrored(true)
+      setTimeout(() => setErrored(false), 3000)
     } finally {
       setLoading(false)
     }
@@ -45,7 +57,7 @@ export default function StatusToggle({ objectId, objectType, initialStatus }: Pr
         borderRadius: '11px',
         border: 'none',
         cursor: loading ? 'wait' : 'pointer',
-        background: loading ? '#1A4080' : isActive ? '#22C55E22' : '#EF444422',
+        background: errored ? '#EF444440' : loading ? '#1A4080' : isActive ? '#22C55E22' : '#EF444422',
         transition: 'all 0.15s',
         gap: '4px',
         padding: '0 6px',
