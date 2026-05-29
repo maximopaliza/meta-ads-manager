@@ -591,9 +591,15 @@ export default function LanzarPage() {
                     <label style={S.label}>Fanpage</label>
                     {pages.length > 0
                       ? <select value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))} style={{ ...S.input, appearance: 'none' as any }}>
+                          <option value="">— Elegir página —</option>
                           {pages.map((p: any) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
                         </select>
-                      : <input value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))} placeholder="ID de la fanpage" style={S.input} />
+                      : <>
+                          <input value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))} placeholder="Pegá el ID numérico de tu fanpage" style={S.input} />
+                          <div style={{ fontSize: '10px', color: '#F59E0B', marginTop: '4px' }}>
+                            ⚠ No se encontraron páginas automáticamente. Agregá META_ACCESS_TOKEN en Railway y recargá, o pegá el ID manualmente.
+                          </div>
+                        </>
                     }
                   </div>
                   <Field label="URL destino *" value={config.destinationUrl} onChange={(v: string) => setConfig(c => ({ ...c, destinationUrl: v }))} type="url" />
@@ -620,22 +626,50 @@ export default function LanzarPage() {
                 </div>
 
                 <div style={S.card}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>Público & Horario</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div style={{ marginBottom: '14px' }}>
-                      <label style={S.label}>Edad mín.</label>
-                      <input type="number" min="18" max="65" value={config.ageMin} onChange={e => setConfig(c => ({ ...c, ageMin: parseInt(e.target.value) || 18 }))} style={{ ...S.input, textAlign: 'center' }} />
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>Público</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                    <div>
+                      <label style={S.label}>Edad mínima</label>
+                      <select value={config.ageMin} onChange={e => setConfig(c => ({ ...c, ageMin: parseInt(e.target.value) }))} style={{ ...S.input, appearance: 'none' as any }}>
+                        {Array.from({ length: 48 }, (_, i) => i + 18).map(age => (
+                          <option key={age} value={age}>{age}</option>
+                        ))}
+                      </select>
                     </div>
-                    <div style={{ marginBottom: '14px' }}>
-                      <label style={S.label}>Edad máx.</label>
-                      <input type="number" min="18" max="65" value={config.ageMax} onChange={e => setConfig(c => ({ ...c, ageMax: parseInt(e.target.value) || 65 }))} style={{ ...S.input, textAlign: 'center' }} />
+                    <div>
+                      <label style={S.label}>Edad máxima</label>
+                      <select value={config.ageMax} onChange={e => setConfig(c => ({ ...c, ageMax: parseInt(e.target.value) }))} style={{ ...S.input, appearance: 'none' as any }}>
+                        {Array.from({ length: 47 }, (_, i) => i + 18).map(age => (
+                          <option key={age} value={age}>{age}</option>
+                        ))}
+                        <option value={65}>65+</option>
+                      </select>
                     </div>
                   </div>
                   <Sel label="Género" value={config.gender} onChange={v => setConfig(c => ({ ...c, gender: v as any }))}
-                    options={[{ value: 'all', label: 'Todos' }, { value: 'female', label: 'Solo mujeres' }, { value: 'male', label: 'Solo hombres' }]} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <Field label="Fecha inicio (opcional)" value={config.startDate} onChange={(v: string) => setConfig(c => ({ ...c, startDate: v }))} type="date" />
-                    <Field label="Hora" value={config.startTime} onChange={(v: string) => setConfig(c => ({ ...c, startTime: v }))} type="time" />
+                    options={[{ value: 'all', label: 'Todos los géneros' }, { value: 'female', label: 'Solo mujeres' }, { value: 'male', label: 'Solo hombres' }]} />
+                </div>
+
+                <div style={S.card}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '14px' }}>Programación</div>
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={S.label}>Fecha de inicio (opcional)</label>
+                    <input
+                      type="date"
+                      value={config.startDate}
+                      onChange={e => setConfig(c => ({ ...c, startDate: e.target.value }))}
+                      style={{ ...S.input, colorScheme: 'dark' }}
+                    />
+                    <div style={{ fontSize: '10px', color: '#3A5270', marginTop: '4px' }}>Sin fecha → el ad set queda en borrador para activar manualmente</div>
+                  </div>
+                  <div>
+                    <label style={S.label}>Hora de inicio</label>
+                    <input
+                      type="time"
+                      value={config.startTime}
+                      onChange={e => setConfig(c => ({ ...c, startTime: e.target.value }))}
+                      style={{ ...S.input, colorScheme: 'dark', width: 'auto' }}
+                    />
                   </div>
                 </div>
               </div>
