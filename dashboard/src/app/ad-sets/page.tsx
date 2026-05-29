@@ -132,9 +132,9 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
               <table style={{ borderCollapse: 'collapse', minWidth: '2600px', width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0 }}>Ad Set</th>
+                    <th style={{ ...th, width: '64px', position: 'sticky', left: 0, zIndex: 2, textAlign: 'center' as const }}>Estado</th>
+                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 2 }}>Ad Set</th>
                     <th style={{ ...th, textAlign: 'left' as const, minWidth: '130px' }}>Campaña</th>
-                    <th style={{ ...th, width: '36px' }}>Est.</th>
                     <th style={th}>Impresiones</th>
                     <th style={th}>CPM</th>
                     <th style={th}>CTR único</th>
@@ -160,11 +160,11 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={{ ...tf, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#030810' }}>
+                    <td style={{ ...tf, position: 'sticky', left: 0, zIndex: 2, backgroundColor: '#030810', width: '64px' }}>—</td>
+                    <td style={{ ...tf, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 2, backgroundColor: '#030810' }}>
                       <span style={{ color: '#6366F1', fontWeight: 700, fontSize: '11px' }}>Total / Promedio</span>
                     </td>
                     <td style={{ ...tf, textAlign: 'left' as const }}>—</td>
-                    <td style={tf}>—</td>
                     <td style={{ ...tf, color: '#A8BCD0' }}>{totals.impressions > 0 ? new Intl.NumberFormat('es-AR').format(totals.impressions) : '—'}</td>
                     <td style={tf}>{totals.cpm ? formatCurrency(totals.cpm, currency) : '—'}</td>
                     <td style={tf}>{totals.ctr ? `${totals.ctr.toFixed(2)}%` : '—'}</td>
@@ -188,17 +188,17 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
                     <td style={tf}>—</td>
                   </tr>
                   {rows.map((as: any) => (
-                    <tr key={as.id} style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.5 }}>
-                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#071428' }}>
+                    <tr key={as.id} style={{ opacity: as.status === 'ACTIVE' ? 1 : 0.55, borderLeft: as.status === 'ACTIVE' ? '3px solid #22C55E' : '3px solid #EF444460' }}>
+                      <td style={{ ...td, position: 'sticky', left: 0, zIndex: 1, backgroundColor: as.status === 'ACTIVE' ? '#071428' : '#050810', textAlign: 'center' as const, width: '64px' }}>
+                        <StatusToggle objectId={as.id} objectType="ad_set" initialStatus={as.status} />
+                      </td>
+                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 1, backgroundColor: as.status === 'ACTIVE' ? '#071428' : '#050810' }}>
                         <span style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{as.name}</span>
                       </td>
                       <td style={{ ...td, textAlign: 'left' as const, minWidth: '130px' }}>
                         <Link href={`/campaigns/${as.campaign_id}`} style={{ color: '#6366F1', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                           {as.campaigns?.name || as.campaign_id}
                         </Link>
-                      </td>
-                      <td style={{ ...td, textAlign: 'center' as const }}>
-                        <StatusToggle objectId={as.id} objectType="ad_set" initialStatus={as.status} />
                       </td>
                       <td style={{ ...td, color: '#A8BCD0' }}>{as.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(as.t.impressions) : '—'}</td>
                       <td style={{ ...td, color: cpmColor(as.t.cpm) }}>{as.t.cpm ? formatCurrency(as.t.cpm, currency) : '—'}</td>

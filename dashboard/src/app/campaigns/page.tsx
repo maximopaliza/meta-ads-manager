@@ -129,8 +129,8 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
               <table style={{ borderCollapse: 'collapse', minWidth: '2200px', width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '180px', position: 'sticky', left: 0 }}>Campaña</th>
-                    <th style={{ ...th, width: '36px' }}>Est.</th>
+                    <th style={{ ...th, width: '64px', position: 'sticky', left: 0, zIndex: 2, textAlign: 'center' as const }}>Estado</th>
+                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '180px', position: 'sticky', left: '64px', zIndex: 2 }}>Campaña</th>
                     <th style={th}>Impresiones</th>
                     <th style={th}>CPM</th>
                     <th style={th}>CTR único</th>
@@ -156,10 +156,10 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={{ ...tf, textAlign: 'left' as const, minWidth: '180px', position: 'sticky', left: 0, backgroundColor: '#030810' }}>
+                    <td style={{ ...tf, position: 'sticky', left: 0, zIndex: 2, backgroundColor: '#030810', width: '64px' }}>—</td>
+                    <td style={{ ...tf, textAlign: 'left' as const, minWidth: '180px', position: 'sticky', left: '64px', zIndex: 2, backgroundColor: '#030810' }}>
                       <span style={{ color: '#6366F1', fontWeight: 700, fontSize: '11px' }}>Total / Promedio</span>
                     </td>
-                    <td style={tf}>—</td>
                     <td style={{ ...tf, color: '#A8BCD0' }}>{totals.impressions > 0 ? new Intl.NumberFormat('es-AR').format(totals.impressions) : '—'}</td>
                     <td style={{ ...tf, color: cpmColor(totals.cpm) }}>{totals.cpm ? formatCurrency(totals.cpm, currency) : '—'}</td>
                     <td style={{ ...tf, color: ctrColor(totals.ctr) }}>{totals.ctr ? `${totals.ctr.toFixed(2)}%` : '—'}</td>
@@ -182,15 +182,18 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                     <td style={tf}>{totals.video_avg ? `${totals.video_avg.toFixed(0)}s` : '—'}</td>
                     <td style={tf}>—</td>
                   </tr>
-                  {rows.map((c: any) => (
-                    <tr key={c.id} style={{ opacity: c.status === 'ACTIVE' ? 1 : 0.5 }}>
-                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '180px', position: 'sticky', left: 0, backgroundColor: '#071428' }}>
+                  {rows.map((c: any) => {
+                    const active = c.status === 'ACTIVE'
+                    const rowBg  = active ? '#071428' : '#050810'
+                    return (
+                    <tr key={c.id} style={{ opacity: active ? 1 : 0.55, borderLeft: active ? '3px solid #22C55E' : '3px solid #EF444460' }}>
+                      <td style={{ ...td, position: 'sticky', left: 0, zIndex: 1, backgroundColor: rowBg, textAlign: 'center' as const, width: '64px' }}>
+                        <StatusToggle objectId={c.id} objectType="campaign" initialStatus={c.status} />
+                      </td>
+                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '180px', position: 'sticky', left: '64px', zIndex: 1, backgroundColor: rowBg }}>
                         <Link href={`/campaigns/${c.id}`} style={{ color: '#F1F5F9', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                           {c.name || c.id}
                         </Link>
-                      </td>
-                      <td style={{ ...td, textAlign: 'center' as const }}>
-                        <StatusToggle objectId={c.id} objectType="campaign" initialStatus={c.status} />
                       </td>
                       <td style={{ ...td, color: '#A8BCD0' }}>{c.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(c.t.impressions) : '—'}</td>
                       <td style={{ ...td, color: cpmColor(c.t.cpm) }}>{c.t.cpm ? formatCurrency(c.t.cpm, currency) : '—'}</td>
@@ -222,7 +225,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
                       <td style={{ ...td, color: '#7A90AA' }}>{c.t.video_avg ? `${c.t.video_avg.toFixed(0)}s` : '—'}</td>
                       <td style={{ ...td, color: c.trend === '▲' ? '#22C55E' : c.trend === '▼' ? '#EF4444' : '#7A90AA' }}>{c.trend}</td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>

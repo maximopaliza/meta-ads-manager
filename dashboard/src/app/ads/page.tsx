@@ -133,10 +133,10 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
               <table style={{ borderCollapse: 'collapse', minWidth: '2700px', width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0 }}>Ad</th>
+                    <th style={{ ...th, width: '64px', position: 'sticky', left: 0, zIndex: 2, textAlign: 'center' as const }}>Estado</th>
+                    <th style={{ ...th, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 2 }}>Ad</th>
                     <th style={{ ...th, textAlign: 'left' as const, minWidth: '120px' }}>Ad Set</th>
                     <th style={{ ...th, textAlign: 'left' as const, minWidth: '120px' }}>Campaña</th>
-                    <th style={{ ...th, width: '36px' }}>Est.</th>
                     <th style={th}>Impresiones</th>
                     <th style={th}>CPM</th>
                     <th style={th}>CTR único</th>
@@ -164,12 +164,12 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={{ ...tf, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#030810' }}>
+                    <td style={{ ...tf, position: 'sticky', left: 0, zIndex: 2, backgroundColor: '#030810', width: '64px' }}>—</td>
+                    <td style={{ ...tf, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 2, backgroundColor: '#030810' }}>
                       <span style={{ color: '#6366F1', fontWeight: 700, fontSize: '11px' }}>Total / Promedio</span>
                     </td>
                     <td style={{ ...tf, textAlign: 'left' as const }}>—</td>
                     <td style={{ ...tf, textAlign: 'left' as const }}>—</td>
-                    <td style={tf}>—</td>
                     <td style={{ ...tf, color: '#A8BCD0' }}>{totals.impressions > 0 ? new Intl.NumberFormat('es-AR').format(totals.impressions) : '—'}</td>
                     <td style={tf}>{totals.cpm ? formatCurrency(totals.cpm, currency) : '—'}</td>
                     <td style={tf}>{totals.ctr ? `${totals.ctr.toFixed(2)}%` : '—'}</td>
@@ -194,9 +194,15 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                     <td style={tf}>{totals.video_avg ? `${totals.video_avg.toFixed(0)}s` : '—'}</td>
                     <td style={tf}>—</td>
                   </tr>
-                  {rows.map((ad: any) => (
-                    <tr key={ad.id} style={{ opacity: ad.status === 'ACTIVE' ? 1 : 0.5 }}>
-                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: 0, backgroundColor: '#071428' }}>
+                  {rows.map((ad: any) => {
+                    const active = ad.status === 'ACTIVE'
+                    const rowBg  = active ? '#071428' : '#050810'
+                    return (
+                    <tr key={ad.id} style={{ opacity: active ? 1 : 0.55, borderLeft: active ? '3px solid #22C55E' : '3px solid #EF444460' }}>
+                      <td style={{ ...td, position: 'sticky', left: 0, zIndex: 1, backgroundColor: rowBg, textAlign: 'center' as const, width: '64px' }}>
+                        <StatusToggle objectId={ad.id} objectType="ad" initialStatus={ad.status} />
+                      </td>
+                      <td style={{ ...td, textAlign: 'left' as const, minWidth: '160px', position: 'sticky', left: '64px', zIndex: 1, backgroundColor: rowBg }}>
                         <Link href={`/ads/${ad.id}`} style={{ color: '#F1F5F9', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, textDecoration: 'none' }} title={ad.name}>{ad.name}</Link>
                       </td>
                       <td style={{ ...td, textAlign: 'left' as const, minWidth: '120px' }}>
@@ -206,9 +212,6 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                         <Link href={`/campaigns/${ad.ad_sets?.campaign_id}`} style={{ color: '#A8BCD0', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
                           {ad.ad_sets?.campaigns?.name || '—'}
                         </Link>
-                      </td>
-                      <td style={{ ...td, textAlign: 'center' as const }}>
-                        <StatusToggle objectId={ad.id} objectType="ad" initialStatus={ad.status} />
                       </td>
                       <td style={{ ...td, color: '#A8BCD0' }}>{ad.t.impressions > 0 ? new Intl.NumberFormat('es-AR').format(ad.t.impressions) : '—'}</td>
                       <td style={{ ...td, color: '#F1F5F9' }}>{ad.t.cpm ? formatCurrency(ad.t.cpm, currency) : '—'}</td>
@@ -234,7 +237,7 @@ export default async function AdsPage({ searchParams }: { searchParams: Promise<
                       <td style={{ ...td, color: '#7A90AA' }}>{ad.t.video_avg ? `${ad.t.video_avg.toFixed(0)}s` : '—'}</td>
                       <td style={{ ...td, color: ad.trend === '▲' ? '#22C55E' : ad.trend === '▼' ? '#EF4444' : '#7A90AA' }}>{ad.trend}</td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>
