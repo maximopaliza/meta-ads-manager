@@ -255,19 +255,24 @@ export default function LanzarPage() {
     const ad = adConfigs[idx]
     if (!ad.angle) return
     updateAd(idx, 'analysisLoading', true)
+    updateAd(idx, 'analysisError', undefined)
     try {
       const res = await fetch('/api/copy/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ angle: ad.angle }),
       })
       const data = await res.json()
+      if (data.error) {
+        setAdConfigs(prev => { const n = [...prev]; n[idx] = { ...n[idx], analysisLoading: false, analysisError: data.error }; return n })
+        return
+      }
       setAdConfigs(prev => {
         const n = [...prev]
         n[idx] = { ...n[idx], analysisLoading: false, headline: data.headline || n[idx].headline, primaryText: data.primary_text || n[idx].primaryText }
         return n
       })
-    } catch {
-      updateAd(idx, 'analysisLoading', false)
+    } catch (e: any) {
+      setAdConfigs(prev => { const n = [...prev]; n[idx] = { ...n[idx], analysisLoading: false, analysisError: e.message }; return n })
     }
   }
 
@@ -467,6 +472,12 @@ export default function LanzarPage() {
                             </button>
                           </div>
                         </div>
+
+                        {ad.analysisError && (
+                          <div style={{ fontSize: '11px', color: '#EF4444', background: '#1a0808', borderRadius: '6px', padding: '6px 10px' }}>
+                            ❌ {ad.analysisError}
+                          </div>
+                        )}
 
                         {/* Headline */}
                         <div>
