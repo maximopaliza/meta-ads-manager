@@ -290,10 +290,12 @@ export default function LanzarPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileId:    ad.driveFileId,
-          fileName:  ad.fileName,
-          mimeType:  ad.mimeType,
-          productId: productId || config.productId || undefined,
+          fileId:        ad.driveFileId,
+          fileName:      ad.fileName,
+          mimeType:      ad.mimeType,
+          isVideo:       ad.isVideo,
+          thumbnailLink: ad.thumbnailLink || undefined,
+          productId:     productId || config.productId || undefined,
         }),
       })
       const data: AnalysisResult = await res.json()

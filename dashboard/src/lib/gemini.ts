@@ -125,16 +125,17 @@ export async function analyzeCreative(
   fileName: string,
   productContext: string,
 ): Promise<CreativeAnalysis> {
-  const isVideo = mimeType.startsWith('video/')
-  const INLINE_LIMIT = 18 * 1024 * 1024 // 18 MB — stay under 20 MB limit
-
+  // We always receive either a thumbnail image or a small image file.
+  // Always use inline data — no file upload needed, no quota drain.
+  const INLINE_LIMIT = 18 * 1024 * 1024
   let mediaPart: GeminiPart
 
-  if (bytes.length > INLINE_LIMIT || isVideo) {
+  if (bytes.length > INLINE_LIMIT) {
+    // Only as last resort for very large images
     const uri = await uploadFileToGemini(bytes, mimeType, fileName)
     mediaPart = { fileData: { mimeType, fileUri: uri } }
   } else {
-    mediaPart = { inlineData: { mimeType, data: bytes.toString('base64') } }
+    mediaPart = { inlineData: { mimeType: mimeType.startsWith('video/') ? 'image/jpeg' : mimeType, data: bytes.toString('base64') } }
   }
 
   const prompt = `Eres un experto en publicidad digital de Meta Ads para e-commerce argentino.
@@ -191,7 +192,7 @@ Siempre terminar con algo como:
 ════════════════════════════════════════
 TU TAREA
 ════════════════════════════════════════
-Analizá este creativo (${isVideo ? 'video' : 'imagen'}):
+Analizá esta imagen (frame/thumbnail del creativo publicitario):
 1. Identificá el ángulo principal según los disponibles arriba
 2. Escribí el headline (MÁXIMO 40 caracteres, directo, sin punto final)
 3. Escribí el primary_text en español argentino coloquial, máximo 120 palabras, respetando TODAS las reglas de Meta
