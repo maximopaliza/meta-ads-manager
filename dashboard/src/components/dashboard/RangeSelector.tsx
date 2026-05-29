@@ -32,6 +32,16 @@ export default function RangeSelector() {
   const [to, setTo] = useState(currentTo || '')
   const [singleDay, setSingleDay] = useState(isSingleDay ? currentFrom! : '')
 
+  const selectToday = () => {
+    setShowCustom(false)
+    setShowDay(false)
+    const today = new Date().toISOString().split('T')[0]
+    const p = new URLSearchParams()
+    p.set('from', today)
+    p.set('to', today)
+    router.push(`${pathname}?${p.toString()}`)
+  }
+
   const selectPreset = (days: number) => {
     setShowCustom(false)
     setShowDay(false)
@@ -92,6 +102,24 @@ export default function RangeSelector() {
 
       {/* Presets */}
       <div style={{ display: 'flex', gap: '4px', backgroundColor: '#071428', border: '1px solid #1A4080', borderRadius: '8px', padding: '4px' }}>
+        {/* HOY — quick access */}
+        <button
+          onClick={selectToday}
+          style={{
+            padding: '5px 14px',
+            borderRadius: '6px',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: 700,
+            backgroundColor: isSingleDay && currentFrom === new Date().toISOString().split('T')[0] ? '#22C55E' : '#22C55E20',
+            color: isSingleDay && currentFrom === new Date().toISOString().split('T')[0] ? '#fff' : '#22C55E',
+            transition: 'all 0.15s',
+          }}
+        >
+          HOY
+        </button>
+        <div style={{ width: '1px', background: '#1A4080', margin: '4px 2px' }} />
         {PRESETS.map(o => (
           <button
             key={o.value}
