@@ -251,6 +251,32 @@ export default function LanzarPage() {
     setAdConfigs(prev => { const n = [...prev]; n[idx] = { ...n[idx], [field]: val }; return n })
   }
 
+  async function generateCopyForAd(idx: number) {
+    const ad = adConfigs[idx]
+    if (!ad.angle) return
+    updateAd(idx, 'analysisLoading', true)
+    try {
+      const res = await fetch('/api/copy/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ angle: ad.angle }),
+      })
+      const data = await res.json()
+      setAdConfigs(prev => {
+        const n = [...prev]
+        n[idx] = { ...n[idx], analysisLoading: false, headline: data.headline || n[idx].headline, primaryText: data.primary_text || n[idx].primaryText }
+        return n
+      })
+    } catch {
+      updateAd(idx, 'analysisLoading', false)
+    }
+  }
+
+  async function generateAllCopies() {
+    for (let i = 0; i < adConfigs.length; i++) {
+      if (adConfigs[i].angle) await generateCopyForAd(i)
+    }
+  }
+
   // ── Campaign creation ──────────────────────────────────────────────────────
   async function createCampaign() {
     setStep(5)
@@ -375,8 +401,17 @@ export default function LanzarPage() {
           {/* ── STEP 1: Copy manual ──────────────────────────────────────── */}
           {step === 1 && (
             <div>
-              <div style={{ fontSize: '13px', color: '#7A90AA', marginBottom: '16px' }}>
-                Abrí cada video, elegí el ángulo y completá el copy. El título va en el anuncio de Meta (máx 40 chars).
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ fontSize: '13px', color: '#7A90AA' }}>
+                  Elegí el ángulo de cada ad y generá el copy con IA, o escribilo vos.
+                </div>
+                <button
+                  onClick={generateAllCopies}
+                  disabled={adConfigs.every(a => !a.angle) || adConfigs.some(a => a.analysisLoading)}
+                  style={{ ...S.btnPri, opacity: adConfigs.every(a => !a.angle) ? 0.4 : 1, cursor: adConfigs.every(a => !a.angle) ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+                >
+                  ✨ Generar todos
+                </button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {adConfigs.map((ad, i) => (
@@ -414,13 +449,23 @@ export default function LanzarPage() {
                       {/* Right: copy form */}
                       <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
-                        {/* Angle selector */}
+                        {/* Angle selector + generate button */}
                         <div>
                           <label style={S.label}>Ángulo del ad</label>
-                          <select value={ad.angle} onChange={e => updateAd(i, 'angle', e.target.value)}
-                            style={{ ...S.input, appearance: 'none' as any }}>
-                            {ANGLES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
-                          </select>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <select value={ad.angle} onChange={e => updateAd(i, 'angle', e.target.value)}
+                              style={{ ...S.input, appearance: 'none' as any, flex: 1 }}>
+                              {ANGLES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                            </select>
+                            <button
+                              onClick={() => generateCopyForAd(i)}
+                              disabled={!ad.angle || ad.analysisLoading}
+                              title="Generar copy con IA"
+                              style={{ ...S.btnPri, padding: '8px 14px', fontSize: '12px', whiteSpace: 'nowrap', opacity: !ad.angle ? 0.4 : 1, cursor: !ad.angle ? 'not-allowed' : 'pointer' }}
+                            >
+                              {ad.analysisLoading ? '⏳' : '✨ Generar'}
+                            </button>
+                          </div>
                         </div>
 
                         {/* Headline */}

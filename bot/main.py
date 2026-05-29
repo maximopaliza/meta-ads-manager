@@ -28,6 +28,7 @@ from bot.handlers import get_handlers, handle_text, handle_nl_action
 from bot.conversations.create_campaign import get_create_campaign_handler
 from bot.conversations.manage_campaigns import get_gestionar_handler, get_presupuesto_handler
 from bot.conversations.analyze_ads import get_analyze_ads_handler
+from bot.conversations.copy_manager import get_copy_manager_handler
 from scheduler import alerter
 
 
@@ -70,6 +71,7 @@ def main() -> None:
     app.add_handler(get_gestionar_handler())
     app.add_handler(get_presupuesto_handler())
     app.add_handler(get_analyze_ads_handler())
+    app.add_handler(get_copy_manager_handler())
 
     for handler in get_handlers():
         app.add_handler(handler)

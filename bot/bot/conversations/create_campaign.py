@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # ── Estados flujo Drive (multi-ads) ──────────────────────────────────────────
 (DRIVE_SELECT_MODE, DRIVE_PICK_SPECIFIC, DRIVE_REVIEW_GROUPS,
  DRIVE_GROUP_URL, DRIVE_GROUP_BUDGET, DRIVE_CONFIRM_ALL,
- DRIVE_PICK_ANGLE) = range(10, 17)
+ DRIVE_PICK_ANGLE, DRIVE_EDIT_COPY) = range(10, 18)
 
 # ── Estados flujo fallback (single ad) ───────────────────────────────────────
 (CHOOSE_SOURCE, CHOOSE_CATEGORY, PICK_VIDEO, PICK_DRIVE_VIDEO,
@@ -402,43 +402,125 @@ async def drive_group_url(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         pass
 
     context.user_data["groups_config"].append({"angle": g["angle"], "url": url, "copies": copies})
+    context.user_data["editing_copy_ad"] = 0  # índice del ad que se está editando
 
-    # Mostrar preview del copy
-    lines = [f"✏️ <b>Copy generado para {g['angle']}</b>:\n"]
-    for i, (v, c) in enumerate(zip(g["videos"], copies), 1):
-        lines.append(
-            f"<b>Ad {i}</b> — {v['file_name'][:30]}\n"
-            f"<i>{c.get('primary_text', '')}</i>\n"
-            f"<b>{c.get('headline', '')}</b>\n"
-        )
-    lines.append(f"💰 ¿Cuánto por día para esta campaña? (en ARS)\n<i>Ej: 5000</i>")
-    await update.message.reply_text("\n".join(lines), parse_mode="HTML")
-    return DRIVE_GROUP_BUDGET
+    return await _show_copy_preview(update.message, context)
 
 
 async def _generate_group_copies(group: dict, url: str) -> list[dict]:
-    """Genera copies para todos los videos del grupo."""
+    """Genera copies para todos los videos del grupo usando el ángulo ya elegido."""
     loop = asyncio.get_event_loop()
-    from db.queries import get_copy_winners_by_angle
-    winners = get_copy_winners_by_angle(group["angle"])
-
     copies = []
     for v in group["videos"]:
+        # Si el video ya tiene copy del paso de selección de ángulo, usarlo directamente
+        if v.get("primary_text") or v.get("headline"):
+            copies.append({
+                "primary_text": v.get("primary_text", ""),
+                "headline": v.get("headline", ""),
+                "cta": v.get("cta", "SHOP_NOW"),
+            })
+            continue
+        # Fallback: generar copy por ángulo sin descargar video
         try:
-            from ai.video_analyzer import analyze_video
-            result = await loop.run_in_executor(None, analyze_video, v["drive_file_id"], v["file_name"], url)
+            from ai.analyst import generate_copy
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, generate_copy, "ventas", f"Ovitta Vision Complete — ángulo: {group['angle']}"),
+                timeout=30,
+            )
             copies.append({
                 "primary_text": result.get("primary_text", ""),
                 "headline": result.get("headline", ""),
                 "cta": result.get("cta", "SHOP_NOW"),
             })
         except Exception:
-            copies.append({
-                "primary_text": v.get("primary_text", ""),
-                "headline": v.get("headline", ""),
-                "cta": "SHOP_NOW",
-            })
+            copies.append({"primary_text": "", "headline": "", "cta": "SHOP_NOW"})
     return copies
+
+
+async def _show_copy_preview(message, context: ContextTypes.DEFAULT_TYPE) -> int:
+    idx = context.user_data["current_group"]
+    cfg = context.user_data["groups_config"][idx]
+    g = context.user_data["groups"][idx]
+    copies = cfg["copies"]
+
+    lines = [f"✏️ <b>Copy para {g['angle']}</b>:\n"]
+    for i, (v, c) in enumerate(zip(g["videos"], copies), 1):
+        lines.append(
+            f"<b>Ad {i}</b> — {v['file_name'][:30]}\n"
+            f"📝 <i>{c.get('primary_text', '(vacío)')}</i>\n"
+            f"🔤 <b>{c.get('headline', '(vacío)')}</b>\n"
+        )
+
+    rows = []
+    for i in range(len(copies)):
+        rows.append([InlineKeyboardButton(f"✏️ Editar Ad {i+1}", callback_data=f"editcopy_{i}")])
+    rows.append([InlineKeyboardButton("✅ Listo, continuar", callback_data="editcopy_done")])
+
+    await message.reply_text("\n".join(lines), parse_mode="HTML", reply_markup=InlineKeyboardMarkup(rows))
+    return DRIVE_EDIT_COPY
+
+
+async def drive_edit_copy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "editcopy_done":
+        await query.edit_message_reply_markup(reply_markup=None)
+        idx = context.user_data["current_group"]
+        cfg = context.user_data["groups_config"][idx]
+        accounts = __import__("db.queries", fromlist=["get_accounts"]).get_accounts()
+        currency = accounts[0]["currency"] if accounts else "ARS"
+        await query.message.reply_text(
+            f"💰 ¿Cuánto por día para esta campaña? (en {currency})\n<i>Ej: 5000</i>",
+            parse_mode="HTML",
+        )
+        return DRIVE_GROUP_BUDGET
+
+    ad_idx = int(query.data.replace("editcopy_", ""))
+    context.user_data["editing_copy_ad"] = ad_idx
+    idx = context.user_data["current_group"]
+    cfg = context.user_data["groups_config"][idx]
+    c = cfg["copies"][ad_idx]
+
+    await query.edit_message_text(
+        f"✏️ <b>Editando Ad {ad_idx + 1}</b>\n\n"
+        f"Copy actual:\n📝 <i>{c.get('primary_text', '')}</i>\n🔤 <b>{c.get('headline', '')}</b>\n\n"
+        f"Mandame el nuevo copy en este formato:\n"
+        f"<code>TEXTO: tu texto principal aquí\nTITULO: tu titular aquí</code>\n\n"
+        f"O solo uno de los dos si querés cambiar solo ese.",
+        parse_mode="HTML",
+    )
+    return DRIVE_EDIT_COPY
+
+
+async def drive_edit_copy_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    idx = context.user_data["current_group"]
+    ad_idx = context.user_data.get("editing_copy_ad", 0)
+    cfg = context.user_data["groups_config"][idx]
+
+    new_primary = None
+    new_headline = None
+    for line in text.splitlines():
+        if line.upper().startswith("TEXTO:"):
+            new_primary = line.split(":", 1)[1].strip()
+        elif line.upper().startswith("TITULO:"):
+            new_headline = line.split(":", 1)[1].strip()
+
+    if new_primary is None and new_headline is None:
+        await update.message.reply_text(
+            "No entendí. Usá el formato:\n<code>TEXTO: tu texto\nTITULO: tu titular</code>",
+            parse_mode="HTML",
+        )
+        return DRIVE_EDIT_COPY
+
+    if new_primary:
+        cfg["copies"][ad_idx]["primary_text"] = new_primary
+    if new_headline:
+        cfg["copies"][ad_idx]["headline"] = new_headline
+
+    await update.message.reply_text(f"✅ Copy del Ad {ad_idx + 1} actualizado.")
+    return await _show_copy_preview(update.message, context)
 
 
 async def drive_group_budget(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -891,6 +973,10 @@ def get_create_campaign_handler() -> ConversationHandler:
             DRIVE_PICK_ANGLE:    [CallbackQueryHandler(drive_pick_angle, pattern="^ang_")],
             DRIVE_REVIEW_GROUPS: [CallbackQueryHandler(drive_review_groups, pattern="^groups_")],
             DRIVE_GROUP_URL:     [MessageHandler(filters.TEXT & ~filters.COMMAND, drive_group_url)],
+            DRIVE_EDIT_COPY:     [
+                CallbackQueryHandler(drive_edit_copy, pattern="^editcopy_"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, drive_edit_copy_text),
+            ],
             DRIVE_GROUP_BUDGET:  [MessageHandler(filters.TEXT & ~filters.COMMAND, drive_group_budget)],
             DRIVE_CONFIRM_ALL:   [CallbackQueryHandler(drive_confirm_all, pattern="^create_")],
 
