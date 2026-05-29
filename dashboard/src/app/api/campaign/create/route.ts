@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { downloadFile } from '@/lib/drive'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 300 // 5 min — uploading many videos to Meta
+export const maxDuration = 300
 
 const META_TOKEN = process.env.META_ACCESS_TOKEN!
 const META_BASE  = 'https://graph.facebook.com/v21.0'
@@ -23,13 +23,8 @@ const BILLING_MAP: Record<string, string> = {
   OUTCOME_TRAFFIC:   'LINK_CLICKS',
   OUTCOME_AWARENESS: 'IMPRESSIONS',
 }
-const VIDEO_EXTS = new Set(['.mp4', '.mov', '.avi', '.mkv', '.webm'])
 
-function isVideoMime(mime: string) {
-  return mime.startsWith('video/')
-}
-
-// ── Meta API helpers ──────────────────────────────────────────────────────────
+function isVideoMime(mime: string) { return mime.startsWith('video/') }
 
 async function metaPost(path: string, params: Record<string, string>): Promise<any> {
   const body = new URLSearchParams({ access_token: META_TOKEN, ...params })
@@ -43,17 +38,15 @@ async function metaPost(path: string, params: Record<string, string>): Promise<a
   return data
 }
 
-/** Upload video bytes to Meta ad library. Returns video_id. */
 async function uploadVideo(accountId: string, bytes: Buffer, name: string): Promise<string> {
-  const boundary = 'meta_video_' + Math.random().toString(36).slice(2)
-  const metaParts: Buffer[] = [
+  const boundary = 'mv_' + Math.random().toString(36).slice(2)
+  const body = Buffer.concat([
     Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="access_token"\r\n\r\n${META_TOKEN}\r\n`),
     Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="name"\r\n\r\n${name}\r\n`),
     Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="source"; filename="${name}"\r\nContent-Type: video/mp4\r\n\r\n`),
     bytes,
     Buffer.from(`\r\n--${boundary}--`),
-  ]
-  const body = Buffer.concat(metaParts)
+  ])
   const res = await fetch(`${META_BASE}/${accountId}/advideos`, {
     method: 'POST',
     headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
@@ -64,47 +57,74 @@ async function uploadVideo(accountId: string, bytes: Buffer, name: string): Prom
   return data.id
 }
 
-/** Upload image bytes to Meta ad library. Returns image_hash. */
 async function uploadImage(accountId: string, bytes: Buffer): Promise<string> {
-  const b64 = bytes.toString('base64')
   const res = await fetch(`${META_BASE}/${accountId}/adimages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ access_token: META_TOKEN, bytes: b64 }),
+    body: new URLSearchParams({ access_token: META_TOKEN, bytes: bytes.toString('base64') }),
   })
   const data = await res.json()
   if (data.error) throw new Error(data.error.message)
-  // Response: { images: { filename: { hash } } }
   const hashes = Object.values(data.images || {}) as any[]
   if (!hashes[0]?.hash) throw new Error('No image hash returned')
   return hashes[0].hash
 }
 
-// ── Main handler ──────────────────────────────────────────────────────────────
+async function createAd(
+  accountId: string, adSetId: string, pageId: string,
+  destinationUrl: string, adSpec: any, bytes: Buffer,
+): Promise<{ adId: string; creativeId: string }> {
+  const { mimeType, fileName, headline, primaryText, description } = adSpec
+
+  let storySpec: object
+  if (isVideoMime(mimeType)) {
+    const videoId = await uploadVideo(accountId, bytes, fileName)
+    storySpec = {
+      page_id: pageId,
+      video_data: {
+        video_id: videoId,
+        message: primaryText,
+        title: headline,
+        link_description: description || headline,
+        call_to_action: { type: 'SHOP_NOW', value: { link: destinationUrl } },
+      },
+    }
+  } else {
+    const imageHash = await uploadImage(accountId, bytes)
+    storySpec = {
+      page_id: pageId,
+      link_data: {
+        message: primaryText,
+        link: destinationUrl,
+        image_hash: imageHash,
+        name: headline,
+        description: description || '',
+        call_to_action: { type: 'SHOP_NOW', value: { link: destinationUrl } },
+      },
+    }
+  }
+
+  const creative = await metaPost(`${accountId}/adcreatives`, {
+    name: `${fileName} — Creative`,
+    object_story_spec: JSON.stringify(storySpec),
+  })
+  const ad = await metaPost(`${accountId}/ads`, {
+    name: fileName,
+    adset_id: adSetId,
+    creative: JSON.stringify({ creative_id: creative.id }),
+    status: 'PAUSED',
+  })
+  return { adId: ad.id, creativeId: creative.id }
+}
 
 /**
  * POST body:
  * {
- *   campaignName: string
- *   adSetName: string
- *   campaignType: 'CBO' | 'ABO'
- *   budgetCents: number
- *   budgetLevel: 'campaign' | 'adset'
- *   objective: 'ventas' | 'trafico' | 'alcance'
- *   accountId: string          // act_xxx
- *   pageId: string
- *   destinationUrl: string
- *   startDate?: string         // YYYY-MM-DD
- *   targeting?: object
- *   productId?: string
- *   ads: Array<{
- *     driveFileId: string
- *     mimeType: string
- *     fileName: string
- *     headline: string
- *     primaryText: string
- *     description?: string
- *   }>
+ *   campaignName, adSetName, campaignType ('CBO'|'ABO'),
+ *   budgetCents, objective, accountId, pageId, destinationUrl,
+ *   numAdSets (default 1), adsPerAdSet (default all),
+ *   startDate?, targeting?, productId?,
+ *   ads: [{ driveFileId, mimeType, fileName, headline, primaryText, angle }]
  * }
  */
 export async function POST(req: NextRequest) {
@@ -112,17 +132,11 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const {
-    campaignName,
-    adSetName,
-    campaignType = 'CBO',
-    budgetCents,
-    objective = 'ventas',
-    accountId,
-    pageId,
-    destinationUrl,
-    startDate,
-    targeting,
-    productId,
+    campaignName, adSetName, campaignType = 'CBO',
+    budgetCents, objective = 'ventas',
+    accountId, pageId, destinationUrl,
+    numAdSets = 1, adsPerAdSet,
+    startDate, targeting, productId,
     ads = [],
   } = body
 
@@ -132,144 +146,89 @@ export async function POST(req: NextRequest) {
 
   const metaObjective = OBJECTIVE_MAP[objective] || 'OUTCOME_SALES'
   const isCBO = campaignType === 'CBO'
+  const setsCount = Math.max(1, parseInt(String(numAdSets)))
+  const perSet    = adsPerAdSet ? Math.max(1, parseInt(String(adsPerAdSet))) : Math.ceil(ads.length / setsCount)
+
+  // Chunk ads into groups for each ad set
+  const adChunks: any[][] = []
+  for (let i = 0; i < setsCount; i++) {
+    adChunks.push(ads.slice(i * perSet, (i + 1) * perSet))
+  }
 
   try {
-    // ── 1. Create Meta Campaign ──────────────────────────────────────────────
+    // ── 1. Campaign ──────────────────────────────────────────────────────────
     const campParams: Record<string, string> = {
-      name:                 campaignName,
-      objective:            metaObjective,
-      status:               'PAUSED',
+      name: campaignName,
+      objective: metaObjective,
+      status: 'PAUSED',
       special_ad_categories: '[]',
     }
     if (isCBO) {
       campParams.daily_budget = String(budgetCents)
       campParams.bid_strategy = 'LOWEST_COST_WITHOUT_CAP'
     }
-    const campData = await metaPost(`${accountId}/campaigns`, campParams)
+    const campData   = await metaPost(`${accountId}/campaigns`, campParams)
     const campaignId = campData.id
-    console.log('[Campaign] created:', campaignId)
+    console.log('[Campaign]', campaignId)
 
-    // ── 2. Create Ad Set ─────────────────────────────────────────────────────
     const defaultTargeting = targeting || { geo_locations: { countries: ['AR'] }, age_min: 18, age_max: 65 }
-    const asParams: Record<string, string> = {
-      name:              adSetName || `${campaignName} — Conjunto`,
-      campaign_id:       campaignId,
-      billing_event:     BILLING_MAP[metaObjective],
-      optimization_goal: OPTIMIZATION_MAP[metaObjective],
-      targeting:         JSON.stringify(defaultTargeting),
-      status:            'PAUSED',
-      bid_strategy:      'LOWEST_COST_WITHOUT_CAP',
-    }
-    if (!isCBO) {
-      asParams.daily_budget = String(budgetCents)
-    }
-    if (startDate) {
-      const ts = Math.floor(new Date(startDate).getTime() / 1000)
-      asParams.start_time = String(ts)
-    }
-    const asData = await metaPost(`${accountId}/adsets`, asParams)
-    const adSetId = asData.id
-    console.log('[AdSet] created:', adSetId)
-
-    // ── 3. Create Ads ────────────────────────────────────────────────────────
     const createdAds: any[] = []
-    for (const adSpec of ads) {
-      const { driveFileId, mimeType, fileName, headline, primaryText, description } = adSpec
+    let firstAdSetId = ''
 
-      // Download from Drive
-      let bytes: Buffer
-      try {
-        const dl = await downloadFile(driveFileId)
-        bytes = dl.bytes
-      } catch (err: any) {
-        console.error(`[Ad] Drive download failed for ${driveFileId}:`, err)
-        createdAds.push({ driveFileId, fileName, error: err.message })
-        continue
+    // ── 2. Ad Sets + Ads ─────────────────────────────────────────────────────
+    for (let setIdx = 0; setIdx < setsCount; setIdx++) {
+      const setName = setsCount === 1
+        ? (adSetName || `${campaignName} — Conjunto`)
+        : `${adSetName || campaignName} — Conjunto ${setIdx + 1}`
+
+      const asParams: Record<string, string> = {
+        name:              setName,
+        campaign_id:       campaignId,
+        billing_event:     BILLING_MAP[metaObjective],
+        optimization_goal: OPTIMIZATION_MAP[metaObjective],
+        targeting:         JSON.stringify(defaultTargeting),
+        status:            'PAUSED',
+        bid_strategy:      'LOWEST_COST_WITHOUT_CAP',
       }
+      if (!isCBO) asParams.daily_budget = String(budgetCents)
+      if (startDate) asParams.start_time = String(Math.floor(new Date(startDate).getTime() / 1000))
 
-      // Upload media to Meta
-      let storySpec: object
-      try {
-        if (isVideoMime(mimeType)) {
-          const videoId = await uploadVideo(accountId, bytes, fileName)
-          storySpec = {
-            page_id: pageId,
-            video_data: {
-              video_id: videoId,
-              message:          primaryText,
-              title:            headline,
-              link_description: description || headline,
-              call_to_action: {
-                type: 'SHOP_NOW',
-                value: { link: destinationUrl },
-              },
-            },
-          }
-        } else {
-          const imageHash = await uploadImage(accountId, bytes)
-          storySpec = {
-            page_id: pageId,
-            link_data: {
-              message:     primaryText,
-              link:        destinationUrl,
-              image_hash:  imageHash,
-              name:        headline,
-              description: description || '',
-              call_to_action: {
-                type: 'SHOP_NOW',
-                value: { link: destinationUrl },
-              },
-            },
-          }
+      const asData  = await metaPost(`${accountId}/adsets`, asParams)
+      const adSetId = asData.id
+      if (setIdx === 0) firstAdSetId = adSetId
+      console.log(`[AdSet ${setIdx + 1}]`, adSetId)
+
+      // ── 3. Ads for this set ─────────────────────────────────────────────
+      for (const adSpec of adChunks[setIdx] || []) {
+        let bytes: Buffer
+        try {
+          const dl = await downloadFile(adSpec.driveFileId)
+          bytes = dl.bytes
+        } catch (err: any) {
+          createdAds.push({ ...adSpec, adSetIdx: setIdx, error: `Drive: ${err.message}` })
+          continue
         }
-      } catch (err: any) {
-        console.error(`[Ad] Media upload failed for ${fileName}:`, err)
-        createdAds.push({ driveFileId, fileName, error: err.message })
-        continue
+
+        try {
+          const { adId, creativeId } = await createAd(accountId, adSetId, pageId, destinationUrl, adSpec, bytes)
+          // Move to "Nuevos subidos"
+          try { const { moveFile } = await import('@/lib/drive'); await moveFile(adSpec.driveFileId, 'Nuevos subidos') } catch (_) {}
+          createdAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, adId, creativeId })
+          console.log(`  [Ad]`, adId, adSpec.fileName)
+        } catch (err: any) {
+          createdAds.push({ ...adSpec, adSetIdx: setIdx, error: `Upload: ${err.message}` })
+        }
       }
-
-      // Create creative
-      const creativeData = await metaPost(`${accountId}/adcreatives`, {
-        name:               `${fileName} — Creative`,
-        object_story_spec: JSON.stringify(storySpec),
-      })
-      const creativeId = creativeData.id
-
-      // Create ad
-      const adData = await metaPost(`${accountId}/ads`, {
-        name:      fileName,
-        adset_id:  adSetId,
-        creative:  JSON.stringify({ creative_id: creativeId }),
-        status:    'PAUSED',
-      })
-      const adId = adData.id
-
-      // Move file to "Nuevos subidos" in Drive
-      try {
-        const { moveFile } = await import('@/lib/drive')
-        await moveFile(driveFileId, 'Nuevos subidos')
-      } catch (_) { /* non-fatal */ }
-
-      createdAds.push({
-        driveFileId,
-        fileName,
-        adId,
-        creativeId,
-        headline,
-        primaryText,
-        angle: adSpec.angle || '',
-      })
-      console.log('[Ad] created:', adId, fileName)
     }
 
-    // ── 4. Save to Supabase campaign_drafts ──────────────────────────────────
-    const { data: draft, error: dbErr } = await supabaseAdmin
+    // ── 4. Save draft ────────────────────────────────────────────────────────
+    const { data: draft } = await supabaseAdmin
       .from('campaign_drafts')
       .insert({
         campaign_id:   campaignId,
-        ad_set_id:     adSetId,
+        ad_set_id:     firstAdSetId,
         campaign_name: campaignName,
-        ad_set_name:   adSetName || `${campaignName} — Conjunto`,
+        ad_set_name:   adSetName || campaignName,
         campaign_type: campaignType,
         budget_cents:  budgetCents,
         budget_level:  isCBO ? 'campaign' : 'adset',
@@ -278,19 +237,19 @@ export async function POST(req: NextRequest) {
         ads:           createdAds,
         product_id:    productId || null,
         start_date:    startDate || null,
+        notes:         `${setsCount} conjuntos × ${perSet} ads`,
       })
       .select()
       .single()
 
-    if (dbErr) console.error('[Campaign] Supabase insert error:', dbErr)
-
     return NextResponse.json({
-      ok:         true,
+      ok: true,
       campaignId,
-      adSetId,
-      draftId:    draft?.id,
-      ads:        createdAds,
-      errors:     createdAds.filter(a => a.error).length,
+      firstAdSetId,
+      draftId:  draft?.id,
+      ads:      createdAds,
+      errors:   createdAds.filter(a => a.error).length,
+      structure: `${setsCount} conjuntos × ${perSet} ads`,
     })
 
   } catch (err: any) {

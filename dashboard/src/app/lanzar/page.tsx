@@ -55,6 +55,8 @@ type CampaignConfig = {
   destinationUrl: string
   startDate: string
   productId: string
+  numAdSets: number
+  adsPerAdSet: number
 }
 
 type CreationProgress = {
@@ -162,20 +164,23 @@ export default function LanzarPage() {
   const [adConfigs, setAdConfigs] = useState<AdConfig[]>([])
 
   // Step 3
-  const [accounts, setAccounts]     = useState<any[]>([])
-  const [products, setProducts]     = useState<any[]>([])
-  const [config, setConfig]         = useState<CampaignConfig>({
-    campaignName: '',
-    adSetName: '',
-    campaignType: 'CBO',
-    budgetAmount: '50',
-    budgetLevel: 'campaign',
-    objective: 'ventas',
-    accountId: '',
-    pageId: '',
+  const [accounts, setAccounts] = useState<any[]>([])
+  const [pages, setPages]       = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
+  const [config, setConfig]     = useState<CampaignConfig>({
+    campaignName:  '',
+    adSetName:     '',
+    campaignType:  'CBO',
+    budgetAmount:  '50',
+    budgetLevel:   'campaign',
+    objective:     'ventas',
+    accountId:     '',
+    pageId:        '',
     destinationUrl: '',
-    startDate: '',
-    productId: '',
+    startDate:     '',
+    productId:     '',
+    numAdSets:     1,
+    adsPerAdSet:   1,
   })
 
   // Step 5
@@ -197,24 +202,26 @@ export default function LanzarPage() {
   }
 
   async function loadMeta() {
-    const [accRes, prodRes] = await Promise.all([
+    const [accRes, pagesRes, prodRes] = await Promise.all([
       fetch('/api/meta/accounts'),
+      fetch('/api/meta/pages'),
       fetch('/api/products'),
     ])
-    const accData  = await accRes.json()
-    const prodData = await prodRes.json()
+    const accData   = await accRes.json()
+    const pagesData = await pagesRes.json()
+    const prodData  = await prodRes.json()
     setAccounts(accData.accounts || [])
+    setPages(pagesData.pages || [])
     setProducts(prodData.products || [])
-    if (accData.accounts?.length) {
-      setConfig(c => ({ ...c, accountId: accData.accounts[0].id }))
-    }
-    if (prodData.products?.length) {
-      setConfig(c => ({
-        ...c,
+    setConfig(c => ({
+      ...c,
+      ...(accData.accounts?.length   ? { accountId: accData.accounts[0].id } : {}),
+      ...(pagesData.pages?.length    ? { pageId: pagesData.pages[0].id }     : {}),
+      ...(prodData.products?.length  ? {
         productId:      prodData.products[0].id,
         destinationUrl: prodData.products[0].url || '',
-      }))
-    }
+      } : {}),
+    }))
   }
 
   useEffect(() => { loadDrive() }, [])
@@ -349,6 +356,8 @@ export default function LanzarPage() {
           destinationUrl: config.destinationUrl,
           startDate:      config.startDate || undefined,
           productId:      config.productId || undefined,
+          numAdSets:      config.numAdSets,
+          adsPerAdSet:    config.adsPerAdSet,
           ads: adConfigs.map(a => ({
             driveFileId: a.driveFileId,
             mimeType:    a.mimeType,
@@ -588,34 +597,104 @@ export default function LanzarPage() {
           {/* ── STEP 2: Configurar ── */}
           {step === 2 && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div style={S.card}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '16px' }}>Campaña</div>
-                <Field label="Nombre campaña *" value={config.campaignName} onChange={(v: string) => setConfig(c => ({ ...c, campaignName: v }))} />
-                <Field label="Nombre conjunto *" value={config.adSetName} onChange={(v: string) => setConfig(c => ({ ...c, adSetName: v }))} />
-                <Select label="Tipo" value={config.campaignType} onChange={v => setConfig(c => ({ ...c, campaignType: v as any }))}
-                  options={[{ value: 'CBO', label: 'CBO — Presupuesto de campaña' }, { value: 'ABO', label: 'ABO — Presupuesto por conjunto' }]} />
-                <Select label="Objetivo" value={config.objective} onChange={v => setConfig(c => ({ ...c, objective: v as any }))}
-                  options={[{ value: 'ventas', label: '🛒 Ventas' }, { value: 'trafico', label: '🔗 Tráfico' }, { value: 'alcance', label: '📢 Alcance' }]} />
+
+              {/* Col 1 — Estructura */}
+              <div>
+                <div style={S.card}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '16px' }}>Campaña</div>
+                  <Field label="Nombre campaña *" value={config.campaignName} onChange={(v: string) => setConfig(c => ({ ...c, campaignName: v }))} />
+                  <Field label="Nombre base conjunto *" value={config.adSetName} onChange={(v: string) => setConfig(c => ({ ...c, adSetName: v }))} />
+                  <Select label="Tipo" value={config.campaignType} onChange={v => setConfig(c => ({ ...c, campaignType: v as any }))}
+                    options={[{ value: 'CBO', label: 'CBO — Presupuesto de campaña' }, { value: 'ABO', label: 'ABO — Presupuesto por conjunto' }]} />
+                  <Select label="Objetivo" value={config.objective} onChange={v => setConfig(c => ({ ...c, objective: v as any }))}
+                    options={[{ value: 'ventas', label: '🛒 Ventas' }, { value: 'trafico', label: '🔗 Tráfico' }, { value: 'alcance', label: '📢 Alcance' }]} />
+                </div>
+
+                {/* Estructura de conjuntos */}
+                <div style={{ ...S.card, marginTop: '16px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '4px' }}>Estructura</div>
+                  <div style={{ fontSize: '11px', color: '#7A90AA', marginBottom: '14px' }}>
+                    Ej: 1-2-1 = 1 campaña, 2 conjuntos, 1 video c/u
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                    <div>
+                      <label style={S.label}>Conjuntos</label>
+                      <input type="number" min="1" max="20" value={config.numAdSets}
+                        onChange={e => setConfig(c => ({ ...c, numAdSets: parseInt(e.target.value) || 1 }))}
+                        style={{ ...S.inputStyle, textAlign: 'center', fontWeight: 700, fontSize: '18px' }} />
+                    </div>
+                    <div>
+                      <label style={S.label}>Videos por conjunto</label>
+                      <input type="number" min="1" max="50" value={config.adsPerAdSet}
+                        onChange={e => setConfig(c => ({ ...c, adsPerAdSet: parseInt(e.target.value) || 1 }))}
+                        style={{ ...S.inputStyle, textAlign: 'center', fontWeight: 700, fontSize: '18px' }} />
+                    </div>
+                  </div>
+
+                  {/* Preview */}
+                  {(() => {
+                    const total   = config.numAdSets * config.adsPerAdSet
+                    const tenemos = adConfigs.length
+                    const ok      = tenemos >= total
+                    return (
+                      <div style={{
+                        background: ok ? '#22C55E10' : '#F59E0B10',
+                        border: `1px solid ${ok ? '#22C55E35' : '#F59E0B35'}`,
+                        borderRadius: '8px', padding: '10px 14px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: ok ? '#22C55E' : '#F59E0B' }}>
+                          1 campaña → {config.numAdSets} conjunto{config.numAdSets > 1 ? 's' : ''} → {config.adsPerAdSet} video{config.adsPerAdSet > 1 ? 's' : ''} c/u
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#7A90AA', marginTop: '4px' }}>
+                          Necesitás {total} videos · Seleccionaste {tenemos}
+                          {!ok && ` · ⚠ Faltan ${total - tenemos}`}
+                          {ok && tenemos > total && ` · Se usarán solo los primeros ${total}`}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
               </div>
 
+              {/* Col 2 — Cuenta & Presupuesto */}
               <div style={S.card}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '16px' }}>Presupuesto & Cuenta</div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#E8EDF5', marginBottom: '16px' }}>Cuenta & Presupuesto</div>
+
+                <Select label="Cuenta publicitaria"
+                  value={config.accountId}
+                  onChange={v => setConfig(c => ({ ...c, accountId: v }))}
+                  options={accounts.length
+                    ? accounts.map(a => ({ value: a.id, label: `${a.name} (${a.id})` }))
+                    : [{ value: '', label: 'Cargando...' }]} />
+
                 <div style={{ marginBottom: '14px' }}>
-                  <label style={S.label}>Presupuesto diario (AUD)</label>
+                  <label style={S.label}>Fanpage</label>
+                  {pages.length > 0 ? (
+                    <select value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))}
+                      style={{ ...S.inputStyle, appearance: 'none' }}>
+                      {pages.map((p: any) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
+                    </select>
+                  ) : (
+                    <input value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))}
+                      placeholder="ID de la fanpage" style={S.inputStyle} />
+                  )}
+                </div>
+
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={S.label}>Presupuesto diario ({config.campaignType === 'CBO' ? 'campaña' : 'por conjunto'})</label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ color: '#7A90AA', fontSize: '14px', fontWeight: 700 }}>$</span>
-                    <input type="number" value={config.budgetAmount} onChange={e => setConfig(c => ({ ...c, budgetAmount: e.target.value }))}
+                    <input type="number" value={config.budgetAmount}
+                      onChange={e => setConfig(c => ({ ...c, budgetAmount: e.target.value }))}
                       min="1" step="1" style={{ ...S.inputStyle, width: '120px' }} />
                     <span style={{ color: '#7A90AA', fontSize: '13px' }}>AUD / día</span>
                   </div>
                 </div>
-                <Select label="Cuenta publicitaria"
-                  value={config.accountId}
-                  onChange={v => setConfig(c => ({ ...c, accountId: v }))}
-                  options={accounts.map(a => ({ value: a.id, label: `${a.name} (${a.id})` }))} />
-                <Field label="Page ID (Fanpage)" value={config.pageId} onChange={(v: string) => setConfig(c => ({ ...c, pageId: v }))} placeholder="Ej: 123456789" />
-                <Field label="URL destino *" value={config.destinationUrl} onChange={(v: string) => setConfig(c => ({ ...c, destinationUrl: v }))} type="url" />
-                <Field label="Fecha inicio (opcional)" value={config.startDate} onChange={(v: string) => setConfig(c => ({ ...c, startDate: v }))} type="date" />
+
+                <Field label="URL destino *" value={config.destinationUrl}
+                  onChange={(v: string) => setConfig(c => ({ ...c, destinationUrl: v }))} type="url" />
+                <Field label="Fecha inicio (opcional)" value={config.startDate}
+                  onChange={(v: string) => setConfig(c => ({ ...c, startDate: v }))} type="date" />
                 <Select label="Producto (para copy automático)"
                   value={config.productId}
                   onChange={v => setConfig(c => ({ ...c, productId: v }))}
@@ -632,11 +711,11 @@ export default function LanzarPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
                   {[
                     { label: 'Campaña', value: config.campaignName },
-                    { label: 'Conjunto', value: config.adSetName },
                     { label: 'Tipo', value: config.campaignType },
+                    { label: 'Conjuntos', value: String(config.numAdSets) },
+                    { label: 'Videos/conjunto', value: String(config.adsPerAdSet) },
                     { label: 'Presupuesto', value: `AUD $${config.budgetAmount}/día` },
                     { label: 'Objetivo', value: config.objective },
-                    { label: 'Ads', value: `${adConfigs.length} creativos` },
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <div style={{ fontSize: '11px', color: '#7A90AA' }}>{label}</div>
