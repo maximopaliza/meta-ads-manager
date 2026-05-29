@@ -133,6 +133,8 @@ export default function LanzarPage() {
   const [activeFolder, setActiveFolder]   = useState<DriveFolder>('No subidos')
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
   const [loadingDrive, setLoadingDrive]   = useState(false)
+  const [filterType, setFilterType]       = useState<'all' | 'video' | 'image'>('all')
+  const [filterSort, setFilterSort]       = useState<'newest' | 'oldest' | 'name'>('newest')
 
   // Step 1 — ads with auto-generated copy
   const [ads, setAds] = useState<AdDraft[]>([])
@@ -352,19 +354,47 @@ export default function LanzarPage() {
                 })}
               </div>
               <div>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'center' }}>
+                {/* Toolbar */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <span style={{ color: '#E8EDF5', fontSize: '14px', fontWeight: 700, flex: 1 }}>{SUBFOLDER_EMOJI[activeFolder]} {activeFolder}</span>
+
+                  {/* Type filter */}
+                  {(['all', 'video', 'image'] as const).map(t => (
+                    <button key={t} onClick={() => setFilterType(t)} style={{ ...S.btnSm, background: filterType === t ? '#6366F1' : '#0C1A2E', color: filterType === t ? '#fff' : '#7A90AA', border: filterType === t ? '1px solid #6366F1' : '1px solid #1A4080' }}>
+                      {t === 'all' ? 'Todos' : t === 'video' ? '🎬 Videos' : '🖼 Imágenes'}
+                    </button>
+                  ))}
+
+                  {/* Sort */}
+                  <select value={filterSort} onChange={e => setFilterSort(e.target.value as any)} style={{ ...S.input, width: 'auto', fontSize: '11px', padding: '4px 10px' }}>
+                    <option value="newest">Más nuevos primero</option>
+                    <option value="oldest">Más viejos primero</option>
+                    <option value="name">Nombre A→Z</option>
+                  </select>
+
                   <button onClick={loadDrive} style={S.btnSec} disabled={loadingDrive}>{loadingDrive ? '...' : '↻'}</button>
-                  <button onClick={() => { const ids = (driveFiles[activeFolder] || []).map(f => f.id); setSelectedFiles(s => { const n = new Set(s); ids.forEach(id => n.add(id)); return n }) }} style={S.btnSec}>Todos</button>
+                  <button onClick={() => {
+                    const filtered = (driveFiles[activeFolder] || [])
+                      .filter(f => filterType === 'all' || (filterType === 'video' ? f.isVideo : !f.isVideo))
+                    filtered.forEach(f => setSelectedFiles(s => { const n = new Set(s); n.add(f.id); return n }))
+                  }} style={S.btnSec}>Todos</button>
                   <button onClick={() => { const ids = new Set((driveFiles[activeFolder] || []).map(f => f.id)); setSelectedFiles(s => { const n = new Set(s); ids.forEach(id => n.delete(id)); return n }) }} style={S.btnSec}>Ninguno</button>
                 </div>
+
                 {loadingDrive
                   ? <div style={{ color: '#7A90AA', padding: '40px', textAlign: 'center' }}>Cargando...</div>
                   : !(driveFiles[activeFolder] || []).length
                     ? <div style={{ ...S.card, textAlign: 'center', padding: '40px', color: '#7A90AA' }}>Carpeta vacía</div>
-                    : (
+                    : (() => {
+                        let files = [...(driveFiles[activeFolder] || [])]
+                        if (filterType === 'video') files = files.filter(f => f.isVideo)
+                        if (filterType === 'image') files = files.filter(f => !f.isVideo)
+                        if (filterSort === 'newest') files.sort((a, b) => b.modifiedTime.localeCompare(a.modifiedTime))
+                        if (filterSort === 'oldest') files.sort((a, b) => a.modifiedTime.localeCompare(b.modifiedTime))
+                        if (filterSort === 'name')   files.sort((a, b) => a.name.localeCompare(b.name))
+                        return (
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
-                        {(driveFiles[activeFolder] || []).map(f => {
+                        {files.map(f => {
                           const sel = selectedFiles.has(f.id)
                           return (
                             <div key={f.id} onClick={() => toggleFile(f.id)} style={{ ...S.card, padding: 0, cursor: 'pointer', overflow: 'hidden', border: sel ? '2px solid #6366F1' : '1px solid #1A4080', position: 'relative' }}>
@@ -375,13 +405,16 @@ export default function LanzarPage() {
                               </div>
                               <div style={{ padding: '6px 8px' }}>
                                 <div style={{ fontSize: '10px', color: '#C0CFDF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={f.name}>{f.name}</div>
-                                <div style={{ fontSize: '9px', color: '#3A5270', marginTop: '1px' }}>{(f.size / 1024 / 1024).toFixed(1)} MB</div>
+                                <div style={{ fontSize: '9px', color: '#3A5270', marginTop: '1px' }}>
+                                  {(f.size / 1024 / 1024).toFixed(1)} MB · {new Date(f.modifiedTime).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                </div>
                               </div>
                             </div>
                           )
                         })}
                       </div>
-                    )
+                        )
+                      })()
                 }
               </div>
             </div>
