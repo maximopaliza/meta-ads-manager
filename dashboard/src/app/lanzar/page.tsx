@@ -266,14 +266,19 @@ export default function LanzarPage() {
   }
 
   // ── Analysis ───────────────────────────────────────────────────────────────
-  async function analyzeOne(idx: number, productId?: string) {
+  // configData is passed directly to avoid stale React state closure issues
+  async function analyzeOne(idx: number, productId?: string, configData?: AdConfig) {
+    // Capture the config at call time — don't rely on state being up-to-date
+    const adData = configData ?? adConfigs[idx]
+    if (!adData?.driveFileId) return
+
     setAdConfigs(prev => {
       const n = [...prev]
-      n[idx] = { ...n[idx], analysisLoading: true, analysisError: undefined }
+      if (n[idx]) n[idx] = { ...n[idx], analysisLoading: true, analysisError: undefined }
       return n
     })
     try {
-      const ad = adConfigs[idx]
+      const ad = adData
       const res = await fetch('/api/creative/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -309,7 +314,7 @@ export default function LanzarPage() {
 
   function analyzeAll(configs?: AdConfig[]) {
     const list = configs || adConfigs
-    list.forEach((_, i) => analyzeOne(i, config.productId || undefined))
+    list.forEach((cfg, i) => analyzeOne(i, config.productId || undefined, cfg))
   }
 
   function updateAdConfig(idx: number, field: keyof AdConfig, val: any) {
