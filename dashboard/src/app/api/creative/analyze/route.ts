@@ -4,7 +4,9 @@ import { downloadFile } from '@/lib/drive'
 import { analyzeCreative } from '@/lib/gemini'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 120 // seconds — video analysis takes time
+export const maxDuration = 300 // 5 min — large video upload + Gemini processing
+
+const MAX_FILE_BYTES = 200 * 1024 * 1024 // 200 MB — skip larger files
 
 // POST { fileId, fileName, mimeType, productId? }
 export async function POST(req: NextRequest) {
@@ -67,6 +69,12 @@ Testimonios: ${testimonials}
   } catch (err: any) {
     console.error('[Analyze] Drive download error:', err)
     return NextResponse.json({ error: `Error descargando de Drive: ${err.message}` }, { status: 502 })
+  }
+
+  if (dlResult.bytes.length > MAX_FILE_BYTES) {
+    return NextResponse.json({
+      error: `Archivo demasiado grande (${(dlResult.bytes.length / 1024 / 1024).toFixed(0)} MB). Máximo 200 MB. Ingresá el copy manualmente.`,
+    }, { status: 413 })
   }
 
   // ── 4. Call Gemini ─────────────────────────────────────────────────────────

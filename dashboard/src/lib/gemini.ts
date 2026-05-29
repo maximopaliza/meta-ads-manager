@@ -11,7 +11,7 @@ const GEMINI_KEY = () => {
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
-// ── File Upload (for files > 20 MB or any video) ──────────────────────────────
+// ── File Upload (resumable protocol — works for any size) ────────────────────
 
 export async function uploadFileToGemini(
   bytes: Buffer,
@@ -20,41 +20,64 @@ export async function uploadFileToGemini(
 ): Promise<string> {
   const key = GEMINI_KEY()
 
-  // Multipart upload
-  const boundary = 'gem_boundary_' + Math.random().toString(36).slice(2)
-  const meta = JSON.stringify({ file: { display_name: displayName } })
-
-  const parts: Buffer[] = [
-    Buffer.from(`--${boundary}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n`),
-    Buffer.from(`--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`),
-    bytes,
-    Buffer.from(`\r\n--${boundary}--`),
-  ]
-  const body = Buffer.concat(parts)
-
-  const res = await fetch(
-    `${BASE}/files?uploadType=multipart&key=${key}`,
+  // Step 1: Initiate resumable upload session
+  const initRes = await fetch(
+    `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${key}`,
     {
       method: 'POST',
-      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-      body,
+      headers: {
+        'X-Goog-Upload-Protocol':             'resumable',
+        'X-Goog-Upload-Command':              'start',
+        'X-Goog-Upload-Header-Content-Length': String(bytes.length),
+        'X-Goog-Upload-Header-Content-Type':   mimeType,
+        'Content-Type':                        'application/json',
+      },
+      body: JSON.stringify({ file: { display_name: displayName } }),
     },
   )
-  const data = await res.json()
+
+  if (!initRes.ok) {
+    const txt = await initRes.text()
+    throw new Error(`Gemini upload init failed (${initRes.status}): ${txt}`)
+  }
+
+  const uploadUrl = initRes.headers.get('x-goog-upload-url')
+  if (!uploadUrl) throw new Error('Gemini: no upload URL in response headers')
+
+  // Step 2: Upload file bytes
+  const uploadRes = await fetch(uploadUrl, {
+    method:  'POST',
+    headers: {
+      'Content-Length':        String(bytes.length),
+      'X-Goog-Upload-Offset':  '0',
+      'X-Goog-Upload-Command': 'upload, finalize',
+      'Content-Type':          mimeType,
+    },
+    body: new Uint8Array(bytes),
+  })
+
+  if (!uploadRes.ok) {
+    const txt = await uploadRes.text()
+    throw new Error(`Gemini upload failed (${uploadRes.status}): ${txt}`)
+  }
+
+  const data = await uploadRes.json()
   if (data.error) throw new Error(`Gemini upload: ${data.error.message}`)
 
-  const fileUri = data.file?.uri
-  if (!fileUri) throw new Error(`Gemini upload: no file URI returned`)
+  const fileUri  = data.file?.uri
+  const fileName = data.file?.name // "files/abc123"
+  if (!fileUri || !fileName) throw new Error('Gemini upload: no file URI returned')
 
-  // Poll until ACTIVE
-  for (let i = 0; i < 30; i++) {
-    const check = await fetch(`${BASE}/${fileUri.split('/v1beta/')[1]}?key=${key}`)
-    const info = await check.json()
-    if (info.state === 'ACTIVE') return fileUri
-    if (info.state === 'FAILED') throw new Error('Gemini file processing failed')
-    await new Promise(r => setTimeout(r, 2000))
+  // Step 3: Poll until ACTIVE (video processing can take 10-30s)
+  for (let i = 0; i < 40; i++) {
+    const checkRes = await fetch(`${BASE}/${fileName}?key=${key}`)
+    const info = await checkRes.json()
+    const state = info.state ?? info.file?.state
+    if (state === 'ACTIVE') return fileUri
+    if (state === 'FAILED') throw new Error('Gemini file processing failed')
+    await new Promise(r => setTimeout(r, 3000))
   }
-  throw new Error('Gemini file processing timed out')
+  throw new Error('Gemini file processing timed out (2 min)')
 }
 
 // ── Generate content ──────────────────────────────────────────────────────────
