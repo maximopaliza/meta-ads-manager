@@ -512,8 +512,8 @@ export default function LanzarPage() {
                       <div style={{ fontSize: '11px', color: '#E8EDF5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.fileName.replace(/\.[^.]+$/, '')}</div>
                       {ad.headline && <div style={{ fontSize: '10px', color: '#6366F1', marginTop: '1px' }}>"{ad.headline}"</div>}
                     </div>
-                    {/* Set toggles */}
-                    <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                    {/* Set toggles + duplicate */}
+                    <div style={{ display: 'flex', gap: '4px', flexShrink: 0, alignItems: 'center' }}>
                       {Array.from({ length: config.numAdSets }, (_, setIdx) => {
                         const active = ad.adSetIndices.includes(setIdx)
                         return (
@@ -522,6 +522,7 @@ export default function LanzarPage() {
                           </button>
                         )
                       })}
+                      <button onClick={() => duplicateAd(adIdx)} title="Duplicar con otro copy" style={{ ...S.btnSm, marginLeft: '4px' }}>⧉</button>
                     </div>
                   </div>
                 ))}
