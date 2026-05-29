@@ -425,29 +425,26 @@ export default function LanzarPage() {
 
                       {/* Left: preview */}
                       <div style={{ background: '#050C1E', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-                        {/* Thumbnail */}
-                        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                          {ad.thumbnailLink
-                            ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                            : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '40px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>
-                          }
-                          {ad.isVideo && (
-                            <div style={{ position: 'absolute', top: '8px', left: '8px', background: '#00000080', borderRadius: '4px', padding: '2px 7px', fontSize: '10px', color: '#fff', fontWeight: 700 }}>VIDEO</div>
-                          )}
-                        </div>
-                        {/* File name + open button */}
-                        <div style={{ padding: '8px 10px', borderTop: '1px solid #1A4080' }}>
-                          <div style={{ fontSize: '10px', color: '#7A90AA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '6px' }} title={ad.fileName}>
+                        {ad.isVideo ? (
+                          <video
+                            controls
+                            preload="metadata"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', minHeight: '180px', maxHeight: '320px' }}
+                          >
+                            <source src={`/api/drive/stream?id=${ad.driveFileId}`} type="video/mp4" />
+                          </video>
+                        ) : (
+                          <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: '180px' }}>
+                            {ad.thumbnailLink
+                              ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                              : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '40px' }}>🖼</div>
+                            }
+                          </div>
+                        )}
+                        <div style={{ padding: '6px 10px', borderTop: '1px solid #1A4080' }}>
+                          <div style={{ fontSize: '10px', color: '#7A90AA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ad.fileName}>
                             {ad.fileName}
                           </div>
-                          <a
-                            href={`https://drive.google.com/file/d/${ad.driveFileId}/view`}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', background: '#6366F1', color: '#fff', borderRadius: '6px', padding: '6px', fontSize: '11px', fontWeight: 600, textDecoration: 'none' }}
-                          >
-                            ▶ Ver {ad.isVideo ? 'video' : 'imagen'}
-                          </a>
                         </div>
                       </div>
 
