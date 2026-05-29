@@ -10,6 +10,8 @@ import { getLatestDate, cpaColor, roasColor, ctrColor, cpmColor, cpcColor, CPA_B
 import BudgetControl from '@/components/shared/BudgetControl'
 import StatusToggle from '@/components/shared/StatusToggle'
 import SortableHeader from '@/components/shared/SortableHeader'
+import ResetSort from '@/components/shared/ResetSort'
+import DualScrollTable from '@/components/shared/DualScrollTable'
 
 export default async function AdSetsPage({ searchParams }: { searchParams: Promise<{ days?: string; from?: string; to?: string; sort?: string; dir?: string }> }) {
   await headers()
@@ -135,8 +137,9 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
               <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#22C55E20', color: '#22C55E', borderRadius: '4px' }}>CPA ≤${CPA_TARGET} 🟢</span>
               <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#F59E0B20', color: '#F59E0B', borderRadius: '4px' }}>≤${CPA_BREAKEVEN} 🟡</span>
               <span style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#EF444420', color: '#EF4444', borderRadius: '4px' }}>&gt;${CPA_BREAKEVEN} 🔴</span>
+              <Suspense fallback={null}><ResetSort currentSort={sortCol} /></Suspense>
             </div>
-            <div style={{ overflowX: 'auto' }}>
+            <DualScrollTable tableMinWidth={2600}>
               <table style={{ borderCollapse: 'collapse', minWidth: '2600px', width: '100%' }}>
                 <thead>
                   <tr>
@@ -254,7 +257,7 @@ export default async function AdSetsPage({ searchParams }: { searchParams: Promi
 
                 </tbody>
               </table>
-            </div>
+            </DualScrollTable>
           </div>
         </main>
       </div>
