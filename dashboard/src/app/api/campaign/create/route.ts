@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
       status:                'PAUSED',
       special_ad_categories: specialAdCategory === 'NONE' ? '[]' : JSON.stringify([specialAdCategory]),
     }
+    campParams.is_adset_budget_sharing_enabled = isCBO ? 'false' : 'false'
     if (isCBO) {
       campParams[budgetType === 'lifetime' ? 'lifetime_budget' : 'daily_budget'] = String(budgetCents)
       campParams.bid_strategy = 'LOWEST_COST_WITHOUT_CAP'
