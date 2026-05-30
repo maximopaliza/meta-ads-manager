@@ -616,7 +616,9 @@ export default function LanzarPage() {
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           <span style={{ color: '#7A90AA', fontWeight: 700, fontSize: '14px' }}>$</span>
                           <input type="number" value={config.budgetAmount} onChange={e => setConfig(c => ({ ...c, budgetAmount: e.target.value }))} min="1" style={{ ...S.input, width: '140px', fontSize: '16px', fontWeight: 700 }} />
-                          <span style={{ color: '#7A90AA', fontSize: '13px' }}>ARS / día</span>
+                          <span style={{ color: '#6366F1', fontSize: '13px', fontWeight: 700 }}>
+                            {accounts.find(a => a.id === config.accountId)?.currency || '—'} / día
+                          </span>
                         </div>
                       </div>
                     </div>
