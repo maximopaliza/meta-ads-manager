@@ -28,25 +28,49 @@ type AdDraft = {
 }
 
 type CampaignConfig = {
+  // ── Campaña ──
   campaignName: string
   campaignType: 'CBO' | 'ABO'
-  objective: 'ventas' | 'trafico' | 'alcance'
-  optimizationGoal: 'OFFSITE_CONVERSIONS' | 'LINK_CLICKS' | 'LANDING_PAGE_VIEWS' | 'REACH'
-  pixelEvent: 'Purchase' | 'AddToCart' | 'InitiateCheckout' | 'ViewContent'
-  bidStrategy: 'LOWEST_COST_WITHOUT_CAP' | 'COST_CAP' | 'BID_CAP'
-  bidAmount: string
+  objective: string
+  specialAdCategory: string        // NONE, CREDIT, EMPLOYMENT, HOUSING, ISSUES_ELECTIONS_POLITICS
+  advantageCampaignBudget: boolean
+  budgetType: 'daily' | 'lifetime'
   budgetAmount: string
-  placements: string[]
+  spendingLimit: string            // campaign spending limit
   accountId: string
   pageId: string
+  igAccountId: string              // Instagram account ID
   destinationUrl: string
-  startDate: string
-  startTime: string
-  numAdSets: number
   productId: string
+
+  // ── Conjunto ──
+  optimizationGoal: string
+  pixelEvent: string
+  pixelId: string
+  bidStrategy: string
+  bidAmount: string
+  attributionWindow: string        // 1d_click, 7d_click, 7d_click_1d_view, etc.
+  billingEvent: string             // IMPRESSIONS, LINK_CLICKS
+  frequencyCap: string             // for reach campaigns
+  advantageAudience: boolean       // Advantage+ audience
   ageMin: number
   ageMax: number
   gender: 'all' | 'male' | 'female'
+  interests: string                // comma-separated interest names
+  customAudiences: string          // comma-separated audience IDs
+  excludedAudiences: string
+  placements: string[]
+  platforms: string[]              // facebook, instagram, audience_network, messenger
+  startDate: string
+  startTime: string
+  endDate: string
+  numAdSets: number
+
+  // ── Anuncio ──
+  cta: string
+  urlParams: string                // UTM params
+  dynamicCreative: boolean
+  adDescription: string            // link description
 }
 
 type CreationProgress = {
@@ -148,13 +172,24 @@ export default function LanzarPage() {
   const [pages, setPages]       = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [config, setConfig]     = useState<CampaignConfig>({
+    // Campaña
     campaignName: '', campaignType: 'CBO', objective: 'ventas',
+    specialAdCategory: 'NONE', advantageCampaignBudget: true,
+    budgetType: 'daily', budgetAmount: '50', spendingLimit: '',
+    accountId: '', pageId: '1121231927732288', igAccountId: '',
+    destinationUrl: '', productId: '',
+    // Conjunto
     optimizationGoal: 'OFFSITE_CONVERSIONS', pixelEvent: 'Purchase',
-    bidStrategy: 'LOWEST_COST_WITHOUT_CAP', bidAmount: '',
-    budgetAmount: '50', placements: ['feed', 'reels', 'stories'],
-    accountId: '', pageId: '1121231927732288', destinationUrl: '',
-    startDate: '', startTime: '08:00',
-    numAdSets: 1, productId: '', ageMin: 35, ageMax: 65, gender: 'all',
+    pixelId: '', bidStrategy: 'LOWEST_COST_WITHOUT_CAP', bidAmount: '',
+    attributionWindow: '7d_click_1d_view', billingEvent: 'IMPRESSIONS',
+    frequencyCap: '', advantageAudience: false,
+    ageMin: 35, ageMax: 65, gender: 'all',
+    interests: '', customAudiences: '', excludedAudiences: '',
+    placements: ['feed', 'reels', 'stories'],
+    platforms: ['facebook', 'instagram'],
+    startDate: '', startTime: '08:00', endDate: '', numAdSets: 1,
+    // Anuncio
+    cta: 'SHOP_NOW', urlParams: '', dynamicCreative: false, adDescription: '',
   })
 
   // Step 3 tabs
@@ -599,28 +634,56 @@ export default function LanzarPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div style={S.card}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>CONFIGURACIÓN DE CAMPAÑA</div>
-                      <Field label="Nombre de la campaña *" value={config.campaignName} onChange={(v: string) => setConfig(c => ({ ...c, campaignName: v }))} placeholder="Ej: Campaña Vision Complete Mayo" />
-                      <Sel label="Objetivo de campaña" value={config.objective} onChange={v => setConfig(c => ({ ...c, objective: v as any }))}
+                      <Field label="Nombre de la campaña *" value={config.campaignName} onChange={(v: string) => setConfig(c => ({ ...c, campaignName: v }))} placeholder="Ej: Campaña Vision Complete — Cataratas" />
+                      <Sel label="Objetivo de campaña" value={config.objective} onChange={v => setConfig(c => ({ ...c, objective: v }))}
                         options={[
-                          { value: 'ventas',  label: '🛒 Ventas (OUTCOME_SALES)' },
-                          { value: 'trafico', label: '🔗 Tráfico (OUTCOME_TRAFFIC)' },
-                          { value: 'alcance', label: '📢 Alcance (OUTCOME_AWARENESS)' },
+                          { value: 'ventas',      label: '🛒 Ventas (OUTCOME_SALES)' },
+                          { value: 'trafico',     label: '🔗 Tráfico (OUTCOME_TRAFFIC)' },
+                          { value: 'alcance',     label: '📢 Alcance (OUTCOME_AWARENESS)' },
+                          { value: 'engagement',  label: '❤️ Interacción (OUTCOME_ENGAGEMENT)' },
+                          { value: 'leads',       label: '📋 Clientes potenciales (OUTCOME_LEADS)' },
+                          { value: 'app',         label: '📱 Promoción de app (OUTCOME_APP_PROMOTION)' },
                         ]} />
-                      <Sel label="Tipo de presupuesto" value={config.campaignType} onChange={v => setConfig(c => ({ ...c, campaignType: v as any }))}
+                      <Sel label="Tipo de presupuesto de campaña" value={config.campaignType} onChange={v => setConfig(c => ({ ...c, campaignType: v as any }))}
                         options={[
-                          { value: 'CBO', label: 'CBO — Advantage Campaign Budget (recomendado)' },
-                          { value: 'ABO', label: 'ABO — Presupuesto por conjunto' },
+                          { value: 'CBO', label: 'Advantage Campaign Budget — Meta optimiza entre conjuntos' },
+                          { value: 'ABO', label: 'Manual — Presupuesto por conjunto' },
                         ]} />
                       <div style={{ marginBottom: '14px' }}>
-                        <label style={S.label}>Presupuesto diario ({config.campaignType === 'CBO' ? 'total campaña' : 'por conjunto'})</label>
+                        <label style={S.label}>Tipo de período</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {(['daily', 'lifetime'] as const).map(t => (
+                            <button key={t} onClick={() => setConfig(c => ({ ...c, budgetType: t }))} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: config.budgetType === t ? '2px solid #6366F1' : '1px solid #1A4080', background: config.budgetType === t ? '#6366F120' : '#050C1E', color: config.budgetType === t ? '#6366F1' : '#7A90AA', fontSize: '12px', cursor: 'pointer', fontWeight: config.budgetType === t ? 700 : 400 }}>
+                              {t === 'daily' ? 'Diario' : 'Total (lifetime)'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>Presupuesto {config.budgetType === 'daily' ? 'diario' : 'total'} {config.campaignType === 'CBO' ? '(campaña)' : '(por conjunto)'}</label>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           <span style={{ color: '#7A90AA', fontWeight: 700, fontSize: '14px' }}>$</span>
                           <input type="number" value={config.budgetAmount} onChange={e => setConfig(c => ({ ...c, budgetAmount: e.target.value }))} min="1" style={{ ...S.input, width: '140px', fontSize: '16px', fontWeight: 700 }} />
                           <span style={{ color: '#6366F1', fontSize: '13px', fontWeight: 700 }}>
-                            {accounts.find(a => a.id === config.accountId)?.currency || '—'} / día
+                            {accounts.find(a => a.id === config.accountId)?.currency || '—'} / {config.budgetType === 'daily' ? 'día' : 'total'}
                           </span>
                         </div>
                       </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>Límite de gasto de campaña (opcional)</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ color: '#7A90AA' }}>$</span>
+                          <input type="number" value={config.spendingLimit} onChange={e => setConfig(c => ({ ...c, spendingLimit: e.target.value }))} placeholder="Sin límite" style={{ ...S.input, width: '140px' }} />
+                        </div>
+                      </div>
+                      <Sel label="Categoría especial de anuncio" value={config.specialAdCategory} onChange={v => setConfig(c => ({ ...c, specialAdCategory: v }))}
+                        options={[
+                          { value: 'NONE',                         label: 'Ninguna' },
+                          { value: 'CREDIT',                       label: 'Crédito' },
+                          { value: 'EMPLOYMENT',                   label: 'Empleo' },
+                          { value: 'HOUSING',                      label: 'Vivienda' },
+                          { value: 'ISSUES_ELECTIONS_POLITICS',    label: 'Política / Elecciones' },
+                        ]} />
                     </div>
                   </div>
 
@@ -628,87 +691,135 @@ export default function LanzarPage() {
                     <div style={S.card}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>CUENTA & DESTINO</div>
                       <Sel label="Cuenta publicitaria" value={config.accountId} onChange={v => setConfig(c => ({ ...c, accountId: v }))}
-                        options={accounts.length ? accounts.map(a => ({ value: a.id, label: `${a.name} (${a.id})` })) : [{ value: '', label: 'Cargando...' }]} />
+                        options={accounts.length ? accounts.map(a => ({ value: a.id, label: `${a.name} (${a.currency}) — ${a.id}` })) : [{ value: '', label: 'Cargando...' }]} />
                       <div style={{ marginBottom: '14px' }}>
-                        <label style={S.label}>Fanpage / Página de Facebook</label>
+                        <label style={S.label}>Fanpage de Facebook *</label>
                         {pages.length > 0
                           ? <select value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))} style={{ ...S.input, appearance: 'none' as any }}>
                               <option value="">— Elegir página —</option>
                               {pages.map((p: any) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
                             </select>
-                          : <>
-                              <input value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))} placeholder="ID numérico de la fanpage" style={S.input} />
-                              <div style={{ fontSize: '10px', color: '#F59E0B', marginTop: '4px' }}>⚠ No se encontraron páginas. Pegá el ID manualmente.</div>
-                            </>
+                          : <input value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))} placeholder="ID numérico de la fanpage" style={S.input} />
                         }
                       </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>Cuenta de Instagram (opcional)</label>
+                        <input value={config.igAccountId} onChange={e => setConfig(c => ({ ...c, igAccountId: e.target.value }))} placeholder="ID de cuenta IG (ej: 17841441309346858)" style={S.input} />
+                      </div>
                       <Field label="URL de destino *" value={config.destinationUrl} onChange={(v: string) => setConfig(c => ({ ...c, destinationUrl: v }))} type="url" placeholder="https://ovitta.store/..." />
-                      <Sel label="Producto (para contexto de copy)" value={config.productId} onChange={v => setConfig(c => ({ ...c, productId: v }))}
+                      <Sel label="Producto" value={config.productId} onChange={v => setConfig(c => ({ ...c, productId: v }))}
                         options={[{ value: '', label: '— Sin producto —' }, ...products.map(p => ({ value: p.id, label: p.name }))]} />
                     </div>
-                    <div style={{ ...S.card, background: '#0C1A2E' }}>
-                      <div style={{ fontSize: '11px', color: '#3A5270' }}>
-                        ✅ <b style={{ color: '#7A90AA' }}>Campaña:</b> {config.campaignName || '—'} · {config.objective} · ${config.budgetAmount}/día · {config.campaignType}
+                    <div style={{ ...S.card, background: '#050C1E', padding: '12px' }}>
+                      <div style={{ fontSize: '11px', color: '#7A90AA', lineHeight: 1.7 }}>
+                        <div>📢 <b>Campaña:</b> {config.campaignName || '—'}</div>
+                        <div>🎯 <b>Objetivo:</b> {config.objective} · {config.campaignType}</div>
+                        <div>💰 <b>Presupuesto:</b> ${config.budgetAmount} {accounts.find(a => a.id === config.accountId)?.currency || ''} / {config.budgetType === 'daily' ? 'día' : 'total'}</div>
+                        {config.specialAdCategory !== 'NONE' && <div style={{ color: '#F59E0B' }}>⚠ Cat. especial: {config.specialAdCategory}</div>}
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* ── TAB: Conjunto de anuncios ── */}
+              {/* ── TAB: Conjunto ── */}
               {configTab === 'adset' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div style={S.card}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>OPTIMIZACIÓN & PUJA</div>
-                      <Sel label="Objetivo de optimización" value={config.optimizationGoal} onChange={v => setConfig(c => ({ ...c, optimizationGoal: v as any }))}
+                      <Sel label="Objetivo de optimización" value={config.optimizationGoal} onChange={v => setConfig(c => ({ ...c, optimizationGoal: v }))}
                         options={[
-                          { value: 'OFFSITE_CONVERSIONS',  label: 'Conversiones (recomendado)' },
-                          { value: 'LANDING_PAGE_VIEWS',   label: 'Landing Page Views' },
-                          { value: 'LINK_CLICKS',           label: 'Link Clicks' },
-                          { value: 'REACH',                 label: 'Alcance' },
-                          { value: 'IMPRESSIONS',           label: 'Impresiones' },
+                          { value: 'OFFSITE_CONVERSIONS',  label: '💰 Conversiones (recomendado)' },
+                          { value: 'LANDING_PAGE_VIEWS',   label: '🔗 Landing Page Views' },
+                          { value: 'LINK_CLICKS',           label: '👆 Link Clicks' },
+                          { value: 'REACH',                 label: '📢 Alcance' },
+                          { value: 'IMPRESSIONS',           label: '👁 Impresiones' },
+                          { value: 'VIDEO_VIEWS',           label: '▶️ Reproducciones de video' },
+                          { value: 'THRUPLAY',              label: '▶️ ThruPlay (15s)' },
+                          { value: 'POST_ENGAGEMENT',       label: '❤️ Interacción con publicación' },
+                          { value: 'LEAD_GENERATION',       label: '📋 Generación de leads' },
                         ]} />
-                      {config.optimizationGoal === 'OFFSITE_CONVERSIONS' && (
-                        <Sel label="Evento de conversión del píxel" value={config.pixelEvent} onChange={v => setConfig(c => ({ ...c, pixelEvent: v as any }))}
-                          options={[
-                            { value: 'Purchase',          label: '💰 Purchase (compra)' },
-                            { value: 'InitiateCheckout',  label: '🛒 Initiate Checkout' },
-                            { value: 'AddToCart',         label: '➕ Add to Cart' },
-                            { value: 'ViewContent',       label: '👁 View Content' },
-                          ]} />
+                      {(config.optimizationGoal === 'OFFSITE_CONVERSIONS') && (
+                        <>
+                          <Field label="Pixel ID" value={config.pixelId} onChange={(v: string) => setConfig(c => ({ ...c, pixelId: v }))} placeholder="ID del píxel de Meta" />
+                          <Sel label="Evento de conversión" value={config.pixelEvent} onChange={v => setConfig(c => ({ ...c, pixelEvent: v }))}
+                            options={[
+                              { value: 'Purchase',          label: '💰 Purchase' },
+                              { value: 'InitiateCheckout',  label: '🛒 Initiate Checkout' },
+                              { value: 'AddToCart',         label: '➕ Add to Cart' },
+                              { value: 'ViewContent',       label: '👁 View Content' },
+                              { value: 'Lead',              label: '📋 Lead' },
+                              { value: 'CompleteRegistration', label: '✅ Complete Registration' },
+                              { value: 'Subscribe',         label: '🔔 Subscribe' },
+                            ]} />
+                          <Sel label="Ventana de atribución" value={config.attributionWindow} onChange={v => setConfig(c => ({ ...c, attributionWindow: v }))}
+                            options={[
+                              { value: '7d_click_1d_view',  label: '7d clic + 1d vista (recomendado)' },
+                              { value: '7d_click',          label: '7d clic' },
+                              { value: '1d_click_1d_view',  label: '1d clic + 1d vista' },
+                              { value: '1d_click',          label: '1d clic' },
+                            ]} />
+                        </>
                       )}
-                      <Sel label="Estrategia de puja" value={config.bidStrategy} onChange={v => setConfig(c => ({ ...c, bidStrategy: v as any }))}
+                      {config.optimizationGoal === 'REACH' && (
+                        <div style={{ marginBottom: '14px' }}>
+                          <label style={S.label}>Frequency cap (cada X días)</label>
+                          <input type="number" value={config.frequencyCap} onChange={e => setConfig(c => ({ ...c, frequencyCap: e.target.value }))} placeholder="Ej: 7" style={{ ...S.input, width: '100px' }} />
+                        </div>
+                      )}
+                      <Sel label="Estrategia de puja" value={config.bidStrategy} onChange={v => setConfig(c => ({ ...c, bidStrategy: v }))}
                         options={[
-                          { value: 'LOWEST_COST_WITHOUT_CAP', label: 'Lowest Cost — sin límite (recomendado)' },
-                          { value: 'COST_CAP',                label: 'Cost Cap — límite de costo por resultado' },
-                          { value: 'BID_CAP',                 label: 'Bid Cap — límite de puja máxima' },
+                          { value: 'LOWEST_COST_WITHOUT_CAP', label: 'Lowest Cost — Meta optimiza (recomendado)' },
+                          { value: 'COST_CAP',                label: 'Cost Cap — límite de CPA' },
+                          { value: 'BID_CAP',                 label: 'Bid Cap — límite de puja' },
+                          { value: 'MINIMUM_ROAS',            label: 'ROAS mínimo' },
                         ]} />
                       {config.bidStrategy !== 'LOWEST_COST_WITHOUT_CAP' && (
                         <div style={{ marginBottom: '14px' }}>
-                          <label style={S.label}>{config.bidStrategy === 'COST_CAP' ? 'Costo máximo por resultado ($)' : 'Puja máxima ($)'}</label>
-                          <input type="number" value={config.bidAmount} onChange={e => setConfig(c => ({ ...c, bidAmount: e.target.value }))} placeholder="Ej: 5000" style={{ ...S.input, width: '140px' }} />
+                          <label style={S.label}>{config.bidStrategy === 'COST_CAP' ? 'CPA máximo ($)' : config.bidStrategy === 'MINIMUM_ROAS' ? 'ROAS mínimo (ej: 2.5)' : 'Puja máxima ($)'}</label>
+                          <input type="number" value={config.bidAmount} onChange={e => setConfig(c => ({ ...c, bidAmount: e.target.value }))} style={{ ...S.input, width: '140px' }} />
                         </div>
                       )}
+                      <Sel label="Cobro (billing event)" value={config.billingEvent} onChange={v => setConfig(c => ({ ...c, billingEvent: v }))}
+                        options={[
+                          { value: 'IMPRESSIONS',  label: 'Por impresiones (CPM)' },
+                          { value: 'LINK_CLICKS',  label: 'Por clic (CPC)' },
+                        ]} />
                     </div>
 
                     <div style={S.card}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>PROGRAMACIÓN</div>
-                      <div style={{ marginBottom: '14px' }}>
-                        <label style={S.label}>Fecha de inicio (opcional)</label>
-                        <input type="date" value={config.startDate} onChange={e => setConfig(c => ({ ...c, startDate: e.target.value }))} style={{ ...S.input, colorScheme: 'dark' }} />
-                        <div style={{ fontSize: '10px', color: '#3A5270', marginTop: '4px' }}>Sin fecha → borrador, activás manualmente</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div style={{ marginBottom: '14px' }}>
+                          <label style={S.label}>Fecha inicio</label>
+                          <input type="date" value={config.startDate} onChange={e => setConfig(c => ({ ...c, startDate: e.target.value }))} style={{ ...S.input, colorScheme: 'dark' }} />
+                        </div>
+                        <div style={{ marginBottom: '14px' }}>
+                          <label style={S.label}>Hora inicio</label>
+                          <input type="time" value={config.startTime} onChange={e => setConfig(c => ({ ...c, startTime: e.target.value }))} style={{ ...S.input, colorScheme: 'dark' }} />
+                        </div>
+                        <div style={{ marginBottom: '14px' }}>
+                          <label style={S.label}>Fecha fin (opcional)</label>
+                          <input type="date" value={config.endDate} onChange={e => setConfig(c => ({ ...c, endDate: e.target.value }))} style={{ ...S.input, colorScheme: 'dark' }} />
+                        </div>
                       </div>
-                      <div>
-                        <label style={S.label}>Hora de inicio</label>
-                        <input type="time" value={config.startTime} onChange={e => setConfig(c => ({ ...c, startTime: e.target.value }))} style={{ ...S.input, colorScheme: 'dark', width: 'auto' }} />
-                      </div>
+                      <div style={{ fontSize: '10px', color: '#3A5270' }}>Sin fecha → borrador, activás manualmente</div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div style={S.card}>
                       <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>PÚBLICO OBJETIVO</div>
+                      <div style={{ marginBottom: '10px' }}>
+                        <label style={S.label}>
+                          Advantage+ Audience
+                          <button onClick={() => setConfig(c => ({ ...c, advantageAudience: !c.advantageAudience }))} style={{ marginLeft: '10px', padding: '2px 10px', borderRadius: '4px', border: 'none', background: config.advantageAudience ? '#22C55E' : '#1A4080', color: '#fff', fontSize: '10px', cursor: 'pointer', fontWeight: 700 }}>
+                            {config.advantageAudience ? 'ON' : 'OFF'}
+                          </button>
+                        </label>
+                        {config.advantageAudience && <div style={{ fontSize: '10px', color: '#22C55E', marginTop: '3px' }}>Meta expande automáticamente el público si encuentra mejores resultados</div>}
+                      </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
                         <div>
                           <label style={S.label}>Edad mínima</label>
@@ -726,29 +837,46 @@ export default function LanzarPage() {
                       </div>
                       <Sel label="Género" value={config.gender} onChange={v => setConfig(c => ({ ...c, gender: v as any }))}
                         options={[{ value: 'all', label: 'Todos los géneros' }, { value: 'female', label: 'Solo mujeres' }, { value: 'male', label: 'Solo hombres' }]} />
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>Intereses (separados por coma)</label>
+                        <input value={config.interests} onChange={e => setConfig(c => ({ ...c, interests: e.target.value }))} placeholder="Ej: salud visual, suplementos, oftalmología" style={S.input} />
+                      </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>Custom Audiences (IDs separados por coma)</label>
+                        <input value={config.customAudiences} onChange={e => setConfig(c => ({ ...c, customAudiences: e.target.value }))} placeholder="Ej: 123456, 789012" style={S.input} />
+                      </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>Excluir audiencias (IDs separados por coma)</label>
+                        <input value={config.excludedAudiences} onChange={e => setConfig(c => ({ ...c, excludedAudiences: e.target.value }))} placeholder="Ej: compradores anteriores" style={S.input} />
+                      </div>
                       <div style={{ background: '#050C1E', borderRadius: '6px', padding: '8px 12px', fontSize: '11px', color: '#7A90AA' }}>
-                        🇦🇷 País: Argentina · {config.ageMin}–{config.ageMax === 65 ? '65+' : config.ageMax} años · {config.gender === 'all' ? 'Todos' : config.gender === 'female' ? 'Mujeres' : 'Hombres'}
+                        🇦🇷 Argentina · {config.ageMin}–{config.ageMax === 65 ? '65+' : config.ageMax} · {config.gender === 'all' ? 'Todos' : config.gender === 'female' ? 'Mujeres' : 'Hombres'}
                       </div>
                     </div>
 
                     <div style={S.card}>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>PLACEMENTS</div>
-                      <div style={{ marginBottom: '8px' }}>
-                        <button onClick={() => setConfig(c => ({ ...c, placements: PLACEMENTS_OPTIONS.map(p => p.value) }))} style={{ ...S.btnSm, marginRight: '6px' }}>Todos</button>
-                        <button onClick={() => setConfig(c => ({ ...c, placements: [] }))} style={S.btnSm}>Ninguno</button>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '10px' }}>PLACEMENTS</div>
+                      <div style={{ marginBottom: '10px' }}>
+                        <div style={{ fontSize: '11px', color: '#7A90AA', marginBottom: '6px' }}>Plataformas</div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                          {[['facebook','Facebook'],['instagram','Instagram'],['audience_network','Audience Network'],['messenger','Messenger']].map(([val, lbl]) => {
+                            const active = config.platforms.includes(val)
+                            return <button key={val} onClick={() => setConfig(c => ({ ...c, platforms: active ? c.platforms.filter(p => p !== val) : [...c.platforms, val] }))} style={{ padding: '5px 12px', borderRadius: '6px', border: active ? '2px solid #6366F1' : '1px solid #1A4080', background: active ? '#6366F120' : '#050C1E', color: active ? '#6366F1' : '#7A90AA', fontSize: '11px', cursor: 'pointer', fontWeight: active ? 700 : 400 }}>{lbl}</button>
+                          })}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#7A90AA', marginBottom: '6px' }}>Ubicaciones</div>
+                        <div style={{ marginBottom: '6px' }}>
+                          <button onClick={() => setConfig(c => ({ ...c, placements: PLACEMENTS_OPTIONS.map(p => p.value) }))} style={{ ...S.btnSm, marginRight: '6px' }}>Todas</button>
+                          <button onClick={() => setConfig(c => ({ ...c, placements: [] }))} style={S.btnSm}>Ninguna</button>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {PLACEMENTS_OPTIONS.map(pl => {
+                            const active = config.placements.includes(pl.value)
+                            return <button key={pl.value} onClick={() => setConfig(c => ({ ...c, placements: active ? c.placements.filter(p => p !== pl.value) : [...c.placements, pl.value] }))} style={{ padding: '5px 12px', borderRadius: '6px', border: active ? '2px solid #6366F1' : '1px solid #1A4080', background: active ? '#6366F120' : '#050C1E', color: active ? '#6366F1' : '#7A90AA', fontSize: '11px', cursor: 'pointer', fontWeight: active ? 700 : 400 }}>{pl.label}</button>
+                          })}
+                        </div>
+                        {config.placements.length === 0 && <div style={{ fontSize: '11px', color: '#EF4444', marginTop: '6px' }}>⚠ Seleccioná al menos una ubicación</div>}
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-                        {PLACEMENTS_OPTIONS.map(pl => {
-                          const active = config.placements.includes(pl.value)
-                          return (
-                            <button key={pl.value} onClick={() => setConfig(c => ({ ...c, placements: active ? c.placements.filter(p => p !== pl.value) : [...c.placements, pl.value] }))}
-                              style={{ padding: '6px 12px', borderRadius: '6px', border: active ? '2px solid #6366F1' : '1px solid #1A4080', background: active ? '#6366F120' : '#050C1E', color: active ? '#6366F1' : '#7A90AA', fontSize: '12px', cursor: 'pointer', fontWeight: active ? 700 : 400 }}>
-                              {pl.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      {config.placements.length === 0 && <div style={{ fontSize: '11px', color: '#EF4444' }}>⚠ Seleccioná al menos un placement</div>}
                     </div>
                   </div>
                 </div>
@@ -758,40 +886,67 @@ export default function LanzarPage() {
               {configTab === 'ad' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div style={S.card}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>CREATIVOS ({ads.length} ads)</div>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>CREATIVOS — {ads.length} ads</div>
                     {ads.map((ad, i) => (
                       <div key={ad.uid} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', marginBottom: '10px', padding: '10px', background: '#050C1E', borderRadius: '8px' }}>
-                        <div style={{ width: '48px', height: '48px', flexShrink: 0, borderRadius: '5px', overflow: 'hidden', background: '#0C1A2E' }}>
-                          {ad.thumbnailLink ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '18px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>}
+                        <div style={{ width: '44px', height: '44px', flexShrink: 0, borderRadius: '5px', overflow: 'hidden', background: '#0C1A2E' }}>
+                          {ad.thumbnailLink ? <img src={ad.thumbnailLink} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '16px' }}>{ad.isVideo ? '🎬' : '🖼'}</div>}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '11px', color: '#C0CFDF', marginBottom: '5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.fileName.replace(/\.[^.]+$/, '')}</div>
-                          <input value={ad.headline} onChange={e => updateAd(i, 'headline', e.target.value)} maxLength={40} placeholder="Titular (máx 40)" style={{ ...S.input, fontSize: '11px', marginBottom: '4px' }} />
-                          <textarea value={ad.primaryText} onChange={e => updateAd(i, 'primaryText', e.target.value)} rows={2} placeholder="Texto principal..." style={{ ...S.input, fontSize: '11px', resize: 'vertical' }} />
+                          <div style={{ fontSize: '10px', color: '#7A90AA', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ad.fileName.replace(/\.[^.]+$/, '')}</div>
+                          <input value={ad.headline} onChange={e => updateAd(i, 'headline', e.target.value)} maxLength={40} placeholder="Titular (máx 40 chars)" style={{ ...S.input, fontSize: '11px', marginBottom: '4px' }} />
+                          <textarea value={ad.primaryText} onChange={e => updateAd(i, 'primaryText', e.target.value)} rows={2} placeholder="Texto principal..." style={{ ...S.input, fontSize: '11px', resize: 'vertical', marginBottom: '4px' }} />
                         </div>
                       </div>
                     ))}
                   </div>
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div style={S.card}>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>CALL TO ACTION</div>
-                      <Sel label="CTA para todos los ads" value={config.pixelEvent} onChange={v => setConfig(c => ({ ...c, pixelEvent: v as any }))}
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '14px' }}>OPCIONES DEL ANUNCIO</div>
+                      <Sel label="Call to Action (CTA)" value={config.cta} onChange={v => setConfig(c => ({ ...c, cta: v }))}
                         options={[
-                          { value: 'Purchase',         label: 'Comprar ahora' },
-                          { value: 'SHOP_NOW',         label: 'Comprar' },
-                          { value: 'LEARN_MORE',       label: 'Más información' },
-                          { value: 'SIGN_UP',          label: 'Registrarse' },
-                          { value: 'GET_OFFER',        label: 'Obtener oferta' },
-                          { value: 'ORDER_NOW',        label: 'Pedir ahora' },
+                          { value: 'SHOP_NOW',       label: '🛒 Comprar ahora' },
+                          { value: 'LEARN_MORE',     label: 'ℹ️ Más información' },
+                          { value: 'ORDER_NOW',      label: '📦 Pedir ahora' },
+                          { value: 'GET_OFFER',      label: '🏷️ Obtener oferta' },
+                          { value: 'SIGN_UP',        label: '✍️ Registrarse' },
+                          { value: 'SUBSCRIBE',      label: '🔔 Suscribirse' },
+                          { value: 'CONTACT_US',     label: '💬 Contáctanos' },
+                          { value: 'BOOK_TRAVEL',    label: '✈️ Reservar' },
+                          { value: 'DOWNLOAD',       label: '⬇️ Descargar' },
+                          { value: 'WATCH_MORE',     label: '▶️ Ver más' },
+                          { value: 'NO_BUTTON',      label: 'Sin botón' },
                         ]} />
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>Descripción del enlace (opcional)</label>
+                        <input value={config.adDescription} onChange={e => setConfig(c => ({ ...c, adDescription: e.target.value }))} placeholder="Ej: 3 cuotas sin interés · Envío gratis" style={S.input} />
+                      </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>Parámetros URL / UTM (opcional)</label>
+                        <input value={config.urlParams} onChange={e => setConfig(c => ({ ...c, urlParams: e.target.value }))} placeholder="utm_source=facebook&utm_medium=paid" style={S.input} />
+                        <div style={{ fontSize: '10px', color: '#3A5270', marginTop: '3px' }}>Se agrega al final de la URL destino</div>
+                      </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>
+                          Dynamic Creative (Advantage+)
+                          <button onClick={() => setConfig(c => ({ ...c, dynamicCreative: !c.dynamicCreative }))} style={{ marginLeft: '10px', padding: '2px 10px', borderRadius: '4px', border: 'none', background: config.dynamicCreative ? '#22C55E' : '#1A4080', color: '#fff', fontSize: '10px', cursor: 'pointer', fontWeight: 700 }}>
+                            {config.dynamicCreative ? 'ON' : 'OFF'}
+                          </button>
+                        </label>
+                        {config.dynamicCreative && <div style={{ fontSize: '10px', color: '#22C55E', marginTop: '3px' }}>Meta combina automáticamente textos, títulos e imágenes para optimizar</div>}
+                      </div>
                     </div>
-                    <div style={{ ...S.card, background: '#0C1A2E' }}>
-                      <div style={{ fontSize: '11px', color: '#7A90AA', lineHeight: 1.6 }}>
-                        <div>📢 <b>Campaña:</b> {config.campaignName || '—'}</div>
-                        <div>🎯 <b>Optimización:</b> {config.optimizationGoal}</div>
+
+                    <div style={{ ...S.card, background: '#050C1E', padding: '12px' }}>
+                      <div style={{ fontSize: '11px', color: '#7A90AA', lineHeight: 1.8 }}>
+                        <div>📢 <b>Campaña:</b> {config.campaignName || '—'} · {config.objective}</div>
+                        <div>🎯 <b>Optimización:</b> {config.optimizationGoal} {config.pixelEvent && `→ ${config.pixelEvent}`}</div>
                         <div>💰 <b>Puja:</b> {config.bidStrategy === 'LOWEST_COST_WITHOUT_CAP' ? 'Lowest Cost' : `${config.bidStrategy} $${config.bidAmount}`}</div>
-                        <div>👥 <b>Público:</b> {config.ageMin}–{config.ageMax === 65 ? '65+' : config.ageMax} · {config.gender}</div>
-                        <div>📍 <b>Placements:</b> {config.placements.join(', ') || '—'}</div>
+                        <div>👥 <b>Público:</b> AR · {config.ageMin}–{config.ageMax === 65 ? '65+' : config.ageMax} · {config.gender}</div>
+                        <div>📍 <b>Placements:</b> {config.placements.slice(0, 3).join(', ')}{config.placements.length > 3 ? ` +${config.placements.length - 3}` : ''}</div>
+                        <div>🖱️ <b>CTA:</b> {config.cta} {config.dynamicCreative ? '· Dynamic Creative ON' : ''}</div>
+                        {config.urlParams && <div>🔗 <b>UTM:</b> {config.urlParams.slice(0, 40)}</div>}
                       </div>
                     </div>
                   </div>
