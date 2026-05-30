@@ -795,6 +795,11 @@ export default function LanzarPage() {
                           <input type="number" value={config.bidAmount} onChange={e => setConfig(c => ({ ...c, bidAmount: e.target.value }))} style={{ ...S.input, width: '140px' }} />
                         </div>
                       )}
+                      <Sel label="Cobro (billing event)" value={config.billingEvent} onChange={v => setConfig(c => ({ ...c, billingEvent: v }))}
+                        options={[
+                          { value: 'IMPRESSIONS',  label: 'CPM — Por impresiones (default)' },
+                          { value: 'LINK_CLICKS',  label: 'CPC — Por clic' },
+                        ]} />
                     </div>
 
                     <div style={S.card}>
