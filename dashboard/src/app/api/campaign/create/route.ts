@@ -9,19 +9,34 @@ const META_TOKEN = process.env.META_ACCESS_TOKEN!
 const META_BASE  = 'https://graph.facebook.com/v21.0'
 
 const OBJECTIVE_MAP: Record<string, string> = {
-  ventas:  'OUTCOME_SALES',
-  trafico: 'OUTCOME_TRAFFIC',
-  alcance: 'OUTCOME_AWARENESS',
+  ventas:      'OUTCOME_SALES',
+  trafico:     'OUTCOME_TRAFFIC',
+  alcance:     'OUTCOME_AWARENESS',
+  engagement:  'OUTCOME_ENGAGEMENT',
+  leads:       'OUTCOME_LEADS',
+  app:         'OUTCOME_APP_PROMOTION',
 }
-const OPTIMIZATION_MAP: Record<string, string> = {
-  OUTCOME_SALES:     'OFFSITE_CONVERSIONS',
-  OUTCOME_TRAFFIC:   'LINK_CLICKS',
-  OUTCOME_AWARENESS: 'REACH',
+
+// Default optimization goal per objective if not specified
+const DEFAULT_OPTIMIZATION: Record<string, string> = {
+  OUTCOME_SALES:         'OFFSITE_CONVERSIONS',
+  OUTCOME_TRAFFIC:       'LINK_CLICKS',
+  OUTCOME_AWARENESS:     'REACH',
+  OUTCOME_ENGAGEMENT:    'POST_ENGAGEMENT',
+  OUTCOME_LEADS:         'LEAD_GENERATION',
+  OUTCOME_APP_PROMOTION: 'APP_INSTALLS',
 }
-const BILLING_MAP: Record<string, string> = {
-  OUTCOME_SALES:     'IMPRESSIONS',
-  OUTCOME_TRAFFIC:   'LINK_CLICKS',
-  OUTCOME_AWARENESS: 'IMPRESSIONS',
+
+const DEFAULT_BILLING: Record<string, string> = {
+  OFFSITE_CONVERSIONS: 'IMPRESSIONS',
+  LINK_CLICKS:         'LINK_CLICKS',
+  LANDING_PAGE_VIEWS:  'IMPRESSIONS',
+  REACH:               'IMPRESSIONS',
+  IMPRESSIONS:         'IMPRESSIONS',
+  VIDEO_VIEWS:         'IMPRESSIONS',
+  THRUPLAY:            'IMPRESSIONS',
+  POST_ENGAGEMENT:     'IMPRESSIONS',
+  LEAD_GENERATION:     'IMPRESSIONS',
 }
 
 function isVideoMime(mime: string) { return mime.startsWith('video/') }
@@ -73,34 +88,40 @@ async function uploadImage(accountId: string, bytes: Buffer): Promise<string> {
 async function createAd(
   accountId: string, adSetId: string, pageId: string,
   destinationUrl: string, adSpec: any, bytes: Buffer,
+  cta: string, description: string, urlParams: string, igAccountId?: string,
 ): Promise<{ adId: string; creativeId: string }> {
-  const { mimeType, fileName, headline, primaryText, description } = adSpec
+  const { mimeType, fileName, headline, primaryText } = adSpec
+  const finalUrl = urlParams ? `${destinationUrl}${destinationUrl.includes('?') ? '&' : '?'}${urlParams}` : destinationUrl
 
   let storySpec: object
   if (isVideoMime(mimeType)) {
     const videoId = await uploadVideo(accountId, bytes, fileName)
+    const videoData: any = {
+      video_id: videoId,
+      message: primaryText,
+      title: headline,
+      link_description: description || headline,
+      call_to_action: { type: cta || 'SHOP_NOW', value: { link: finalUrl } },
+    }
     storySpec = {
       page_id: pageId,
-      video_data: {
-        video_id: videoId,
-        message: primaryText,
-        title: headline,
-        link_description: description || headline,
-        call_to_action: { type: 'SHOP_NOW', value: { link: destinationUrl } },
-      },
+      ...(igAccountId ? { instagram_actor_id: igAccountId } : {}),
+      video_data: videoData,
     }
   } else {
     const imageHash = await uploadImage(accountId, bytes)
+    const linkData: any = {
+      message: primaryText,
+      link: finalUrl,
+      image_hash: imageHash,
+      name: headline,
+      description: description || '',
+      call_to_action: { type: cta || 'SHOP_NOW', value: { link: finalUrl } },
+    }
     storySpec = {
       page_id: pageId,
-      link_data: {
-        message: primaryText,
-        link: destinationUrl,
-        image_hash: imageHash,
-        name: headline,
-        description: description || '',
-        call_to_action: { type: 'SHOP_NOW', value: { link: destinationUrl } },
-      },
+      ...(igAccountId ? { instagram_actor_id: igAccountId } : {}),
+      link_data: linkData,
     }
   }
 
@@ -117,26 +138,22 @@ async function createAd(
   return { adId: ad.id, creativeId: creative.id }
 }
 
-/**
- * POST body:
- * {
- *   campaignName, adSetName, campaignType ('CBO'|'ABO'),
- *   budgetCents, objective, accountId, pageId, destinationUrl,
- *   numAdSets (default 1), adsPerAdSet (default all),
- *   startDate?, targeting?, productId?,
- *   ads: [{ driveFileId, mimeType, fileName, headline, primaryText, angle }]
- * }
- */
 export async function POST(req: NextRequest) {
   if (!META_TOKEN) return NextResponse.json({ error: 'META_ACCESS_TOKEN not configured' }, { status: 500 })
 
   const body = await req.json()
   const {
     campaignName, campaignType = 'CBO',
-    budgetCents, objective = 'ventas',
-    accountId, pageId, destinationUrl,
-    startDateTime, targeting, productId,
-    adSets = [],  // [{ name, ads: [{driveFileId, mimeType, fileName, headline, primaryText, angle}] }]
+    budgetCents, budgetType = 'daily',
+    objective = 'ventas', specialAdCategory = 'NONE',
+    optimizationGoal, pixelEvent, pixelId,
+    bidStrategy = 'LOWEST_COST_WITHOUT_CAP', bidAmount,
+    billingEvent, attributionWindow = '7d_click_1d_view',
+    placements, platforms,
+    accountId, pageId, igAccountId, destinationUrl,
+    startDateTime, endDateTime, targeting, productId,
+    cta = 'SHOP_NOW', urlParams = '', adDescription = '',
+    adSets = [],
   } = body
 
   if (!campaignName || !accountId || !pageId || !destinationUrl || !budgetCents || !adSets.length) {
@@ -145,45 +162,63 @@ export async function POST(req: NextRequest) {
 
   const metaObjective = OBJECTIVE_MAP[objective] || 'OUTCOME_SALES'
   const isCBO = campaignType === 'CBO'
-  const setsCount = adSets.length
+  const optGoal = optimizationGoal || DEFAULT_OPTIMIZATION[metaObjective] || 'OFFSITE_CONVERSIONS'
+  const billEvent = billingEvent || DEFAULT_BILLING[optGoal] || 'IMPRESSIONS'
 
   try {
     // ── 1. Campaign ──────────────────────────────────────────────────────────
     const campParams: Record<string, string> = {
-      name: campaignName,
-      objective: metaObjective,
-      status: 'PAUSED',
-      special_ad_categories: '[]',
+      name:                  campaignName,
+      objective:             metaObjective,
+      status:                'PAUSED',
+      special_ad_categories: specialAdCategory === 'NONE' ? '[]' : JSON.stringify([specialAdCategory]),
     }
     if (isCBO) {
-      campParams.daily_budget = String(budgetCents)
+      campParams[budgetType === 'lifetime' ? 'lifetime_budget' : 'daily_budget'] = String(budgetCents)
       campParams.bid_strategy = 'LOWEST_COST_WITHOUT_CAP'
     }
     const campData   = await metaPost(`${accountId}/campaigns`, campParams)
     const campaignId = campData.id
     console.log('[Campaign]', campaignId)
 
-    const defaultTargeting = targeting || { geo_locations: { countries: ['AR'] }, age_min: 18, age_max: 65 }
+    // ── 2. Build targeting ────────────────────────────────────────────────────
+    const defaultTargeting = targeting || { geo_locations: { countries: ['AR'] }, age_min: 35, age_max: 65 }
+
     const allCreatedAds: any[] = []
     const createdAdSets: any[] = []
     let firstAdSetId = ''
 
-    // ── 2. Ad Sets + Ads ─────────────────────────────────────────────────────
-    for (let setIdx = 0; setIdx < setsCount; setIdx++) {
+    // ── 3. Ad Sets + Ads ─────────────────────────────────────────────────────
+    for (let setIdx = 0; setIdx < adSets.length; setIdx++) {
       const setSpec = adSets[setIdx]
       const setName = setSpec.name || `${campaignName} — Conjunto ${setIdx + 1}`
 
       const asParams: Record<string, string> = {
         name:              setName,
         campaign_id:       campaignId,
-        billing_event:     BILLING_MAP[metaObjective],
-        optimization_goal: OPTIMIZATION_MAP[metaObjective],
+        billing_event:     billEvent,
+        optimization_goal: optGoal,
         targeting:         JSON.stringify(defaultTargeting),
         status:            'PAUSED',
-        bid_strategy:      'LOWEST_COST_WITHOUT_CAP',
+        bid_strategy:      bidStrategy,
       }
-      if (!isCBO) asParams.daily_budget = String(budgetCents)
-      if (startDateTime) asParams.start_time = String(Math.floor(new Date(startDateTime).getTime() / 1000))
+
+      if (!isCBO) {
+        asParams[budgetType === 'lifetime' ? 'lifetime_budget' : 'daily_budget'] = String(budgetCents)
+      }
+      if (bidStrategy !== 'LOWEST_COST_WITHOUT_CAP' && bidAmount) {
+        asParams.bid_amount = String(bidAmount)
+      }
+      if (startDateTime) {
+        asParams.start_time = String(Math.floor(new Date(startDateTime).getTime() / 1000))
+      }
+      if (endDateTime) {
+        asParams.end_time = String(Math.floor(new Date(endDateTime).getTime() / 1000))
+      }
+      if (optGoal === 'OFFSITE_CONVERSIONS' && pixelId && pixelEvent) {
+        asParams.promoted_object = JSON.stringify({ pixel_id: pixelId, custom_event_type: pixelEvent })
+        asParams.attribution_spec = JSON.stringify([{ event_type: 'CLICK_THROUGH', window_days: 7 }, { event_type: 'VIEW_THROUGH', window_days: 1 }])
+      }
 
       const asData  = await metaPost(`${accountId}/adsets`, asParams)
       const adSetId = asData.id
@@ -201,7 +236,10 @@ export async function POST(req: NextRequest) {
           continue
         }
         try {
-          const { adId, creativeId } = await createAd(accountId, adSetId, pageId, destinationUrl, adSpec, bytes)
+          const { adId, creativeId } = await createAd(
+            accountId, adSetId, pageId, destinationUrl, adSpec, bytes,
+            cta, adDescription, urlParams, igAccountId,
+          )
           try { await moveFile(adSpec.driveFileId, 'Nuevos subidos') } catch (_) {}
           allCreatedAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, adId, creativeId })
           setAdIds.push(adId)
@@ -229,7 +267,7 @@ export async function POST(req: NextRequest) {
         ads:           allCreatedAds,
         product_id:    productId || null,
         start_date:    startDateTime ? startDateTime.split('T')[0] : null,
-        notes:         `${setsCount} conjuntos — ${allCreatedAds.filter(a => !a.error).length} ads`,
+        notes:         `${adSets.length} conjuntos — ${allCreatedAds.filter(a => !a.error).length} ads`,
       })
       .select()
       .single()
