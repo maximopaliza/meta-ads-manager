@@ -779,13 +779,15 @@ export default function LanzarPage() {
                           </div>
                           <Sel label="Evento de conversión" value={config.pixelEvent} onChange={v => setConfig(c => ({ ...c, pixelEvent: v }))}
                             options={[
-                              { value: 'Purchase',          label: '💰 Purchase' },
-                              { value: 'InitiateCheckout',  label: '🛒 Initiate Checkout' },
-                              { value: 'AddToCart',         label: '➕ Add to Cart' },
-                              { value: 'ViewContent',       label: '👁 View Content' },
-                              { value: 'Lead',              label: '📋 Lead' },
-                              { value: 'CompleteRegistration', label: '✅ Complete Registration' },
-                              { value: 'Subscribe',         label: '🔔 Subscribe' },
+                              { value: 'PURCHASE',              label: '💰 Purchase' },
+                              { value: 'INITIATED_CHECKOUT',    label: '🛒 Initiate Checkout' },
+                              { value: 'ADD_TO_CART',           label: '➕ Add to Cart' },
+                              { value: 'CONTENT_VIEW',          label: '👁 View Content' },
+                              { value: 'LEAD',                  label: '📋 Lead' },
+                              { value: 'COMPLETE_REGISTRATION', label: '✅ Complete Registration' },
+                              { value: 'SUBSCRIBE',             label: '🔔 Subscribe' },
+                              { value: 'ADD_TO_WISHLIST',       label: '❤️ Add to Wishlist' },
+                              { value: 'ADD_PAYMENT_INFO',      label: '💳 Add Payment Info' },
                             ]} />
                           <Sel label="Ventana de atribución" value={config.attributionWindow} onChange={v => setConfig(c => ({ ...c, attributionWindow: v }))}
                             options={[
