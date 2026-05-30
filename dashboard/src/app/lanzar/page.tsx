@@ -71,6 +71,7 @@ type CampaignConfig = {
   urlParams: string                // UTM params
   dynamicCreative: boolean
   adDescription: string            // link description
+  multiAdvertiser: boolean         // multi-advertiser ads
 }
 
 type CreationProgress = {
@@ -189,7 +190,7 @@ export default function LanzarPage() {
     platforms: ['facebook', 'instagram'],
     startDate: '', startTime: '08:00', endDate: '', numAdSets: 1,
     // Anuncio
-    cta: 'SHOP_NOW', urlParams: '', dynamicCreative: false, adDescription: '',
+    cta: 'SHOP_NOW', urlParams: '', dynamicCreative: false, adDescription: '', multiAdvertiser: true,
   })
 
   // Step 3 tabs
@@ -361,6 +362,7 @@ export default function LanzarPage() {
           urlParams:         config.urlParams || undefined,
           adDescription:     config.adDescription || undefined,
           dynamicCreative:   config.dynamicCreative,
+          multiAdvertiser:   config.multiAdvertiser,
           startDateTime:     config.startDate ? `${config.startDate}T${config.startTime || '08:00'}:00` : undefined,
           endDateTime:       config.endDate ? `${config.endDate}T23:59:00` : undefined,
           targeting,
@@ -967,6 +969,17 @@ export default function LanzarPage() {
                           </button>
                         </label>
                         {config.dynamicCreative && <div style={{ fontSize: '10px', color: '#22C55E', marginTop: '3px' }}>Meta combina automáticamente textos, títulos e imágenes para optimizar</div>}
+                      </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={S.label}>
+                          Anuncio multianunciante
+                          <button onClick={() => setConfig(c => ({ ...c, multiAdvertiser: !c.multiAdvertiser }))} style={{ marginLeft: '10px', padding: '2px 10px', borderRadius: '4px', border: 'none', background: config.multiAdvertiser ? '#22C55E' : '#1A4080', color: '#fff', fontSize: '10px', cursor: 'pointer', fontWeight: 700 }}>
+                            {config.multiAdvertiser ? 'ON' : 'OFF'}
+                          </button>
+                        </label>
+                        <div style={{ fontSize: '10px', color: config.multiAdvertiser ? '#22C55E' : '#3A5270', marginTop: '3px' }}>
+                          {config.multiAdvertiser ? 'Meta puede mostrar tu ad junto a otros anunciantes en el mismo bloque' : 'Tu ad se muestra solo, sin otros anunciantes al lado'}
+                        </div>
                       </div>
                     </div>
 

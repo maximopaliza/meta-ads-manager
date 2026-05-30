@@ -125,10 +125,13 @@ async function createAd(
     }
   }
 
-  const creative = await metaPost(`${accountId}/adcreatives`, {
+  const creativeParams: Record<string, string> = {
     name: `${fileName} — Creative`,
     object_story_spec: JSON.stringify(storySpec),
-  })
+  }
+  if (!multiAdvertiser) creativeParams.multi_share_end_card = 'false'
+
+  const creative = await metaPost(`${accountId}/adcreatives`, creativeParams)
   const ad = await metaPost(`${accountId}/ads`, {
     name: fileName,
     adset_id: adSetId,
@@ -153,6 +156,7 @@ export async function POST(req: NextRequest) {
     accountId, pageId, igAccountId, destinationUrl,
     startDateTime, endDateTime, targeting, productId,
     cta = 'SHOP_NOW', urlParams = '', adDescription = '',
+    dynamicCreative = false, multiAdvertiser = true,
     adSets = [],
   } = body
 
