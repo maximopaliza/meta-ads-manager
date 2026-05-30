@@ -30,7 +30,11 @@ from bot.conversations.manage_campaigns import get_gestionar_handler, get_presup
 from bot.conversations.analyze_ads import get_analyze_ads_handler
 from bot.conversations.copy_manager import get_copy_manager_handler
 from scheduler import alerter
-from scheduler.escalafy_sync import run_escalafy_sync
+try:
+    from scheduler.escalafy_sync import run_escalafy_sync
+except ImportError:
+    async def run_escalafy_sync():
+        pass
 
 
 async def sync_job() -> None:
