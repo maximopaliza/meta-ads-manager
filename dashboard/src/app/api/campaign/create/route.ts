@@ -49,7 +49,7 @@ async function metaPost(path: string, params: Record<string, string>): Promise<a
     body,
   })
   const data = await res.json()
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
+  if (data.error) throw new Error(`${data.error.message} [code:${data.error.code} type:${data.error.type} path:${path}]`)
   return data
 }
 
