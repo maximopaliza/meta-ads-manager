@@ -10,7 +10,6 @@ import os
 import tempfile
 import asyncio
 from db.client import get_client
-from meta.client import get_meta_client
 
 logger = logging.getLogger(__name__)
 

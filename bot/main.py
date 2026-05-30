@@ -73,7 +73,7 @@ async def escalafy_job() -> None:
 async def campaign_uploader_job() -> None:
     try:
         from scheduler.campaign_uploader import process_pending_campaigns
-        await process_pending_campaigns(bot=app_ref)
+        await process_pending_campaigns(bot=app_ref if 'app_ref' in globals() else None)
     except Exception as e:
         logger.error(f"Campaign uploader failed: {e}")
 
