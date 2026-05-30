@@ -223,6 +223,7 @@ export async function POST(req: NextRequest) {
         asParams.promoted_object = JSON.stringify({ pixel_id: pixelId, custom_event_type: pixelEvent.toUpperCase() })
       }
 
+      console.log('[AdSet params]', JSON.stringify(asParams, null, 2))
       const asData  = await metaPost(`${accountId}/adsets`, asParams)
       const adSetId = asData.id
       if (setIdx === 0) firstAdSetId = adSetId
