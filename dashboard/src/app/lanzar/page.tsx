@@ -176,7 +176,7 @@ export default function LanzarPage() {
     campaignName: '', campaignType: 'CBO', objective: 'ventas',
     specialAdCategory: 'NONE', advantageCampaignBudget: true,
     budgetType: 'daily', budgetAmount: '50', spendingLimit: '',
-    accountId: '', pageId: '1121231927732288', igAccountId: '',
+    accountId: '', pageId: '1121231927732288', igAccountId: '17841441309346858',
     destinationUrl: '', productId: '',
     // Conjunto
     optimizationGoal: 'OFFSITE_CONVERSIONS', pixelEvent: 'Purchase',
@@ -699,12 +699,20 @@ export default function LanzarPage() {
                               <option value="">— Elegir página —</option>
                               {pages.map((p: any) => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
                             </select>
-                          : <input value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))} placeholder="ID numérico de la fanpage" style={S.input} />
+                          : <>
+                              <input value={config.pageId} onChange={e => setConfig(c => ({ ...c, pageId: e.target.value }))} style={S.input} />
+                              {config.pageId === '1121231927732288' && (
+                                <div style={{ fontSize: '10px', color: '#22C55E', marginTop: '3px' }}>✅ Ovitta — Salud Ocular</div>
+                              )}
+                            </>
                         }
                       </div>
                       <div style={{ marginBottom: '14px' }}>
-                        <label style={S.label}>Cuenta de Instagram (opcional)</label>
-                        <input value={config.igAccountId} onChange={e => setConfig(c => ({ ...c, igAccountId: e.target.value }))} placeholder="ID de cuenta IG (ej: 17841441309346858)" style={S.input} />
+                        <label style={S.label}>Cuenta de Instagram</label>
+                        <input value={config.igAccountId} onChange={e => setConfig(c => ({ ...c, igAccountId: e.target.value }))} style={S.input} />
+                        {config.igAccountId === '17841441309346858' && (
+                          <div style={{ fontSize: '10px', color: '#22C55E', marginTop: '3px' }}>✅ Ovitta (@ovitta.store)</div>
+                        )}
                       </div>
                       <Field label="URL de destino *" value={config.destinationUrl} onChange={(v: string) => setConfig(c => ({ ...c, destinationUrl: v }))} type="url" placeholder="https://ovitta.store/..." />
                       <Sel label="Producto" value={config.productId} onChange={v => setConfig(c => ({ ...c, productId: v }))}
