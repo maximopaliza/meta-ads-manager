@@ -204,14 +204,14 @@ export async function POST(req: NextRequest) {
         optimization_goal: optGoal,
         targeting:         JSON.stringify(defaultTargeting),
         status:            'PAUSED',
-        bid_strategy:      bidStrategy,
       }
 
       if (!isCBO) {
         asParams[budgetType === 'lifetime' ? 'lifetime_budget' : 'daily_budget'] = String(budgetCents)
-      }
-      if (bidStrategy !== 'LOWEST_COST_WITHOUT_CAP' && bidAmount) {
-        asParams.bid_amount = String(bidAmount)
+        asParams.bid_strategy = bidStrategy
+        if (bidStrategy !== 'LOWEST_COST_WITHOUT_CAP' && bidAmount) {
+          asParams.bid_amount = String(bidAmount)
+        }
       }
       if (startDateTime) {
         asParams.start_time = String(Math.floor(new Date(startDateTime).getTime() / 1000))
