@@ -152,7 +152,7 @@ export default function LanzarPage() {
     optimizationGoal: 'OFFSITE_CONVERSIONS', pixelEvent: 'Purchase',
     bidStrategy: 'LOWEST_COST_WITHOUT_CAP', bidAmount: '',
     budgetAmount: '50', placements: ['feed', 'reels', 'stories'],
-    accountId: '', pageId: '', destinationUrl: '',
+    accountId: '', pageId: '1121231927732288', destinationUrl: '',
     startDate: '', startTime: '08:00',
     numAdSets: 1, productId: '', ageMin: 35, ageMax: 65, gender: 'all',
   })
