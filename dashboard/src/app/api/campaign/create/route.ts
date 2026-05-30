@@ -88,7 +88,7 @@ async function uploadImage(accountId: string, bytes: Buffer): Promise<string> {
 async function createAd(
   accountId: string, adSetId: string, pageId: string,
   destinationUrl: string, adSpec: any, bytes: Buffer,
-  cta: string, description: string, urlParams: string, igAccountId?: string,
+  cta: string, description: string, urlParams: string, igAccountId?: string, multiAdvertiser = true,
 ): Promise<{ adId: string; creativeId: string }> {
   const { mimeType, fileName, headline, primaryText } = adSpec
   const finalUrl = urlParams ? `${destinationUrl}${destinationUrl.includes('?') ? '&' : '?'}${urlParams}` : destinationUrl
@@ -242,7 +242,7 @@ export async function POST(req: NextRequest) {
         try {
           const { adId, creativeId } = await createAd(
             accountId, adSetId, pageId, destinationUrl, adSpec, bytes,
-            cta, adDescription, urlParams, igAccountId,
+            cta, adDescription, urlParams, igAccountId, multiAdvertiser,
           )
           try { await moveFile(adSpec.driveFileId, 'Nuevos subidos') } catch (_) {}
           allCreatedAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, adId, creativeId })
