@@ -186,7 +186,11 @@ export async function POST(req: NextRequest) {
     console.log('[Campaign]', campaignId)
 
     // ── 2. Build targeting ────────────────────────────────────────────────────
-    const defaultTargeting = targeting || { geo_locations: { countries: ['AR'] }, age_min: 35, age_max: 65 }
+    const baseTargeting = targeting || { geo_locations: { countries: ['AR'] }, age_min: 35, age_max: 65 }
+    const defaultTargeting = {
+      ...baseTargeting,
+      targeting_automation: { advantage_audience: 0 },
+    }
 
     const allCreatedAds: any[] = []
     const createdAdSets: any[] = []
