@@ -180,7 +180,7 @@ export default function LanzarPage() {
     destinationUrl: '', productId: '',
     // Conjunto
     optimizationGoal: 'OFFSITE_CONVERSIONS', pixelEvent: 'Purchase',
-    pixelId: '', bidStrategy: 'LOWEST_COST_WITHOUT_CAP', bidAmount: '',
+    pixelId: '931850799734504', bidStrategy: 'LOWEST_COST_WITHOUT_CAP', bidAmount: '',
     attributionWindow: '7d_click_1d_view', billingEvent: 'IMPRESSIONS',
     frequencyCap: '', advantageAudience: false,
     ageMin: 35, ageMax: 65, gender: 'all',
@@ -750,7 +750,13 @@ export default function LanzarPage() {
                         ]} />
                       {(config.optimizationGoal === 'OFFSITE_CONVERSIONS') && (
                         <>
-                          <Field label="Pixel ID" value={config.pixelId} onChange={(v: string) => setConfig(c => ({ ...c, pixelId: v }))} placeholder="ID del píxel de Meta" />
+                          <div style={{ marginBottom: '14px' }}>
+                            <label style={S.label}>Píxel de Meta</label>
+                            <input value={config.pixelId} onChange={e => setConfig(c => ({ ...c, pixelId: e.target.value }))} style={S.input} />
+                            {config.pixelId === '931850799734504' && (
+                              <div style={{ fontSize: '10px', color: '#22C55E', marginTop: '3px' }}>✅ Ovitta Pixel</div>
+                            )}
+                          </div>
                           <Sel label="Evento de conversión" value={config.pixelEvent} onChange={v => setConfig(c => ({ ...c, pixelEvent: v }))}
                             options={[
                               { value: 'Purchase',          label: '💰 Purchase' },
