@@ -10,7 +10,7 @@ const GEMINI_KEY = () => {
 }
 
 const BASE = 'https://generativelanguage.googleapis.com/v1beta'
-const MODEL = 'gemini-2.0-flash'
+const MODEL = 'gemini-2.5-flash'
 
 // ── File Upload (resumable protocol — works for any size) ────────────────────
 

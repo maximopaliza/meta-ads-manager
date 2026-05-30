@@ -53,6 +53,14 @@ async function metaPost(path: string, params: Record<string, string>): Promise<a
   return data
 }
 
+async function uploadVideoFromUrl(accountId: string, fileUrl: string, name: string): Promise<string> {
+  const data = await metaPost(`${accountId}/advideos`, {
+    name,
+    file_url: fileUrl,
+  })
+  return data.id
+}
+
 async function uploadVideo(accountId: string, bytes: Buffer, name: string): Promise<string> {
   const boundary = 'mv_' + Math.random().toString(36).slice(2)
   const body = Buffer.concat([
@@ -87,15 +95,17 @@ async function uploadImage(accountId: string, bytes: Buffer): Promise<string> {
 
 async function createAd(
   accountId: string, adSetId: string, pageId: string,
-  destinationUrl: string, adSpec: any, bytes: Buffer,
+  destinationUrl: string, adSpec: any, bytes: Buffer | null,
   cta: string, description: string, urlParams: string, igAccountId?: string, multiAdvertiser = true,
 ): Promise<{ adId: string; creativeId: string }> {
-  const { mimeType, fileName, headline, primaryText } = adSpec
+  const { mimeType, fileName, headline, primaryText, driveFileId } = adSpec
   const finalUrl = urlParams ? `${destinationUrl}${destinationUrl.includes('?') ? '&' : '?'}${urlParams}` : destinationUrl
 
   let storySpec: object
   if (isVideoMime(mimeType)) {
-    const videoId = await uploadVideo(accountId, bytes, fileName)
+    // Use Drive URL directly — avoids loading entire video into memory
+    const driveUrl = `https://drive.google.com/uc?export=download&id=${driveFileId}`
+    const videoId = await uploadVideoFromUrl(accountId, driveUrl, fileName)
     const videoData: any = {
       video_id: videoId,
       message: primaryText,
@@ -109,7 +119,7 @@ async function createAd(
       video_data: videoData,
     }
   } else {
-    const imageHash = await uploadImage(accountId, bytes)
+    const imageHash = await uploadImage(accountId, bytes!)
     const linkData: any = {
       message: primaryText,
       link: finalUrl,
@@ -240,15 +250,18 @@ export async function POST(req: NextRequest) {
 
       const setAdIds: string[] = []
       for (const adSpec of setSpec.ads || []) {
-        let bytes: Buffer
         try {
-          const dl = await downloadFile(adSpec.driveFileId)
-          bytes = dl.bytes
-        } catch (err: any) {
-          allCreatedAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, error: `Drive: ${err.message}` })
-          continue
-        }
-        try {
+          // Use Drive URL directly for videos — avoids downloading large files into memory
+          let bytes: Buffer | null = null
+          if (!adSpec.mimeType?.startsWith('video/')) {
+            try {
+              const dl = await downloadFile(adSpec.driveFileId)
+              bytes = dl.bytes
+            } catch (err: any) {
+              allCreatedAds.push({ ...adSpec, adSetIdx: setIdx, adSetId, error: `Drive: ${err.message}` })
+              continue
+            }
+          }
           const { adId, creativeId } = await createAd(
             accountId, adSetId, pageId, destinationUrl, adSpec, bytes,
             cta, adDescription, urlParams, igAccountId, multiAdvertiser,
