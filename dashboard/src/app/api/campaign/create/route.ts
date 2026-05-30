@@ -204,6 +204,7 @@ export async function POST(req: NextRequest) {
         optimization_goal: optGoal,
         targeting:         JSON.stringify(defaultTargeting),
         status:            'PAUSED',
+        destination_type:  'WEBSITE',
       }
 
       if (!isCBO) {
