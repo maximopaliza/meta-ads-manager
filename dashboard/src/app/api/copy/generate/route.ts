@@ -16,8 +16,8 @@ REGLAS ABSOLUTAS:
 - SIEMPRE usar: "apoya", "frena el deterioro", "protege", "nutre", "contribuye"
 - SIEMPRE cerrar con: 3 cuotas sin interés + Envío gratis a todo el país
 - Español rioplatense (Argentina) — natural, sin formalidades
-- primary_text: máx 125 caracteres — gancho emocional o dato concreto en la primera línea
-- headline: máx 40 caracteres — impacto directo, sin punto final
+- primary_text: máx 125 caracteres — gancho emocional o dato concreto en la primera línea, con emojis
+- headline: máx 40 caracteres — SIEMPRE terminar con "🚚 Envío gratis · 3 cuotas sin interés" O incluir eso en el texto. Usá emojis.
 
 Respondé ÚNICAMENTE con JSON (sin markdown, sin texto extra):
 {

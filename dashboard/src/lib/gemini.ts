@@ -195,7 +195,7 @@ TU TAREA
 ════════════════════════════════════════
 Analizá esta imagen (frame/thumbnail del creativo publicitario):
 1. Identificá el ángulo principal según los disponibles arriba
-2. Escribí el headline (MÁXIMO 40 caracteres, directo, sin punto final)
+2. Escribí el headline (MÁXIMO 40 caracteres, con emojis, incluir "🚚 Envío gratis" o "3 cuotas" si queda)
 3. Escribí el primary_text en español argentino coloquial, máximo 120 palabras, respetando TODAS las reglas de Meta
 4. Describí en 1 oración el público objetivo ideal
 5. Proponé targeting básico para Meta Ads API
