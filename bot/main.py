@@ -30,6 +30,7 @@ from bot.conversations.manage_campaigns import get_gestionar_handler, get_presup
 from bot.conversations.analyze_ads import get_analyze_ads_handler
 from bot.conversations.copy_manager import get_copy_manager_handler
 from scheduler import alerter
+from scheduler.escalafy_sync import run_escalafy_sync
 
 
 async def sync_job() -> None:
@@ -61,10 +62,30 @@ async def alerter_job() -> None:
     await alerter.run_alerter()
 
 
+async def escalafy_job() -> None:
+    try:
+        await run_escalafy_sync()
+        logger.info("Escalafy sync completed")
+    except Exception as e:
+        logger.error(f"Escalafy sync failed: {e}")
+
+
+async def campaign_uploader_job() -> None:
+    try:
+        from scheduler.campaign_uploader import process_pending_campaigns
+        await process_pending_campaigns(bot=app_ref)
+    except Exception as e:
+        logger.error(f"Campaign uploader failed: {e}")
+
+
+app_ref = None
+
 def main() -> None:
+    global app_ref
     token = os.environ["TELEGRAM_BOT_TOKEN"]
 
     app = Application.builder().token(token).build()
+    app_ref = app
     alerter.set_bot(app)
 
     app.add_handler(get_create_campaign_handler())
@@ -88,6 +109,9 @@ def main() -> None:
     scheduler.add_job(categorizer_job, IntervalTrigger(minutes=17, timezone=tz_arg), id="categorizer", replace_existing=True)
     # Análisis profundo una vez al día a las 23:00 Argentina
     scheduler.add_job(analysis_job, CronTrigger(hour=23, minute=0, timezone=tz_arg), id="analysis", replace_existing=True)
+    scheduler.add_job(campaign_uploader_job, IntervalTrigger(minutes=1, timezone=tz_arg), id="campaign_uploader", replace_existing=True)
+    # Escalafy: sync cada hora para tener rentabilidad actualizada
+    scheduler.add_job(escalafy_job, IntervalTrigger(minutes=60, timezone=tz_arg), id="escalafy", replace_existing=True)
 
     async def post_init(app):
         scheduler.start()

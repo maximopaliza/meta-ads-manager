@@ -373,9 +373,13 @@ export default function LanzarPage() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       addLog(`✅ Campaña creada: ${data.campaignId}`)
-      data.adSets?.forEach((s: any) => addLog(`✅ Conjunto: ${s.name} → ${s.adIds?.length || 0} ads`))
-      if (data.errors > 0) addLog(`⚠ ${data.errors} ads fallaron`)
-      addLog('Todo creado como BORRADOR.')
+      data.adSets?.forEach((s: any) => addLog(`✅ Conjunto: ${s.name} (${s.adCount} ads para subir)`))
+      if (data.queued) {
+        addLog('📲 El bot va a subir los videos ahora y te avisa por Telegram cuando estén listos.')
+      } else {
+        if (data.errors > 0) addLog(`⚠ ${data.errors} ads fallaron`)
+        addLog('Todo creado como BORRADOR.')
+      }
       setProgress(p => ({ ...p, status: 'done', draftId: data.draftId, errors: data.errors || 0 }))
     } catch (e: any) {
       setProgress(p => ({ ...p, status: 'error', log: [...p.log, '❌ ' + e.message] }))
