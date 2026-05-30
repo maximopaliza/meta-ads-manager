@@ -215,7 +215,11 @@ export async function POST(req: NextRequest) {
         }
       }
       if (startDateTime) {
-        asParams.start_time = String(Math.floor(new Date(startDateTime).getTime() / 1000))
+        const startTs = Math.floor(new Date(startDateTime).getTime() / 1000)
+        const nowTs = Math.floor(Date.now() / 1000)
+        if (startTs > nowTs + 300) {  // solo si es más de 5 min en el futuro
+          asParams.start_time = String(startTs)
+        }
       }
       if (endDateTime) {
         asParams.end_time = String(Math.floor(new Date(endDateTime).getTime() / 1000))
