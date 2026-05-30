@@ -221,7 +221,6 @@ export async function POST(req: NextRequest) {
       }
       if (optGoal === 'OFFSITE_CONVERSIONS' && pixelId && pixelEvent) {
         asParams.promoted_object = JSON.stringify({ pixel_id: pixelId, custom_event_type: pixelEvent.toUpperCase() })
-        asParams.attribution_spec = JSON.stringify([{ event_type: 'CLICK_THROUGH', window_days: 7 }, { event_type: 'VIEW_THROUGH', window_days: 1 }])
       }
 
       const asData  = await metaPost(`${accountId}/adsets`, asParams)
