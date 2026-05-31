@@ -135,19 +135,17 @@ def _meta_post(path: str, params: dict) -> dict:
 
 def _upload_video(account_id: str, file_bytes: bytes, name: str) -> str:
     import requests
-    token    = os.environ['META_ACCESS_TOKEN']
-    boundary = 'mv_boundary'
-    body = (
-        f'--{boundary}\r\nContent-Disposition: form-data; name="access_token"\r\n\r\n{token}\r\n'
-        f'--{boundary}\r\nContent-Disposition: form-data; name="name"\r\n\r\n{name}\r\n'
-        f'--{boundary}\r\nContent-Disposition: form-data; name="source"; filename="{name}"\r\nContent-Type: video/mp4\r\n\r\n'
-    ).encode() + file_bytes + f'\r\n--{boundary}--'.encode()
+    token = os.environ['META_ACCESS_TOKEN']
     resp = requests.post(
         f'https://graph.facebook.com/v21.0/{account_id}/advideos',
-        data=body,
-        headers={'Content-Type': f'multipart/form-data; boundary={boundary}'},
+        data={'access_token': token, 'name': name},
+        files={'source': (name, file_bytes, 'video/mp4')},
+        timeout=300,
     )
-    data = resp.json()
+    try:
+        data = resp.json()
+    except Exception:
+        raise Exception(f"Video upload failed: {resp.text[:200]}")
     if 'error' in data:
         raise Exception(data['error'].get('message', str(data['error'])))
     return data['id']
@@ -204,17 +202,23 @@ def _create_creative(account_id: str, name: str, story_spec: str) -> str:
 
 
 def _download_drive_file(file_id: str) -> bytes:
+    import requests as req_lib
+    token = os.environ['META_ACCESS_TOKEN']
+    # Use Google Drive API directly with service account
     from meta.drive_client import _get_service
+    from googleapiclient.http import MediaIoBaseDownload
+    from io import BytesIO
     service = _get_service()
     request = service.files().get_media(fileId=file_id)
-    from io import BytesIO
     buf = BytesIO()
-    from googleapiclient.http import MediaIoBaseDownload
-    dl = MediaIoBaseDownload(buf, request)
+    downloader = MediaIoBaseDownload(buf, request, chunksize=10*1024*1024)
     done = False
     while not done:
-        _, done = dl.next_chunk()
-    return buf.getvalue()
+        status, done = downloader.next_chunk()
+    data = buf.getvalue()
+    if not data:
+        raise Exception(f"Downloaded empty file for {file_id}")
+    return data
 
 
 def _create_ad(account_id: str, ad_set_id: str, name: str, creative_id: str) -> str:
