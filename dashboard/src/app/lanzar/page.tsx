@@ -193,6 +193,16 @@ export default function LanzarPage() {
     cta: 'SHOP_NOW', urlParams: '', dynamicCreative: false, adDescription: '', multiAdvertiser: true,
   })
 
+  // Step 1 bulk edit
+  const [bulkField, setBulkField]   = useState<'headline' | 'primaryText'>('headline')
+  const [bulkValue, setBulkValue]   = useState('')
+
+  function applyBulkEdit() {
+    if (!bulkValue.trim()) return
+    setAds(prev => prev.map(ad => ({ ...ad, [bulkField]: bulkValue })))
+    setBulkValue('')
+  }
+
   // Step 3 tabs
   const [configTab, setConfigTab] = useState<'campaign' | 'adset' | 'ad'>('campaign')
 
@@ -506,6 +516,27 @@ export default function LanzarPage() {
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <span style={{ fontSize: '12px', color: '#3A5270', alignSelf: 'center' }}>{ads.length} ads</span>
+                </div>
+              </div>
+
+              {/* Edición masiva */}
+              <div style={{ ...S.card, marginBottom: '16px', padding: '14px 16px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#3A5270', letterSpacing: '0.1em', marginBottom: '10px' }}>EDICIÓN MASIVA — aplicar a todos los ads</div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <select value={bulkField} onChange={e => setBulkField(e.target.value as any)} style={{ ...S.input, width: '160px', fontSize: '12px' }}>
+                    <option value="headline">Título</option>
+                    <option value="primaryText">Texto principal</option>
+                  </select>
+                  <input
+                    value={bulkValue}
+                    onChange={e => setBulkValue(e.target.value)}
+                    placeholder={bulkField === 'headline' ? 'Nuevo título para todos...' : 'Nuevo texto para todos...'}
+                    style={{ ...S.input, flex: 1, fontSize: '12px' }}
+                    onKeyDown={e => { if (e.key === 'Enter') applyBulkEdit() }}
+                  />
+                  <button onClick={applyBulkEdit} disabled={!bulkValue.trim()} style={{ ...S.btnPri, fontSize: '12px', padding: '8px 16px', opacity: bulkValue.trim() ? 1 : 0.4 }}>
+                    Aplicar a todos
+                  </button>
                 </div>
               </div>
 
