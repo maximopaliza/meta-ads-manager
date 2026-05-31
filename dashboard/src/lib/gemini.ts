@@ -163,7 +163,6 @@ REGLAS DE META ADS — CUMPLIMIENTO OBLIGATORIO
 - Cerrar SIEMPRE con: "3 cuotas sin interés + envío gratis a todo el país"
 - Mencionar el Estudio AREDS2 y el "68% menos riesgo" cuando sea relevante
 - Testimonios reales como prueba social
-- Garantía 60 días para reducir fricción de compra
 
 ════════════════════════════════════════
 ÁNGULOS DE COPY DISPONIBLES (elegí el más afín al creativo)
@@ -188,7 +187,7 @@ REGLAS DE META ADS — CUMPLIMIENTO OBLIGATORIO
 CIERRE OBLIGATORIO DEL PRIMARY TEXT
 ════════════════════════════════════════
 Siempre terminar con algo como:
-"📦 Envío gratis a todo el país · 3 cuotas sin interés · Garantía 60 días"
+"📦 Envío gratis a todo el país · 3 cuotas sin interés"
 
 ════════════════════════════════════════
 TU TAREA

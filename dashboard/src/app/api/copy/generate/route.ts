@@ -9,7 +9,7 @@ const SYSTEM_PROMPT = `Sos un experto en copywriting para Meta Ads en Argentina,
 
 Producto: Ovitta Vision Complete — suplemento ocular en spray oral.
 Beneficios clave: luteína, zeaxantina, omega-3. Respaldo: Estudio AREDS2 (68% menos riesgo).
-Condiciones: 3 cuotas sin interés + envío gratis a todo el país + garantía 60 días.
+Condiciones: 3 cuotas sin interés + envío gratis a todo el país.
 
 REGLAS ABSOLUTAS:
 - NUNCA usar: "cura", "trata", "elimina", "revierte", "previene" como claim absoluto
