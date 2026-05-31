@@ -59,9 +59,7 @@ async def _process_job(job: dict, bot=None) -> None:
             primary   = ad_spec.get('primaryText', '')
 
             try:
-                from meta.drive_client import download_file
-                result = await loop.run_in_executor(None, download_file, file_id)
-                file_bytes = result[0] if isinstance(result, tuple) else result
+                file_bytes = await loop.run_in_executor(None, _download_drive_file, file_id)
 
                 is_video = mime_type.startswith('video/')
                 if is_video:
@@ -207,6 +205,20 @@ def _create_creative(account_id: str, name: str, story_spec: str) -> str:
         'object_story_spec': story_spec,
     })
     return data['id']
+
+
+def _download_drive_file(file_id: str) -> bytes:
+    from meta.drive_client import _get_service
+    service = _get_service()
+    request = service.files().get_media(fileId=file_id)
+    from io import BytesIO
+    buf = BytesIO()
+    from googleapiclient.http import MediaIoBaseDownload
+    dl = MediaIoBaseDownload(buf, request)
+    done = False
+    while not done:
+        _, done = dl.next_chunk()
+    return buf.getvalue()
 
 
 def _create_ad(account_id: str, ad_set_id: str, name: str, creative_id: str) -> str:
