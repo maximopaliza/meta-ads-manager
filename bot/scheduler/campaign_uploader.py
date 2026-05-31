@@ -178,17 +178,30 @@ def _build_video_story(page_id, video_id, headline, primary, url, cta, descripti
     final_url = f"{url}{'&' if '?' in url else '?'}{url_params}" if url_params else url
     # Get thumbnail URL from Meta
     token = os.environ['META_ACCESS_TOKEN']
+    # Get thumbnail and upload as image to get hash
+    import requests as req_lib, base64
+    image_hash = None
     try:
-        import requests
-        r = requests.get(
+        r = req_lib.get(
             f'https://graph.facebook.com/v21.0/{video_id}/thumbnails',
-            params={'access_token': token},
-            timeout=30,
+            params={'access_token': token}, timeout=30,
         )
         thumbs = r.json().get('data', [])
-        image_url = thumbs[0]['uri'] if thumbs else None
-    except Exception:
-        image_url = None
+        if thumbs:
+            thumb_url = thumbs[0]['uri']
+            thumb_resp = req_lib.get(thumb_url, timeout=30)
+            if thumb_resp.ok:
+                img_b64 = base64.b64encode(thumb_resp.content).decode()
+                upload = req_lib.post(
+                    f'https://graph.facebook.com/v21.0/{account_id}/adimages',
+                    data={'access_token': token, 'bytes': img_b64},
+                    timeout=30,
+                )
+                images = list(upload.json().get('images', {}).values())
+                if images:
+                    image_hash = images[0]['hash']
+    except Exception as e:
+        logger.warning(f"  [Thumbnail] {e}")
 
     video_data = {
         'video_id': video_id,
@@ -197,8 +210,8 @@ def _build_video_story(page_id, video_id, headline, primary, url, cta, descripti
         'link_description': description or headline,
         'call_to_action': {'type': cta or 'SHOP_NOW', 'value': {'link': final_url}},
     }
-    if image_url:
-        video_data['image_url'] = image_url
+    if image_hash:
+        video_data['image_hash'] = image_hash
 
     spec = {'page_id': page_id, 'video_data': video_data}
     return json.dumps(spec)
