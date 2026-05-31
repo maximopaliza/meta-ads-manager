@@ -135,26 +135,23 @@ def _meta_post(path: str, params: dict) -> dict:
 
 
 def _upload_video(account_id: str, file_bytes: bytes, name: str) -> str:
-    import requests
-    token = os.environ['META_ACCESS_TOKEN']
+    import tempfile
     logger.info(f"  [Video upload] {name} - {len(file_bytes)} bytes")
-    resp = requests.post(
-        f'https://graph.facebook.com/v21.0/{account_id}/advideos',
-        data={'access_token': token, 'name': name},
-        files={'source': (name, file_bytes, 'video/mp4')},
-        timeout=300,
-    )
-    logger.info(f"  [Video upload] status={resp.status_code} response={resp.text[:300]}")
+    # Write to temp file and use Facebook SDK (same as campaign_builder.py)
+    suffix = '.mp4' if not name.lower().endswith('.mp4') else ''
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
     try:
-        data = resp.json()
-    except Exception:
-        raise Exception(f"Video upload failed: {resp.text[:200]}")
-    if 'error' in data:
-        raise Exception(data['error'].get('message', str(data['error'])))
-    if 'id' not in data:
-        raise Exception(f"No video ID returned: {resp.text[:200]}")
-    logger.info(f"  [Video upload] OK - id={data['id']}")
-    return data['id']
+        from meta.campaign_builder import upload_video
+        video_id = upload_video(tmp_path, account_id)
+        logger.info(f"  [Video upload] OK - id={video_id}")
+        return video_id
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
 
 
 def _upload_image(account_id: str, file_bytes: bytes) -> str:
