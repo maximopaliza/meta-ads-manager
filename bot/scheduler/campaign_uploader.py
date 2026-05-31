@@ -178,8 +178,8 @@ def _build_video_story(page_id, video_id, headline, primary, url, cta, descripti
     final_url = f"{url}{'&' if '?' in url else '?'}{url_params}" if url_params else url
     # Get thumbnail URL from Meta
     token = os.environ['META_ACCESS_TOKEN']
-    # Get thumbnail and upload as image to get hash
-    import requests as req_lib, base64
+    # Get thumbnail and upload as image to get hash (multipart)
+    import requests as req_lib
     image_hash = None
     try:
         r = req_lib.get(
@@ -191,15 +191,16 @@ def _build_video_story(page_id, video_id, headline, primary, url, cta, descripti
             thumb_url = thumbs[0]['uri']
             thumb_resp = req_lib.get(thumb_url, timeout=30)
             if thumb_resp.ok:
-                img_b64 = base64.b64encode(thumb_resp.content).decode()
                 upload = req_lib.post(
                     f'https://graph.facebook.com/v21.0/{account_id}/adimages',
-                    data={'access_token': token, 'bytes': img_b64},
+                    data={'access_token': token},
+                    files={'filename': ('thumb.jpg', thumb_resp.content, 'image/jpeg')},
                     timeout=30,
                 )
                 images = list(upload.json().get('images', {}).values())
                 if images:
                     image_hash = images[0]['hash']
+                    logger.info(f"  [Thumbnail] hash={image_hash}")
     except Exception as e:
         logger.warning(f"  [Thumbnail] {e}")
 
