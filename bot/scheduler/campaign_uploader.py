@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 async def process_pending_campaigns(bot=None) -> None:
     try:
         sb = get_client()
-        res = sb.table('campaign_drafts').select('*').in_('status', ['pending_bot', 'partial_error']).execute()
+        res = sb.table('campaign_drafts').select('*').in_('status', ['pending_bot']).execute()
         jobs = res.data or []
         if not jobs:
             return
