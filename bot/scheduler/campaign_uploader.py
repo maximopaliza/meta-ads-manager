@@ -95,7 +95,8 @@ async def _process_job(job: dict, bot=None) -> None:
                     pass
 
             except Exception as e:
-                logger.error(f"  [Ad ERROR] {file_name}: {e}")
+                import traceback
+                logger.error(f"  [Ad ERROR] {file_name}: {e}\n{traceback.format_exc()}")
                 error_count += 1
                 errors.append(f"{file_name}: {str(e)[:80]}")
 
@@ -136,18 +137,23 @@ def _meta_post(path: str, params: dict) -> dict:
 def _upload_video(account_id: str, file_bytes: bytes, name: str) -> str:
     import requests
     token = os.environ['META_ACCESS_TOKEN']
+    logger.info(f"  [Video upload] {name} - {len(file_bytes)} bytes")
     resp = requests.post(
         f'https://graph.facebook.com/v21.0/{account_id}/advideos',
         data={'access_token': token, 'name': name},
         files={'source': (name, file_bytes, 'video/mp4')},
         timeout=300,
     )
+    logger.info(f"  [Video upload] status={resp.status_code} response={resp.text[:300]}")
     try:
         data = resp.json()
     except Exception:
         raise Exception(f"Video upload failed: {resp.text[:200]}")
     if 'error' in data:
         raise Exception(data['error'].get('message', str(data['error'])))
+    if 'id' not in data:
+        raise Exception(f"No video ID returned: {resp.text[:200]}")
+    logger.info(f"  [Video upload] OK - id={data['id']}")
     return data['id']
 
 
