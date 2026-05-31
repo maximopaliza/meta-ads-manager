@@ -113,7 +113,7 @@ def main() -> None:
     scheduler.add_job(categorizer_job, IntervalTrigger(minutes=17, timezone=tz_arg), id="categorizer", replace_existing=True)
     # Análisis profundo una vez al día a las 23:00 Argentina
     scheduler.add_job(analysis_job, CronTrigger(hour=23, minute=0, timezone=tz_arg), id="analysis", replace_existing=True)
-    scheduler.add_job(campaign_uploader_job, IntervalTrigger(minutes=1, timezone=tz_arg), id="campaign_uploader", replace_existing=True)
+    scheduler.add_job(campaign_uploader_job, IntervalTrigger(minutes=1, timezone=tz_arg), id="campaign_uploader", replace_existing=True, next_run_time=__import__('datetime').datetime.now(tz_arg))
     # Escalafy: sync cada hora para tener rentabilidad actualizada
     scheduler.add_job(escalafy_job, IntervalTrigger(minutes=60, timezone=tz_arg), id="escalafy", replace_existing=True)
 
