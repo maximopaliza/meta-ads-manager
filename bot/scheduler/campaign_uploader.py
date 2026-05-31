@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 async def process_pending_campaigns(bot=None) -> None:
     try:
         sb = get_client()
-        res = sb.table('campaign_drafts').select('*').eq('status', 'pending_bot').execute()
+        res = sb.table('campaign_drafts').select('*').in_('status', ['pending_bot', 'partial_error']).execute()
         jobs = res.data or []
         if not jobs:
             return
@@ -175,8 +175,6 @@ def _build_video_story(page_id, video_id, headline, primary, url, cta, descripti
             'call_to_action': {'type': cta or 'SHOP_NOW', 'value': {'link': final_url}},
         },
     }
-    if ig_id:
-        spec['instagram_actor_id'] = ig_id
     return json.dumps(spec)
 
 
@@ -194,8 +192,6 @@ def _build_image_story(page_id, image_hash, headline, primary, url, cta, descrip
             'call_to_action': {'type': cta or 'SHOP_NOW', 'value': {'link': final_url}},
         },
     }
-    if ig_id:
-        spec['instagram_actor_id'] = ig_id
     return json.dumps(spec)
 
 
