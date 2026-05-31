@@ -126,15 +126,13 @@ def main() -> None:
     scheduler.add_job(categorizer_job, IntervalTrigger(minutes=17, timezone=tz_arg), id="categorizer", replace_existing=True)
     # Análisis profundo una vez al día a las 23:00 Argentina
     scheduler.add_job(analysis_job, CronTrigger(hour=23, minute=0, timezone=tz_arg), id="analysis", replace_existing=True)
-    scheduler.add_job(campaign_uploader_job, IntervalTrigger(minutes=1, timezone=tz_arg), id="campaign_uploader", replace_existing=True, next_run_time=__import__('datetime').datetime.now(tz_arg))
+    scheduler.add_job(campaign_uploader_job, IntervalTrigger(minutes=2, timezone=tz_arg), id="campaign_uploader", replace_existing=True, max_instances=1, next_run_time=__import__('datetime').datetime.now(tz_arg))
     # Escalafy: sync cada hora para tener rentabilidad actualizada
     scheduler.add_job(escalafy_job, IntervalTrigger(minutes=60, timezone=tz_arg), id="escalafy", replace_existing=True)
 
     async def post_init(app):
         scheduler.start()
         logger.info("Scheduler started")
-        import asyncio
-        asyncio.get_event_loop().create_task(_run_uploader_loop())
         await sync_job()
 
     async def post_shutdown(app):
