@@ -84,6 +84,19 @@ async def campaign_uploader_job() -> None:
 
 app_ref = None
 
+
+async def _run_uploader_loop() -> None:
+    """Corre el uploader cada 60s independiente del scheduler."""
+    import asyncio
+    while True:
+        try:
+            from scheduler.campaign_uploader import process_pending_campaigns
+            await process_pending_campaigns(bot=app_ref)
+        except Exception as e:
+            logger.error(f"Uploader loop error: {e}")
+        await asyncio.sleep(60)
+
+
 def main() -> None:
     global app_ref
     token = os.environ["TELEGRAM_BOT_TOKEN"]
@@ -120,6 +133,8 @@ def main() -> None:
     async def post_init(app):
         scheduler.start()
         logger.info("Scheduler started")
+        import asyncio
+        asyncio.get_event_loop().create_task(_run_uploader_loop())
         await sync_job()
 
     async def post_shutdown(app):
