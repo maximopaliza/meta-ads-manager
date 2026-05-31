@@ -133,6 +133,8 @@ def main() -> None:
     async def post_init(app):
         scheduler.start()
         logger.info("Scheduler started")
+        # Run uploader first before sync
+        await campaign_uploader_job()
         await sync_job()
 
     async def post_shutdown(app):
