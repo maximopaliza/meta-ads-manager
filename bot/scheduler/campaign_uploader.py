@@ -166,16 +166,31 @@ def _upload_image(account_id: str, file_bytes: bytes) -> str:
 def _build_video_story(page_id, video_id, headline, primary, url, cta, description, url_params, ig_id):
     import json
     final_url = f"{url}{'&' if '?' in url else '?'}{url_params}" if url_params else url
-    spec = {
-        'page_id': page_id,
-        'video_data': {
-            'video_id': video_id,
-            'message': primary,
-            'title': headline,
-            'link_description': description or headline,
-            'call_to_action': {'type': cta or 'SHOP_NOW', 'value': {'link': final_url}},
-        },
+    # Get thumbnail URL from Meta
+    token = os.environ['META_ACCESS_TOKEN']
+    try:
+        import requests
+        r = requests.get(
+            f'https://graph.facebook.com/v21.0/{video_id}/thumbnails',
+            params={'access_token': token},
+            timeout=30,
+        )
+        thumbs = r.json().get('data', [])
+        image_url = thumbs[0]['uri'] if thumbs else None
+    except Exception:
+        image_url = None
+
+    video_data = {
+        'video_id': video_id,
+        'message': primary,
+        'title': headline,
+        'link_description': description or headline,
+        'call_to_action': {'type': cta or 'SHOP_NOW', 'value': {'link': final_url}},
     }
+    if image_url:
+        video_data['image_url'] = image_url
+
+    spec = {'page_id': page_id, 'video_data': video_data}
     return json.dumps(spec)
 
 
